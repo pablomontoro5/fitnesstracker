@@ -18,6 +18,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.on_event("startup")
+def startup() -> None:
+    initialize_database()
 
 @app.get("/health", tags=["system"])
 def health_check() -> dict[str, str]:
