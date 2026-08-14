@@ -3,7 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.db import initialize_database
-from app.routers import (body_metrics, daily_logs, workout_exercises, workout_sessions,workout_sets)
+from app.routers import (
+    body_metrics, 
+    daily_logs, 
+    workout_progress, 
+    workout_exercises, 
+    workout_sessions,
+    workout_sets
+)
 
 
 @asynccontextmanager
@@ -24,6 +31,8 @@ app.include_router(body_metrics.router)
 app.include_router(workout_sessions.router)
 app.include_router(workout_exercises.router)
 app.include_router(workout_sets.router)
+app.include_router(workout_progress.router)
+
 @app.get("/health", tags=["system"])
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
