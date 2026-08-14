@@ -187,3 +187,48 @@ def test_invalid_set_type_is_rejected():
         )
 
     assert response.status_code == 422
+
+def test_negative_rir_is_accepted():
+    with TestClient(app) as client:
+        exercise_id = create_exercise(client)
+        existing_sets_response = client.get(
+            f"/workout-exercises/{exercise_id}/sets/"
+        )
+
+        assert existing_sets_response.status_code == 200
+        assert existing_sets_response.json() == []
+        response = client.post(
+            f"/workout-exercises/{exercise_id}/sets/",
+            json={
+                "set_type": "working",
+                "position": 10,
+                "target_rep_range": "8-12",
+                "repetitions": 8,
+                "weight_kg": 30,
+                "rir": -1,
+                "notes": "Fallo concéntrico con una repetición parcial.",
+            },
+        )
+
+    assert response.status_code == 201, response.json()
+    assert response.json()["rir"] == -1
+
+
+def test_rir_below_negative_three_is_rejected():
+    with TestClient(app) as client:
+        exercise_id = create_exercise(client)
+
+        response = client.post(
+            f"/workout-exercises/{exercise_id}/sets/",
+            json={
+                "set_type": "drop_set",
+                "position": 1,
+                "target_rep_range": None,
+                "repetitions": 8,
+                "weight_kg": 20,
+                "rir": -3.5,
+                "notes": None,
+            },
+        )
+
+    assert response.status_code == 422

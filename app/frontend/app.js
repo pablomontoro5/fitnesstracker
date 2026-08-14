@@ -370,11 +370,13 @@ function buildSetPayload(pendingSet, position) {
   if (
     rirValue !== "" &&
     (!Number.isFinite(Number(rirValue)) ||
-      Number(rirValue) < 0 ||
-      Number(rirValue) > 10)
-  ) {
-    throw new Error(`El RIR de la serie ${position} debe estar entre 0 y 10.`);
-  }
+        Number(rirValue) < -3 ||
+        Number(rirValue) > 10)
+    ) {
+    throw new Error(
+        `El RIR de la serie ${position} debe estar entre -3 y 10.`,
+    );
+    }
 
   return {
     set_type: pendingSet.set_type,

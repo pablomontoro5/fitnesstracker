@@ -98,11 +98,18 @@ def create_workout_set(
             ).fetchone()
 
     except sqlite3.IntegrityError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe una serie en esa posición para este ejercicio.",
-        ) from error
+        error_message = str(error)
 
+        if "workout_sets.workout_exercise_id, workout_sets.position" in error_message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe una serie en esa posición para este ejercicio.",
+            ) from error
+
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"No se pudo guardar la serie: {error_message}",
+        ) from error
     return row_to_workout_set(row)
 
 
