@@ -57,3 +57,21 @@ def initialize_database() -> None:
             )
             """
         )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_exercises (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workout_session_id INTEGER NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                muscle_group TEXT NOT NULL CHECK (length(trim(muscle_group)) > 0),
+                position INTEGER NOT NULL CHECK (position > 0),
+                technique_notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (workout_session_id)
+                    REFERENCES workout_sessions(id)
+                    ON DELETE CASCADE,
+                UNIQUE (workout_session_id, position)
+            )
+            """
+        )
