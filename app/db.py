@@ -12,6 +12,7 @@ def get_connection() -> sqlite3.Connection:
 
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON;")
 
     return connection
 
@@ -39,6 +40,18 @@ def initialize_database() -> None:
                 weight_kg REAL NOT NULL CHECK (weight_kg > 0),
                 height_cm REAL NOT NULL CHECK (height_cm > 0),
                 bmi REAL NOT NULL CHECK (bmi > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
                 notes TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )

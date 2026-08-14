@@ -7,7 +7,11 @@ def test_create_body_metric_calculates_bmi():
     log_date = "2026-08-14"
 
     with TestClient(app) as client:
-        client.delete("/body-metrics/1")
+        existing_metrics = client.get("/body-metrics/").json()
+
+        for metric in existing_metrics:
+            if metric["date"] == log_date:
+                client.delete(f"/body-metrics/{metric['id']}")
 
         response = client.post(
             "/body-metrics/",
@@ -25,11 +29,16 @@ def test_create_body_metric_calculates_bmi():
     assert response.json()["bmi"] == 24.69
     assert response.json()["notes"] == "Medición inicial."
 
-
 def test_list_body_metrics():
     log_date = "2026-08-15"
 
     with TestClient(app) as client:
+        existing_metrics = client.get("/body-metrics/").json()
+
+        for metric in existing_metrics:
+            if metric["date"] == log_date:
+                client.delete(f"/body-metrics/{metric['id']}")
+
         client.post(
             "/body-metrics/",
             json={
@@ -44,7 +53,6 @@ def test_list_body_metrics():
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
-
 
 def test_invalid_body_metric_is_rejected():
     with TestClient(app) as client:

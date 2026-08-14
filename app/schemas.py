@@ -31,3 +31,15 @@ class BodyMetricResponse(BaseModel):
     height_cm: float
     bmi: float
     notes: str | None
+
+class WorkoutSessionCreate(BaseModel):
+    date: date
+    name: str = Field(min_length=1, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutSessionResponse(BaseModel):
+    id: int
+    date: date
+    name: str
+    notes: str | None
