@@ -128,7 +128,7 @@ Los routers mantienen los endpoints separados por dominio. Los servicios alojan 
 | `workout_templates` | `id`, `name`, `description` |
 | `exercise_templates` | `id`, `workout_template_id`, `name`, `muscle_group`, `position`, `technique_notes` |
 | `workout_sessions` | `id`, `date`, `name`, `notes` |
-| `workout_exercises` | `id`, `workout_session_id`, `exercise_name`, `muscle_group`, `position` |
+| `workout_exercises` | `id`, `workout_session_id`, `exercise_name`, `muscle_group`, `position`, `technique_notes` |
 | `workout_sets` | `id`, `workout_exercise_id`, `set_type`, `target_rep_range`, `repetitions`, `weight_kg`, `rir`, `notes` |
 | `runs` | `id`, `date`, `distance_km`, `duration_seconds`, `average_pace_seconds_km`, `notes`, `route_data` |
 | `meals` | `id`, `date`, `meal_type`, `name`, `calories`, `protein_g`, `carbs_g`, `fat_g` |
@@ -182,10 +182,12 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 
 - [x] Crear proyecto FastAPI, SQLite e inicialización de tablas.
 - [x] Añadir registro diario de pasos.
-- [~] Implementar sesiones de gimnasio.
+- [x] Crear, consultar y eliminar sesiones de gimnasio.
 - [x] Añadir ejercicios ordenados dentro de una sesión.
-- [ ] Añadir series de gimnasio con tipo, repeticiones, carga y RIR.
+- [x] Añadir series con tipo, rango objetivo, repeticiones, carga, RIR y notas.
+- [x] Calcular volumen básico por serie.
 - [x] Implementar registro de peso, altura e IMC.
+- [ ] Consultar progreso básico por ejercicio.
 - [ ] Crear frontend mínimo con navegación y formularios.
 - [~] Añadir pruebas de endpoints y cálculos.
 
@@ -266,14 +268,14 @@ python -m pytest
 
 ## Próximo incremento recomendado
 
-El primer corte vertical implementará un flujo completo de gimnasio:
+El siguiente corte vertical añadirá progreso básico por ejercicio:
 
-1. Crear una sesión `Empujes`.
-2. Añadir un ejercicio, por ejemplo `Press inclinado con mancuernas`.
-3. Añadir sus series de aproximación y trabajo, con repeticiones, carga y RIR.
-4. Consultar la sesión en el frontend y calcular su volumen total.
+1. Filtrar series de trabajo por nombre de ejercicio.
+2. Mostrar fecha de sesión, carga, repeticiones, RIR y volumen de cada serie.
+3. Calcular volumen total por entrenamiento para ese ejercicio.
+4. Permitir detectar evolución de carga, repeticiones y volumen entre sesiones.
 
-Este flujo valida base de datos, API, validación, interfaz y la estructura necesaria para extender después a pasos, running, comidas y métricas corporales.
+Este incremento reutiliza los datos existentes de sesiones, ejercicios y series, sin crear nuevas tablas.
 
 ---
 
