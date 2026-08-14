@@ -1,5 +1,6 @@
 from datetime import date
 from pydantic import BaseModel, Field
+from typing import Literal 
 
 class DailyLogCreate(BaseModel):
     date: date
@@ -58,3 +59,25 @@ class WorkoutExerciseResponse(BaseModel):
     muscle_group: str
     position: int
     technique_notes: str | None
+
+class WorkoutSetCreate(BaseModel):
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int = Field(ge=1, le=100)
+    target_rep_range: str | None = Field(default=None, max_length=30)
+    repetitions: int = Field(gt=0, le=1000)
+    weight_kg: float = Field(ge=0, le=1000)
+    rir: float | None = Field(default=None, ge=0, le=10)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutSetResponse(BaseModel):
+    id: int
+    workout_exercise_id: int
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int
+    target_rep_range: str | None
+    repetitions: int
+    weight_kg: float
+    rir: float | None
+    notes: str | None
+    volume_kg: float
