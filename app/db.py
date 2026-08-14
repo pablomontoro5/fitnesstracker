@@ -75,3 +75,26 @@ def initialize_database() -> None:
             )
             """
         )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_sets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workout_exercise_id INTEGER NOT NULL,
+                set_type TEXT NOT NULL CHECK (
+                    set_type IN ('warmup', 'approximation', 'working', 'drop_set')
+                ),
+                position INTEGER NOT NULL CHECK (position > 0),
+                target_rep_range TEXT,
+                repetitions INTEGER NOT NULL CHECK (repetitions > 0),
+                weight_kg REAL NOT NULL CHECK (weight_kg >= 0),
+                rir REAL CHECK (rir >= 0 AND rir <= 10),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (workout_exercise_id)
+                    REFERENCES workout_exercises(id)
+                    ON DELETE CASCADE,
+                UNIQUE (workout_exercise_id, position)
+            )
+            """
+        )
