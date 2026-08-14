@@ -66,7 +66,7 @@ class WorkoutSetCreate(BaseModel):
     target_rep_range: str | None = Field(default=None, max_length=30)
     repetitions: int = Field(gt=0, le=1000)
     weight_kg: float = Field(ge=0, le=1000)
-    rir: float | None = Field(default=None, ge=0, le=10)
+    rir: float | None = Field(default=None, ge=-3, le=10)
     notes: str | None = Field(default=None, max_length=1000)
 
 

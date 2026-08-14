@@ -88,7 +88,7 @@ def initialize_database() -> None:
                 target_rep_range TEXT,
                 repetitions INTEGER NOT NULL CHECK (repetitions > 0),
                 weight_kg REAL NOT NULL CHECK (weight_kg >= 0),
-                rir REAL CHECK (rir >= 0 AND rir <= 10),
+                rir REAL CHECK (rir >= -3 AND rir <= 10),
                 notes TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (workout_exercise_id)
