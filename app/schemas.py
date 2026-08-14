@@ -81,3 +81,24 @@ class WorkoutSetResponse(BaseModel):
     rir: float | None
     notes: str | None
     volume_kg: float
+
+class WorkoutProgressSetResponse(BaseModel):
+    id: int
+    position: int
+    repetitions: int
+    weight_kg: float
+    rir: float | None
+    volume_kg: float
+
+
+class WorkoutProgressSessionResponse(BaseModel):
+    session_id: int
+    session_name: str
+    date: date
+    total_volume_kg: float
+    sets: list[WorkoutProgressSetResponse]
+
+
+class WorkoutProgressResponse(BaseModel):
+    exercise_name: str
+    sessions: list[WorkoutProgressSessionResponse]
