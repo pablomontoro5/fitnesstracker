@@ -4,6 +4,7 @@ const state = {
   exercises: [],
   selectedExercise: null,
   sets: [],
+  pendingSets: [],
 };
 
 const elements = {
@@ -24,7 +25,10 @@ const elements = {
   exerciseEmptyState: document.querySelector("#exercise-empty-state"),
   exerciseDetailContent: document.querySelector("#exercise-detail-content"),
   deleteExerciseButton: document.querySelector("#delete-exercise-button"),
-  setForm: document.querySelector("#set-form"),
+  pendingSetsList: document.querySelector("#pending-sets-list"),
+  pendingSetCount: document.querySelector("#pending-set-count"),
+  addSetRowButton: document.querySelector("#add-set-row-button"),
+  savePendingSetsButton: document.querySelector("#save-pending-sets-button"),
   setsList: document.querySelector("#sets-list"),
   setCount: document.querySelector("#set-count"),
   progressForm: document.querySelector("#progress-form"),
@@ -101,6 +105,7 @@ function setListEmpty(container, message) {
 function resetSelectedExercise() {
   state.selectedExercise = null;
   state.sets = [];
+  state.pendingSets = [];
   elements.selectedExerciseTitle.textContent = "Selecciona un ejercicio";
   elements.exerciseEmptyState.classList.remove("hidden");
   elements.exerciseDetailContent.classList.add("hidden");
@@ -191,6 +196,237 @@ function setTypeLabel(setType) {
   return labels[setType] || setType;
 }
 
+function createPendingSet() {
+  return {
+    set_type: "working",
+    target_rep_range: "",
+    repetitions: "",
+    weight_kg: "",
+    rir: "",
+    notes: "",
+  };
+}
+
+
+function resetPendingSets() {
+  state.pendingSets = [createPendingSet()];
+  renderPendingSets();
+}
+
+
+function renderPendingSets() {
+  elements.pendingSetsList.innerHTML = "";
+
+  state.pendingSets.forEach((pendingSet, index) => {
+    const row = document.createElement("article");
+    row.className = "pending-set-row";
+
+    row.innerHTML = `
+      <span class="pending-set-number">Serie ${index + 1}</span>
+
+      <label>
+        Tipo
+        <select data-field="set_type">
+          <option value="warmup">Calentamiento</option>
+          <option value="approximation">Aproximación</option>
+          <option value="working">Trabajo</option>
+          <option value="drop_set">Drop set</option>
+        </select>
+      </label>
+
+      <label>
+        Objetivo
+        <input
+          data-field="target_rep_range"
+          type="text"
+          maxlength="30"
+          placeholder="Ej.: 8-12"
+        />
+      </label>
+
+      <label>
+        Reps
+        <input
+          data-field="repetitions"
+          type="number"
+          min="1"
+          max="1000"
+          required
+        />
+      </label>
+
+      <label>
+        Carga kg
+        <input
+          data-field="weight_kg"
+          type="number"
+          min="0"
+          max="1000"
+          step="0.5"
+          required
+        />
+      </label>
+
+      <label>
+        RIR
+        <input
+          data-field="rir"
+          type="number"
+          min="0"
+          max="10"
+          step="0.5"
+          placeholder="—"
+        />
+      </label>
+
+      <label>
+        Notas
+        <input
+          data-field="notes"
+          type="text"
+          maxlength="1000"
+          placeholder="Opcional"
+        />
+      </label>
+
+      <button
+        class="remove-set-row-button"
+        type="button"
+        title="Quitar esta serie"
+      >
+        Quitar
+      </button>
+    `;
+
+    const select = row.querySelector('[data-field="set_type"]');
+    select.value = pendingSet.set_type;
+
+    row.querySelector('[data-field="target_rep_range"]').value =
+      pendingSet.target_rep_range;
+    row.querySelector('[data-field="repetitions"]').value =
+      pendingSet.repetitions;
+    row.querySelector('[data-field="weight_kg"]').value =
+      pendingSet.weight_kg;
+    row.querySelector('[data-field="rir"]').value = pendingSet.rir;
+    row.querySelector('[data-field="notes"]').value = pendingSet.notes;
+
+    row.querySelectorAll("[data-field]").forEach((field) => {
+      field.addEventListener("input", () => {
+        state.pendingSets[index][field.dataset.field] = field.value;
+      });
+
+      field.addEventListener("change", () => {
+        state.pendingSets[index][field.dataset.field] = field.value;
+      });
+    });
+
+    row.querySelector(".remove-set-row-button").addEventListener("click", () => {
+      if (state.pendingSets.length === 1) {
+        showStatus("Debe quedar al menos una serie pendiente.", "error");
+        return;
+      }
+
+      state.pendingSets.splice(index, 1);
+      renderPendingSets();
+    });
+
+    elements.pendingSetsList.append(row);
+  });
+
+  const pendingCount = state.pendingSets.length;
+  elements.pendingSetCount.textContent = String(pendingCount);
+  elements.savePendingSetsButton.textContent =
+    `Guardar ${pendingCount} ${pendingCount === 1 ? "serie" : "series"}`;
+}
+
+
+function addPendingSetRow() {
+  const lastSet = state.pendingSets.at(-1);
+
+  state.pendingSets.push({
+    ...createPendingSet(),
+    set_type: lastSet?.set_type || "working",
+    target_rep_range: lastSet?.target_rep_range || "",
+    weight_kg: lastSet?.weight_kg || "",
+  });
+
+  renderPendingSets();
+}
+
+
+function buildSetPayload(pendingSet, position) {
+  const repetitions = Number(pendingSet.repetitions);
+  const weightKg = Number(pendingSet.weight_kg);
+  const rirValue = pendingSet.rir.trim();
+
+  if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 1000) {
+    throw new Error(`La serie ${position} necesita un número válido de repeticiones.`);
+  }
+
+  if (!Number.isFinite(weightKg) || weightKg < 0 || weightKg > 1000) {
+    throw new Error(`La serie ${position} necesita una carga válida.`);
+  }
+
+  if (
+    rirValue !== "" &&
+    (!Number.isFinite(Number(rirValue)) ||
+      Number(rirValue) < 0 ||
+      Number(rirValue) > 10)
+  ) {
+    throw new Error(`El RIR de la serie ${position} debe estar entre 0 y 10.`);
+  }
+
+  return {
+    set_type: pendingSet.set_type,
+    position,
+    target_rep_range: emptyToNull(pendingSet.target_rep_range),
+    repetitions,
+    weight_kg: weightKg,
+    rir: rirValue === "" ? null : Number(rirValue),
+    notes: emptyToNull(pendingSet.notes),
+  };
+}
+
+
+async function handleSavePendingSets() {
+  if (!state.selectedExercise) {
+    return;
+  }
+
+  try {
+    const payloads = state.pendingSets.map((pendingSet, index) =>
+      buildSetPayload(pendingSet, state.sets.length + index + 1),
+    );
+
+    elements.savePendingSetsButton.disabled = true;
+    elements.addSetRowButton.disabled = true;
+    elements.savePendingSetsButton.textContent = "Guardando…";
+
+    for (const payload of payloads) {
+      await request(
+        `/workout-exercises/${state.selectedExercise.id}/sets/`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+    }
+
+    showStatus(
+      `${payloads.length} ${payloads.length === 1 ? "serie guardada" : "series guardadas"}.`,
+    );
+
+    await loadSets(state.selectedExercise.id);
+    resetPendingSets();
+  } catch (error) {
+    showStatus(error.message, "error");
+  } finally {
+    elements.savePendingSetsButton.disabled = false;
+    elements.addSetRowButton.disabled = false;
+    renderPendingSets();
+  }
+}
+
 function renderSets() {
   elements.setCount.textContent = String(state.sets.length);
   elements.setsList.innerHTML = "";
@@ -274,9 +510,7 @@ async function selectExercise(exercise) {
   elements.exerciseEmptyState.classList.add("hidden");
   elements.exerciseDetailContent.classList.remove("hidden");
   elements.deleteExerciseButton.classList.remove("hidden");
-  elements.setForm.reset();
-  elements.setForm.elements.set_type.value = "working";
-  elements.setForm.elements.position.value = "1";
+  resetPendingSets();
   renderExercises();
 
   try {
@@ -338,43 +572,6 @@ async function handleCreateExercise(event) {
     showStatus(`Ejercicio “${exercise.name}” añadido.`);
     await loadExercises(state.selectedSession.id);
     await selectExercise(exercise);
-  } catch (error) {
-    showStatus(error.message, "error");
-  }
-}
-
-async function handleCreateSet(event) {
-  event.preventDefault();
-
-  if (!state.selectedExercise) {
-    return;
-  }
-
-  const formData = new FormData(elements.setForm);
-  const rirValue = formData.get("rir").trim();
-
-  try {
-    const set = await request(
-      `/workout-exercises/${state.selectedExercise.id}/sets/`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          set_type: formData.get("set_type"),
-          position: Number(formData.get("position")),
-          target_rep_range: emptyToNull(formData.get("target_rep_range")),
-          repetitions: Number(formData.get("repetitions")),
-          weight_kg: Number(formData.get("weight_kg")),
-          rir: rirValue === "" ? null : Number(rirValue),
-          notes: emptyToNull(formData.get("notes")),
-        }),
-      },
-    );
-
-    elements.setForm.reset();
-    elements.setForm.elements.set_type.value = "working";
-    elements.setForm.elements.position.value = String(set.position + 1);
-    showStatus(`Serie ${set.position} añadida: ${formatNumber(set.volume_kg)} kg de volumen.`);
-    await loadSets(state.selectedExercise.id);
   } catch (error) {
     showStatus(error.message, "error");
   }
@@ -485,7 +682,8 @@ async function handleProgressSearch(event) {
 function configureEventListeners() {
   elements.sessionForm.addEventListener("submit", handleCreateSession);
   elements.exerciseForm.addEventListener("submit", handleCreateExercise);
-  elements.setForm.addEventListener("submit", handleCreateSet);
+  elements.addSetRowButton.addEventListener("click", addPendingSetRow);
+  elements.savePendingSetsButton.addEventListener("click", handleSavePendingSets);
   elements.progressForm.addEventListener("submit", handleProgressSearch);
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
