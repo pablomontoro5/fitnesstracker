@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: registro e historial de pasos diarios."
+  />
+  <title>Pasos diarios · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Pasos diarios</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/">← Volver al inicio</a>
+
+    <section class="panel daily-steps-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Actividad diaria</p>
+          <h2>Pasos diarios</h2>
+        </div>
+
+        <span id="daily-log-mode" class="mode-badge">
+          Nuevo registro
+        </span>
+      </div>
+
+      <form id="daily-log-form" class="form-grid">
+        <label>
+          Fecha
+          <input id="daily-log-date" name="date" type="date" required />
+        </label>
+
+        <label>
+          Pasos
+          <input
+            id="daily-log-steps"
+            name="steps"
+            type="number"
+            min="0"
+            max="100000"
+            placeholder="Ej.: 8000"
+            required
+          />
+        </label>
+
+        <label class="full-width">
+          Notas <span class="optional">opcional</span>
+          <textarea
+            id="daily-log-notes"
+            name="notes"
+            maxlength="1000"
+            rows="2"
+            placeholder="Ej.: Paseo por la tarde."
+          ></textarea>
+        </label>
+
+        <div class="form-actions full-width">
+          <button
+            id="cancel-daily-log-edit-button"
+            class="secondary-button hidden"
+            type="button"
+          >
+            Cancelar edición
+          </button>
+
+          <button
+            id="save-daily-log-button"
+            class="primary-button"
+            type="submit"
+          >
+            Guardar pasos
+          </button>
+        </div>
+      </form>
+
+      <div class="list-header">
+        <h3>Historial de pasos</h3>
+        <span id="daily-log-count" class="counter">0</span>
+      </div>
+
+      <div id="daily-logs-list" class="daily-logs-list empty-state">
+        Cargando registros diarios…
+      </div>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+  </main>
+
+  <script src="/static/daily-steps/daily-steps.js" defer></script>
+</body>
+</html>

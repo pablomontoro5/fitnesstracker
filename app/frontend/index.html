@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta
     name="description"
-    content="Fitness Tracker: registro de sesiones, ejercicios, series y progreso."
+    content="Fitness Tracker: seguimiento de entrenamiento, actividad, nutrición y progreso."
   />
   <title>Fitness Tracker</title>
   <link rel="stylesheet" href="/static/style.css" />
@@ -17,352 +17,86 @@
         <p class="eyebrow">Health & Training Log</p>
         <h1>Fitness Tracker</h1>
       </div>
-      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">API Docs</a>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
     </div>
   </header>
 
   <main class="container">
-    <section class="intro-card">
+    <section class="intro-card home-intro-card">
       <div>
-        <p class="eyebrow">Entrenamiento de fuerza</p>
-        <h2>Registra tu entrenamiento y sigue tu progreso</h2>
-        <p>Crea sesiones, añade ejercicios y guarda series con carga, repeticiones y RIR.</p>
-      </div>
-      <div class="legend">
-        <span><i class="legend-dot working"></i>Trabajo</span>
-        <span><i class="legend-dot warmup"></i>Calentamiento</span>
-        <span><i class="legend-dot approximation"></i>Aproximación</span>
+        <p class="eyebrow">Panel principal</p>
+        <h2>Todo tu seguimiento en un solo lugar</h2>
+        <p>
+          Elige un área para registrar actividad, entrenamientos, nutrición
+          o consultar tu evolución.
+        </p>
       </div>
     </section>
 
-    <section class="panel daily-steps-panel">
-        <div class="panel-heading">
-            <div>
-            <p class="eyebrow">Actividad diaria</p>
-            <h2>Pasos diarios</h2>
-            </div>
-            <span id="daily-log-mode" class="mode-badge">Nuevo registro</span>
-        </div>
-
-        <form id="daily-log-form" class="form-grid">
-            <label>
-            Fecha
-            <input id="daily-log-date" name="date" type="date" required />
-            </label>
-
-            <label>
-            Pasos
-            <input
-                id="daily-log-steps"
-                name="steps"
-                type="number"
-                min="0"
-                max="100000"
-                placeholder="Ej.: 8000"
-                required
-            />
-            </label>
-
-            <label class="full-width">
-            Notas <span class="optional">opcional</span>
-            <textarea
-                id="daily-log-notes"
-                name="notes"
-                maxlength="1000"
-                rows="2"
-                placeholder="Ej.: Paseo por la tarde."
-            ></textarea>
-            </label>
-
-            <div class="form-actions full-width">
-            <button
-                id="cancel-daily-log-edit-button"
-                class="secondary-button hidden"
-                type="button"
-            >
-                Cancelar edición
-            </button>
-
-            <button id="save-daily-log-button" class="primary-button" type="submit">
-                Guardar pasos
-            </button>
-            </div>
-        </form>
-
-        <div class="list-header">
-            <h3>Historial de pasos</h3>
-            <span id="daily-log-count" class="counter">0</span>
-        </div>
-
-        <div id="daily-logs-list" class="daily-logs-list empty-state">
-            Cargando registros diarios…
-        </div>
-        </section>
-
-    <p id="status-message" class="status-message" aria-live="polite"></p>
-
-    <div class="app-grid">
-      <section class="panel sessions-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Paso 1</p>
-            <h2>Sesiones</h2>
-          </div>
-          <button id="refresh-sessions-button" class="icon-button" type="button" title="Actualizar sesiones">↻</button>
-        </div>
-
-        <form id="session-form" class="form-grid">
-          <label>
-            Fecha
-            <input id="session-date" name="date" type="date" required />
-          </label>
-          <label>
-            Nombre de la sesión
-            <input id="session-name" name="name" type="text" maxlength="100" placeholder="Ej.: Empujes" required />
-          </label>
-          <label class="full-width">
-            Notas <span class="optional">opcional</span>
-            <textarea id="session-notes" name="notes" maxlength="1000" rows="2" placeholder="Ej.: Priorizar técnica y recorrido completo."></textarea>
-          </label>
-          <button class="primary-button full-width" type="submit">Crear sesión</button>
-        </form>
-
-        <div class="list-header">
-          <h3>Sesiones registradas</h3>
-          <span id="session-count" class="counter">0</span>
-        </div>
-        <div id="sessions-list" class="sessions-list empty-state">
-          Cargando sesiones…
-        </div>
-      </section>
-
-      <section class="panel detail-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Paso 2</p>
-            <h2 id="selected-session-title">Selecciona una sesión</h2>
-          </div>
-          <button id="delete-session-button" class="danger-button hidden" type="button">Eliminar sesión</button>
-        </div>
-
-        <div id="session-empty-state" class="empty-state large-empty-state">
-          Selecciona una sesión de la lista para ver y añadir ejercicios.
-        </div>
-
-        <div id="session-detail-content" class="hidden">
-          <form id="exercise-form" class="form-grid compact-form">
-            <label>
-              Ejercicio
-              <input id="exercise-name" name="name" type="text" maxlength="120" placeholder="Ej.: Press inclinado" required />
-            </label>
-            <label>
-              Grupo muscular
-              <input id="exercise-muscle-group" name="muscle_group" type="text" maxlength="80" placeholder="Ej.: Pectoral" required />
-            </label>
-            <label>
-              Posición
-              <input id="exercise-position" name="position" type="number" min="1" max="100" value="1" required />
-            </label>
-            <label class="full-width">
-              Notas técnicas <span class="optional">opcional</span>
-              <textarea id="exercise-technique-notes" name="technique_notes" maxlength="2000" rows="2" placeholder="Ej.: Mantener hombros atrás y pecho elevado."></textarea>
-            </label>
-            <button class="primary-button full-width" type="submit">Añadir ejercicio</button>
-          </form>
-
-          <div class="list-header">
-            <h3>Ejercicios</h3>
-            <span id="exercise-count" class="counter">0</span>
-          </div>
-          <div id="exercises-list" class="exercise-list empty-state">
-            No hay ejercicios en esta sesión.
-          </div>
-        </div>
-      </section>
-    </div>
-
-   <section class="panel sets-panel">
-    <div class="panel-heading">
+    <section class="navigation-grid">
+      <a class="navigation-card" href="/static/workouts/">
         <div>
-        <p class="eyebrow">Paso 3</p>
-        <h2 id="selected-exercise-title">Selecciona un ejercicio</h2>
+          <p class="eyebrow">Gimnasio</p>
+          <h2>Entrenamiento</h2>
+          <p>
+            Crea sesiones, añade ejercicios y series, y consulta tu progreso.
+          </p>
         </div>
 
-        <div class="exercise-actions">
-        <button
-            id="edit-exercise-button"
-            class="secondary-button hidden"
-            type="button"
-        >
-            Editar ejercicio
-        </button>
+        <span class="navigation-card-footer">Abrir entrenamiento →</span>
+      </a>
 
-        <button
-            id="delete-exercise-button"
-            class="danger-button hidden"
-            type="button"
-        >
-            Eliminar ejercicio
-        </button>
-        </div>
-    </div>
-
-    <div id="exercise-empty-state" class="empty-state large-empty-state">
-        Selecciona un ejercicio para consultar, editar o registrar sus series.
-    </div>
-
-    <form id="edit-exercise-form" class="form-grid hidden">
-        <label>
-        Ejercicio
-        <input
-            id="edit-exercise-name"
-            name="name"
-            type="text"
-            maxlength="120"
-            required
-        />
-        </label>
-
-        <label>
-        Grupo muscular
-        <input
-            id="edit-exercise-muscle-group"
-            name="muscle_group"
-            type="text"
-            maxlength="80"
-            required
-        />
-        </label>
-
-        <label>
-        Posición
-        <input
-            id="edit-exercise-position"
-            name="position"
-            type="number"
-            min="1"
-            max="100"
-            required
-        />
-        </label>
-
-        <label class="full-width">
-        Notas técnicas <span class="optional">opcional</span>
-        <textarea
-            id="edit-exercise-technique-notes"
-            name="technique_notes"
-            maxlength="2000"
-            rows="2"
-            placeholder="Ej.: Mantener los hombros atrás y pegados al banco."
-        ></textarea>
-        </label>
-
-        <div class="form-actions full-width">
-        <button
-            id="cancel-edit-exercise-button"
-            class="secondary-button"
-            type="button"
-        >
-            Cancelar
-        </button>
-
-        <button class="primary-button" type="submit">
-            Guardar cambios
-        </button>
-        </div>
-    </form>
-
-    <div id="exercise-detail-content" class="hidden sets-layout">
-        <div class="bulk-sets-editor">
-        <div class="bulk-sets-heading">
-            <div>
-            <h3>Series pendientes</h3>
-            <p>Prepara todas las series y guárdalas juntas.</p>
-            </div>
-            <span id="pending-set-count" class="counter">0</span>
-        </div>
-
-        <div id="pending-sets-list" class="pending-sets-list">
-            <!-- Las filas se crean desde app.js -->
-        </div>
-
-        <div class="bulk-sets-actions">
-            <button
-            id="add-set-row-button"
-            class="secondary-button"
-            type="button"
-            >
-            + Añadir otra serie
-            </button>
-
-            <button
-            id="save-pending-sets-button"
-            class="primary-button"
-            type="button"
-            >
-            Guardar 0 series
-            </button>
-        </div>
-        </div>
-
+      <a class="navigation-card" href="/static/daily-steps/">
         <div>
-        <div class="list-header">
-            <h3>Series registradas</h3>
-            <span id="set-count" class="counter">0</span>
+          <p class="eyebrow">Actividad</p>
+          <h2>Pasos diarios</h2>
+          <p>
+            Registra pasos, notas y consulta el historial de cada día.
+          </p>
         </div>
 
-        <div id="sets-list" class="sets-list empty-state">
-            No hay series en este ejercicio.
-        </div>
-        </div>
-    </div>
-    </section>
+        <span class="navigation-card-footer">Abrir pasos →</span>
+      </a>
 
-    <section class="panel progress-panel">
-      <div class="panel-heading">
+      <article class="navigation-card disabled">
         <div>
-          <p class="eyebrow">Paso 4</p>
-          <h2>Progreso por ejercicio</h2>
+          <p class="eyebrow">Actividad</p>
+          <h2>Carreras y sprints</h2>
+          <p>
+            Registra distancia, duración, ritmo y recorridos.
+          </p>
         </div>
-      </div>
 
-      <form id="progress-form" class="progress-form">
-        <label>
-          Nombre del ejercicio
-          <input id="progress-exercise-name" type="text" maxlength="120" placeholder="Ej.: Press inclinado con mancuernas" required />
-        </label>
-        <button class="primary-button" type="submit">Consultar progreso</button>
-      </form>
+        <span class="navigation-card-footer">Próximamente</span>
+      </article>
 
-      <div id="progress-result" class="empty-state large-empty-state">
-        Busca un ejercicio para ver sus series de trabajo y el volumen por sesión.
-      </div>
+      <article class="navigation-card disabled">
+        <div>
+          <p class="eyebrow">Nutrición</p>
+          <h2>Dieta diaria</h2>
+          <p>
+            Registra entre dos y cinco comidas y sus macronutrientes.
+          </p>
+        </div>
+
+        <span class="navigation-card-footer">Próximamente</span>
+      </article>
+
+      <article class="navigation-card disabled">
+        <div>
+          <p class="eyebrow">Evolución</p>
+          <h2>Estadísticas semanales</h2>
+          <p>
+            Consulta pasos, entrenamientos, peso y actividad por semanas.
+          </p>
+        </div>
+
+        <span class="navigation-card-footer">Próximamente</span>
+      </article>
     </section>
   </main>
-
-  <template id="session-template">
-    <article class="session-card">
-      <button class="session-select-button" type="button">
-        <span class="session-date"></span>
-        <strong class="session-name"></strong>
-        <small class="session-notes"></small>
-      </button>
-    </article>
-  </template>
-
-  <template id="exercise-template">
-    <article class="exercise-card">
-      <button class="exercise-select-button" type="button">
-        <span class="exercise-position"></span>
-        <span class="exercise-info">
-          <strong class="exercise-name"></strong>
-          <small class="exercise-muscle-group"></small>
-          <small class="exercise-technique-notes"></small>
-        </span>
-      </button>
-    </article>
-  </template>
-
-  <script src="/static/app.js" defer></script>
 </body>
 </html>
