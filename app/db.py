@@ -30,3 +30,17 @@ def initialize_database() -> None:
             )
             """
         )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS body_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL UNIQUE,
+                weight_kg REAL NOT NULL CHECK (weight_kg > 0),
+                height_cm REAL NOT NULL CHECK (height_cm > 0),
+                bmi REAL NOT NULL CHECK (bmi > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
