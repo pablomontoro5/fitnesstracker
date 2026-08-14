@@ -706,6 +706,67 @@ textarea:focus {
   font-size: 0.75rem;
   font-weight: 800;
 }
+.home-intro-card {
+  margin-bottom: 1.25rem;
+}
+
+.navigation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.navigation-card {
+  display: grid;
+  min-height: 190px;
+  align-content: space-between;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 7px 24px rgba(20, 48, 34, 0.04);
+  text-decoration: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.navigation-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary);
+}
+
+.navigation-card.disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.navigation-card h2 {
+  margin-bottom: 0.4rem;
+}
+
+.navigation-card p {
+  margin-bottom: 0;
+  color: var(--text-muted);
+}
+
+.navigation-card-footer {
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.back-link {
+  display: inline-block;
+  margin: 1.2rem 0 1rem;
+  color: var(--primary);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
 
 @media (max-width: 1100px) {
   .pending-set-row {
