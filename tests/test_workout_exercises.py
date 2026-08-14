@@ -138,3 +138,81 @@ def test_delete_workout_exercise():
 
     assert delete_response.status_code == 204
     assert get_response.status_code == 404
+
+def test_update_workout_exercise():
+    with TestClient(app) as client:
+        session_id = create_session(client, name="Empujes editar")
+
+        create_response = client.post(
+            f"/workout-sessions/{session_id}/exercises/",
+            json={
+                "name": "Press inclinado",
+                "muscle_group": "Pectoral",
+                "position": 1,
+                "technique_notes": None,
+            },
+        )
+        assert create_response.status_code == 201
+
+        exercise_id = create_response.json()["id"]
+
+        response = client.put(
+            f"/workout-exercises/{exercise_id}",
+            json={
+                "name": "Press inclinado con mancuernas",
+                "muscle_group": "Pectoral superior",
+                "position": 2,
+                "technique_notes": "Mantener los hombros atrás y pegados al banco.",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == exercise_id
+    assert response.json()["name"] == "Press inclinado con mancuernas"
+    assert response.json()["muscle_group"] == "Pectoral superior"
+    assert response.json()["position"] == 2
+    assert (
+        response.json()["technique_notes"]
+        == "Mantener los hombros atrás y pegados al banco."
+    )
+
+
+def test_update_workout_exercise_rejects_duplicate_position():
+    with TestClient(app) as client:
+        session_id = create_session(client, name="Empujes editar posición")
+
+        first_response = client.post(
+            f"/workout-sessions/{session_id}/exercises/",
+            json={
+                "name": "Press banca",
+                "muscle_group": "Pectoral",
+                "position": 1,
+                "technique_notes": None,
+            },
+        )
+        assert first_response.status_code == 201
+
+        second_response = client.post(
+            f"/workout-sessions/{session_id}/exercises/",
+            json={
+                "name": "Aperturas",
+                "muscle_group": "Pectoral",
+                "position": 2,
+                "technique_notes": None,
+            },
+        )
+        assert second_response.status_code == 201
+
+        second_exercise_id = second_response.json()["id"]
+
+        response = client.put(
+            f"/workout-exercises/{second_exercise_id}",
+            json={
+                "name": "Aperturas",
+                "muscle_group": "Pectoral",
+                "position": 1,
+                "technique_notes": None,
+            },
+        )
+
+    assert response.status_code == 409

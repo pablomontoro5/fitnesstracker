@@ -25,6 +25,11 @@ const elements = {
   exerciseEmptyState: document.querySelector("#exercise-empty-state"),
   exerciseDetailContent: document.querySelector("#exercise-detail-content"),
   deleteExerciseButton: document.querySelector("#delete-exercise-button"),
+  editExerciseButton: document.querySelector("#edit-exercise-button"),
+  editExerciseForm: document.querySelector("#edit-exercise-form"),
+  cancelEditExerciseButton: document.querySelector(
+  "#cancel-edit-exercise-button",
+  ),
   pendingSetsList: document.querySelector("#pending-sets-list"),
   pendingSetCount: document.querySelector("#pending-set-count"),
   addSetRowButton: document.querySelector("#add-set-row-button"),
@@ -110,6 +115,8 @@ function resetSelectedExercise() {
   elements.exerciseEmptyState.classList.remove("hidden");
   elements.exerciseDetailContent.classList.add("hidden");
   elements.deleteExerciseButton.classList.add("hidden");
+  elements.editExerciseButton.classList.add("hidden");
+  elements.editExerciseForm.classList.add("hidden");
   elements.setCount.textContent = "0";
   setListEmpty(elements.setsList, "No hay series en este ejercicio.");
 }
@@ -272,7 +279,7 @@ function renderPendingSets() {
         <input
           data-field="rir"
           type="number"
-          min="0"
+          min="-3"
           max="10"
           step="0.5"
           placeholder="—"
@@ -512,6 +519,8 @@ async function selectExercise(exercise) {
   elements.exerciseEmptyState.classList.add("hidden");
   elements.exerciseDetailContent.classList.remove("hidden");
   elements.deleteExerciseButton.classList.remove("hidden");
+  elements.editExerciseButton.classList.remove("hidden");
+  elements.editExerciseForm.classList.add("hidden");
   resetPendingSets();
   renderExercises();
 
@@ -574,6 +583,70 @@ async function handleCreateExercise(event) {
     showStatus(`Ejercicio “${exercise.name}” añadido.`);
     await loadExercises(state.selectedSession.id);
     await selectExercise(exercise);
+  } catch (error) {
+    showStatus(error.message, "error");
+  }
+}
+
+function openExerciseEditor() {
+  if (!state.selectedExercise) {
+    return;
+  }
+
+  const exercise = state.selectedExercise;
+
+  elements.editExerciseForm.elements.name.value = exercise.name;
+  elements.editExerciseForm.elements.muscle_group.value =
+    exercise.muscle_group;
+  elements.editExerciseForm.elements.position.value = exercise.position;
+  elements.editExerciseForm.elements.technique_notes.value =
+    exercise.technique_notes || "";
+
+  elements.editExerciseForm.classList.remove("hidden");
+  elements.editExerciseForm.elements.name.focus();
+}
+
+
+function closeExerciseEditor() {
+  elements.editExerciseForm.reset();
+  elements.editExerciseForm.classList.add("hidden");
+}
+
+
+async function handleUpdateExercise(event) {
+  event.preventDefault();
+
+  if (!state.selectedExercise || !state.selectedSession) {
+    return;
+  }
+
+  const formData = new FormData(elements.editExerciseForm);
+
+  try {
+    const updatedExercise = await request(
+      `/workout-exercises/${state.selectedExercise.id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          name: formData.get("name").trim(),
+          muscle_group: formData.get("muscle_group").trim(),
+          position: Number(formData.get("position")),
+          technique_notes: emptyToNull(
+            formData.get("technique_notes"),
+          ),
+        }),
+      },
+    );
+
+    state.selectedExercise = updatedExercise;
+    elements.selectedExerciseTitle.textContent = updatedExercise.name;
+
+    closeExerciseEditor();
+
+    await loadExercises(state.selectedSession.id);
+    await loadSets(updatedExercise.id);
+
+    showStatus(`Ejercicio “${updatedExercise.name}” actualizado.`);
   } catch (error) {
     showStatus(error.message, "error");
   }
@@ -690,6 +763,17 @@ function configureEventListeners() {
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
   elements.deleteExerciseButton.addEventListener("click", handleDeleteExercise);
+  elements.editExerciseButton.addEventListener("click", openExerciseEditor);
+
+    elements.editExerciseForm.addEventListener(
+    "submit",
+    handleUpdateExercise,
+    );
+
+    elements.cancelEditExerciseButton.addEventListener(
+    "click",
+    closeExerciseEditor,
+    );
 }
 
 async function initializeApp() {
