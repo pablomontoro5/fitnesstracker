@@ -131,42 +131,28 @@
       </div>
 
       <div id="exercise-detail-content" class="hidden sets-layout">
-        <form id="set-form" class="form-grid set-form">
-          <label>
-            Tipo
-            <select id="set-type" name="set_type" required>
-              <option value="warmup">Calentamiento</option>
-              <option value="approximation">Aproximación</option>
-              <option value="working" selected>Trabajo</option>
-              <option value="drop_set">Drop set</option>
-            </select>
-          </label>
-          <label>
-            Posición
-            <input id="set-position" name="position" type="number" min="1" max="100" value="1" required />
-          </label>
-          <label>
-            Objetivo <span class="optional">opcional</span>
-            <input id="set-target-rep-range" name="target_rep_range" type="text" maxlength="30" placeholder="Ej.: 8-12" />
-          </label>
-          <label>
-            Repeticiones
-            <input id="set-repetitions" name="repetitions" type="number" min="1" max="1000" required />
-          </label>
-          <label>
-            Carga (kg)
-            <input id="set-weight" name="weight_kg" type="number" min="0" max="1000" step="0.5" required />
-          </label>
-          <label>
-            RIR <span class="optional">opcional</span>
-            <input id="set-rir" name="rir" type="number" min="0" max="10" step="0.5" />
-          </label>
-          <label class="full-width">
-            Notas <span class="optional">opcional</span>
-            <textarea id="set-notes" name="notes" maxlength="1000" rows="2" placeholder="Ej.: Pausa breve arriba."></textarea>
-          </label>
-          <button class="primary-button full-width" type="submit">Añadir serie</button>
-        </form>
+        <div class="bulk-sets-editor">
+            <div class="bulk-sets-heading">
+                <div>
+                <h3>Series pendientes</h3>
+                <p>Prepara todas las series y guárdalas juntas.</p>
+                </div>
+                <span id="pending-set-count" class="counter">0</span>
+            </div>
+
+            <div id="pending-sets-list" class="pending-sets-list">
+                <!-- Las filas se crean desde app.js -->
+            </div>
+
+            <div class="bulk-sets-actions">
+                <button id="add-set-row-button" class="secondary-button" type="button">
+                + Añadir otra serie
+                </button>
+                <button id="save-pending-sets-button" class="primary-button" type="button">
+                Guardar 0 series
+                </button>
+            </div>
+            </div>
 
         <div>
           <div class="list-header">
