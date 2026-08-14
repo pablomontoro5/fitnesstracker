@@ -186,10 +186,10 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 
 - [x] Crear proyecto FastAPI, SQLite e inicialización de tablas
 - [x] Añadir registro diario de pasos.
-- [ ] Implementar sesiones de gimnasio, ejercicios y series.
+- [~] Implementar sesiones de gimnasio, ejercicios y series.
 - [x] Implementar registro de peso, altura e IMC.
 - [ ] Crear frontend mínimo con navegación y formularios.
-- [ ] Añadir pruebas de endpoints y cálculos.
+- [~] Añadir pruebas de endpoints y cálculos.
 
 ### Fase 2 — Seguimiento útil
 
