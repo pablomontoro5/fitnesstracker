@@ -102,24 +102,18 @@ fitness-tracker/
 │   ├── schemas.py
 │   ├── routers/
 │   │   ├── daily_logs.py
-│   │   ├── workouts.py
-│   │   ├── runs.py
-│   │   ├── meals.py
-│   │   └── body_metrics.py
-│   ├── services/
-│   │   ├── workout_metrics.py
-│   │   └── body_metrics.py
+│   │   ├── body_metrics.py
+│   │   ├── workout_sessions.py
+│   │   └── workout_exercises.py
 │   └── frontend/
 │       ├── index.html
 │       ├── style.css
 │       └── app.js
 ├── tests/
-│   ├── test_workouts.py
-│   ├── test_runs.py
-│   └── test_body_metrics.py
-├── requirements.txt
-├── .env.example
-└── README.md
+│   ├── test_daily_logs.py
+│   ├── test_body_metrics.py
+│   ├── test_workout_sessions.py
+│   └── test_workout_exercises.py
 ```
 
 Los routers mantienen los endpoints separados por dominio. Los servicios alojan cálculos reutilizables, como volumen de entrenamiento, ritmo de carrera e IMC, para que sean fáciles de probar sin depender de la API.
@@ -163,18 +157,20 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. El RIR
 
 ## Endpoints previstos
 
-| Método | Endpoint | Propósito |
-| --- | --- | --- |
-| `GET` / `POST` | `/daily-logs/` | Consultar o crear registros diarios |
-| `GET` / `PUT` / `DELETE` | `/daily-logs/{id}` | Consultar, editar o borrar un día |
-| `GET` / `POST` | `/workouts/sessions/` | Listar o crear sesiones de gimnasio |
-| `GET` / `PUT` / `DELETE` | `/workouts/sessions/{id}` | Gestionar una sesión |
-| `POST` | `/workouts/exercises/{id}/sets` | Añadir una serie a un ejercicio de sesión |
-| `GET` | `/workouts/progress` | Obtener progreso filtrado por ejercicio |
-| `GET` / `POST` | `/runs/` | Listar o registrar sesiones de running |
-| `GET` / `PUT` / `DELETE` | `/runs/{id}` | Gestionar una sesión de running |
-| `GET` / `POST` | `/meals/` | Listar o registrar comidas |
-| `GET` / `POST` | `/body-metrics/` | Consultar o registrar peso, altura e IMC |
+| Método | Endpoint | Propósito | Estado |
+| --- | --- | --- | --- |
+| `GET` / `POST` | `/daily-logs/` | Consultar o crear registros diarios | Implementado |
+| `GET` / `PUT` / `DELETE` | `/daily-logs/{id}` | Consultar, editar o borrar un día | Implementado |
+| `GET` / `POST` | `/body-metrics/` | Consultar o registrar peso, altura e IMC | Implementado |
+| `GET` / `POST` | `/workout-sessions/` | Listar o crear sesiones de gimnasio | Implementado |
+| `GET` / `PUT` / `DELETE` | `/workout-sessions/{session_id}` | Consultar, editar o eliminar una sesión | Implementado |
+| `POST` | `/workout-sessions/{session_id}/exercises/` | Añadir un ejercicio a una sesión | Implementado |
+| `GET` | `/workout-sessions/{session_id}/exercises/` | Listar ejercicios de una sesión por posición | Implementado |
+| `GET` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
+| `POST` | `/workout-exercises/{exercise_id}/sets/` | Añadir una serie a un ejercicio | Próximamente |
+| `GET` | `/workouts/progress` | Obtener progreso por ejercicio | Próximamente |
+| `GET` / `POST` | `/runs/` | Listar o registrar sesiones de running | Próximamente |
+| `GET` / `POST` | `/meals/` | Listar o registrar comidas | Próximamente |
 
 Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API coherente y documentada.
 
@@ -184,9 +180,11 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 
 ### Fase 1 — Base funcional
 
-- [x] Crear proyecto FastAPI, SQLite e inicialización de tablas
+- [x] Crear proyecto FastAPI, SQLite e inicialización de tablas.
 - [x] Añadir registro diario de pasos.
-- [~] Implementar sesiones de gimnasio, ejercicios y series.
+- [~] Implementar sesiones de gimnasio.
+- [x] Añadir ejercicios ordenados dentro de una sesión.
+- [ ] Añadir series de gimnasio con tipo, repeticiones, carga y RIR.
 - [x] Implementar registro de peso, altura e IMC.
 - [ ] Crear frontend mínimo con navegación y formularios.
 - [~] Añadir pruebas de endpoints y cálculos.
