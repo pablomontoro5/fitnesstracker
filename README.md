@@ -187,7 +187,7 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 - [x] Añadir series con tipo, rango objetivo, repeticiones, carga, RIR y notas.
 - [x] Calcular volumen básico por serie.
 - [x] Implementar registro de peso, altura e IMC.
-- [ ] Consultar progreso básico por ejercicio.
+- [x] Consultar progreso básico por ejercicio.
 - [ ] Crear frontend mínimo con navegación y formularios.
 - [~] Añadir pruebas de endpoints y cálculos.
 
