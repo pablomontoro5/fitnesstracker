@@ -644,6 +644,69 @@ textarea:focus {
   justify-content: flex-end;
 }
 
+.daily-logs-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.daily-log-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.72rem;
+  background: #fff;
+}
+
+.daily-log-card:hover {
+  border-color: var(--primary);
+  background: #fbfefc;
+}
+
+.daily-log-card.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.daily-log-select-button {
+  display: grid;
+  flex: 1;
+  gap: 0.2rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.daily-log-date {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.daily-log-steps {
+  font-size: 1rem;
+}
+
+.daily-log-notes {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mode-badge {
+  padding: 0.4rem 0.55rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
 @media (max-width: 1100px) {
   .pending-set-row {
     grid-template-columns: 62px repeat(3, minmax(0, 1fr));
@@ -680,6 +743,7 @@ textarea:focus {
   .set-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
 }
 
 @media (max-width: 560px) {
@@ -728,6 +792,10 @@ textarea:focus {
   }
     .exercise-actions,
   .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+    .daily-log-card {
     align-items: stretch;
     flex-direction: column;
   }
