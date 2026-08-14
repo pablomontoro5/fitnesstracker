@@ -90,9 +90,22 @@ La versión inicial estará enfocada en un solo usuario y funcionamiento local. 
 
 FastAPI ofrecerá documentación interactiva en `/docs` y `/redoc`.
 
+### Rutas del frontend
+
+Con la aplicación en ejecución, las vistas principales están disponibles en:
+
+| Ruta | Descripción |
+| --- | --- |
+| `/` | Panel principal de navegación |
+| `/static/workouts/` | Registro de sesiones, ejercicios, series y progreso |
+| `/static/daily-steps/` | Registro y edición de pasos diarios |
+| `/docs` | Documentación interactiva de la API |
+| `/redoc` | Documentación alternativa de la API |
+
+Los archivos estáticos se sirven mediante FastAPI con `StaticFiles(..., html=True)`, lo que permite que cada módulo use su propio `index.html`.
 ---
 
-## Estructura inicial
+## Estructura del proyecto
 
 ```text
 fitness-tracker/
@@ -101,22 +114,33 @@ fitness-tracker/
 │   ├── db.py
 │   ├── schemas.py
 │   ├── routers/
-│   │   ├── daily_logs.py
 │   │   ├── body_metrics.py
+│   │   ├── daily_logs.py
+│   │   ├── workout_exercises.py
+│   │   ├── workout_progress.py
 │   │   ├── workout_sessions.py
-│   │   └── workout_exercises.py
+│   │   └── workout_sets.py
 │   └── frontend/
-│       ├── index.html
-│       ├── style.css
-│       └── app.js
+│       ├── index.html                 # Panel principal de navegación
+│       ├── style.css                  # Estilos compartidos
+│       ├── workouts/
+│       │   ├── index.html             # Módulo de entrenamiento
+│       │   └── workouts.js            # Lógica de sesiones, ejercicios y series
+│       └── daily-steps/
+│           ├── index.html             # Módulo de pasos diarios
+│           └── daily-steps.js         # Lógica de registros de pasos
+├── data/
+│   └── fitness_tracker.db
 ├── tests/
-│   ├── test_daily_logs.py
 │   ├── test_body_metrics.py
-│   ├── test_workout_sessions.py
-│   └── test_workout_exercises.py
+│   ├── test_daily_logs.py
+│   ├── test_workout_exercises.py
+│   └── test_workout_sessions.py
+├── requirements.txt
+└── README.md
 ```
 
-Los routers mantienen los endpoints separados por dominio. Los servicios alojan cálculos reutilizables, como volumen de entrenamiento, ritmo de carrera e IMC, para que sean fáciles de probar sin depender de la API.
+Los routers mantienen los endpoints separados por dominio. El frontend se organiza por funcionalidades: cada módulo incluye su propia vista HTML y su lógica JavaScript, mientras que `style.css` concentra el diseño compartido.
 
 ---
 
@@ -167,8 +191,9 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. El RIR
 | `POST` | `/workout-sessions/{session_id}/exercises/` | Añadir un ejercicio a una sesión | Implementado |
 | `GET` | `/workout-sessions/{session_id}/exercises/` | Listar ejercicios de una sesión por posición | Implementado |
 | `GET` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
-| `POST` | `/workout-exercises/{exercise_id}/sets/` | Añadir una serie a un ejercicio | Próximamente |
-| `GET` | `/workouts/progress` | Obtener progreso por ejercicio | Próximamente |
+| `GET` / `POST` | `/workout-exercises/{exercise_id}/sets/` | Consultar o añadir series a un ejercicio | Implementado |
+| `GET` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
+| `GET` | `/workouts/progress?exercise_name={name}` | Obtener progreso, series de trabajo y volumen por ejercicio | Implementado |
 | `GET` / `POST` | `/runs/` | Listar o registrar sesiones de running | Próximamente |
 | `GET` / `POST` | `/meals/` | Listar o registrar comidas | Próximamente |
 
@@ -188,8 +213,10 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 - [x] Calcular volumen básico por serie.
 - [x] Implementar registro de peso, altura e IMC.
 - [x] Consultar progreso básico por ejercicio.
-- [ ] Crear frontend mínimo con navegación y formularios.
-- [~] Añadir pruebas de endpoints y cálculos.
+- [x] Crear frontend responsive con página principal de navegación.
+- [x] Separar las vistas de entrenamiento y pasos diarios en módulos independientes.
+- [x] Añadir formularios para sesiones, ejercicios, series y pasos diarios.
+- [~] Ampliar las pruebas de endpoints y cálculos.
 
 ### Fase 2 — Seguimiento útil
 
@@ -255,9 +282,9 @@ uvicorn app.main:app --reload
 
 ### 5. Abrir documentación
 
-- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
-
+- Aplicación: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
+- Swagger UI: [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
+- ReDoc: [http://127.0.0.1:8001/redoc](http://127.0.0.1:8001/redoc)
 ### 6. Ejecutar pruebas
 
 ```bash
@@ -268,15 +295,15 @@ python -m pytest
 
 ## Próximo incremento recomendado
 
-El siguiente corte vertical añadirá progreso básico por ejercicio:
+El siguiente corte vertical mejorará la experiencia de registro de ejercicios:
 
-1. Filtrar series de trabajo por nombre de ejercicio.
-2. Mostrar fecha de sesión, carga, repeticiones, RIR y volumen de cada serie.
-3. Calcular volumen total por entrenamiento para ese ejercicio.
-4. Permitir detectar evolución de carga, repeticiones y volumen entre sesiones.
+1. Añadir un catálogo inicial de ejercicios sugeridos por grupo muscular.
+2. Mantener la opción de crear ejercicios personalizados manualmente.
+3. Permitir seleccionar una sugerencia y rellenar automáticamente el nombre y grupo muscular.
+4. Mostrar notas técnicas o indicaciones básicas para cada ejercicio sugerido.
+5. Preparar la estructura para incorporar plantillas de rutinas y duplicar sesiones en el futuro.
 
-Este incremento reutiliza los datos existentes de sesiones, ejercicios y series, sin crear nuevas tablas.
-
+Este incremento mantiene la flexibilidad actual: el usuario podrá utilizar sugerencias o registrar cualquier variante, máquina o ejercicio personalizado.
 ---
 
 ## Limitaciones iniciales
