@@ -117,53 +117,141 @@
       </section>
     </div>
 
-    <section class="panel sets-panel">
-      <div class="panel-heading">
+   <section class="panel sets-panel">
+    <div class="panel-heading">
         <div>
-          <p class="eyebrow">Paso 3</p>
-          <h2 id="selected-exercise-title">Selecciona un ejercicio</h2>
+        <p class="eyebrow">Paso 3</p>
+        <h2 id="selected-exercise-title">Selecciona un ejercicio</h2>
         </div>
-        <button id="delete-exercise-button" class="danger-button hidden" type="button">Eliminar ejercicio</button>
-      </div>
 
-      <div id="exercise-empty-state" class="empty-state large-empty-state">
-        Selecciona un ejercicio para consultar o registrar sus series.
-      </div>
+        <div class="exercise-actions">
+        <button
+            id="edit-exercise-button"
+            class="secondary-button hidden"
+            type="button"
+        >
+            Editar ejercicio
+        </button>
 
-      <div id="exercise-detail-content" class="hidden sets-layout">
+        <button
+            id="delete-exercise-button"
+            class="danger-button hidden"
+            type="button"
+        >
+            Eliminar ejercicio
+        </button>
+        </div>
+    </div>
+
+    <div id="exercise-empty-state" class="empty-state large-empty-state">
+        Selecciona un ejercicio para consultar, editar o registrar sus series.
+    </div>
+
+    <form id="edit-exercise-form" class="form-grid hidden">
+        <label>
+        Ejercicio
+        <input
+            id="edit-exercise-name"
+            name="name"
+            type="text"
+            maxlength="120"
+            required
+        />
+        </label>
+
+        <label>
+        Grupo muscular
+        <input
+            id="edit-exercise-muscle-group"
+            name="muscle_group"
+            type="text"
+            maxlength="80"
+            required
+        />
+        </label>
+
+        <label>
+        Posición
+        <input
+            id="edit-exercise-position"
+            name="position"
+            type="number"
+            min="1"
+            max="100"
+            required
+        />
+        </label>
+
+        <label class="full-width">
+        Notas técnicas <span class="optional">opcional</span>
+        <textarea
+            id="edit-exercise-technique-notes"
+            name="technique_notes"
+            maxlength="2000"
+            rows="2"
+            placeholder="Ej.: Mantener los hombros atrás y pegados al banco."
+        ></textarea>
+        </label>
+
+        <div class="form-actions full-width">
+        <button
+            id="cancel-edit-exercise-button"
+            class="secondary-button"
+            type="button"
+        >
+            Cancelar
+        </button>
+
+        <button class="primary-button" type="submit">
+            Guardar cambios
+        </button>
+        </div>
+    </form>
+
+    <div id="exercise-detail-content" class="hidden sets-layout">
         <div class="bulk-sets-editor">
-            <div class="bulk-sets-heading">
-                <div>
-                <h3>Series pendientes</h3>
-                <p>Prepara todas las series y guárdalas juntas.</p>
-                </div>
-                <span id="pending-set-count" class="counter">0</span>
+        <div class="bulk-sets-heading">
+            <div>
+            <h3>Series pendientes</h3>
+            <p>Prepara todas las series y guárdalas juntas.</p>
             </div>
+            <span id="pending-set-count" class="counter">0</span>
+        </div>
 
-            <div id="pending-sets-list" class="pending-sets-list">
-                <!-- Las filas se crean desde app.js -->
-            </div>
+        <div id="pending-sets-list" class="pending-sets-list">
+            <!-- Las filas se crean desde app.js -->
+        </div>
 
-            <div class="bulk-sets-actions">
-                <button id="add-set-row-button" class="secondary-button" type="button">
-                + Añadir otra serie
-                </button>
-                <button id="save-pending-sets-button" class="primary-button" type="button">
-                Guardar 0 series
-                </button>
-            </div>
-            </div>
+        <div class="bulk-sets-actions">
+            <button
+            id="add-set-row-button"
+            class="secondary-button"
+            type="button"
+            >
+            + Añadir otra serie
+            </button>
+
+            <button
+            id="save-pending-sets-button"
+            class="primary-button"
+            type="button"
+            >
+            Guardar 0 series
+            </button>
+        </div>
+        </div>
 
         <div>
-          <div class="list-header">
+        <div class="list-header">
             <h3>Series registradas</h3>
             <span id="set-count" class="counter">0</span>
-          </div>
-          <div id="sets-list" class="sets-list empty-state">
-            No hay series en este ejercicio.
-          </div>
         </div>
-      </div>
+
+        <div id="sets-list" class="sets-list empty-state">
+            No hay series en este ejercicio.
+        </div>
+        </div>
+    </div>
     </section>
 
     <section class="panel progress-panel">
