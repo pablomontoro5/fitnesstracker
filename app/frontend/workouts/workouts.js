@@ -5,8 +5,6 @@ const state = {
   selectedExercise: null,
   sets: [],
   pendingSets: [],
-  dailyLogs: [],
-  selectedDailyLog: null,
 };
 
 const elements = {
@@ -41,17 +39,6 @@ const elements = {
   progressForm: document.querySelector("#progress-form"),
   progressExerciseName: document.querySelector("#progress-exercise-name"),
   progressResult: document.querySelector("#progress-result"),
-  dailyLogForm: document.querySelector("#daily-log-form"),
-  dailyLogDate: document.querySelector("#daily-log-date"),
-  dailyLogSteps: document.querySelector("#daily-log-steps"),
-  dailyLogNotes: document.querySelector("#daily-log-notes"),
-  saveDailyLogButton: document.querySelector("#save-daily-log-button"),
-  cancelDailyLogEditButton: document.querySelector(
-    "#cancel-daily-log-edit-button",
-  ),
-  dailyLogMode: document.querySelector("#daily-log-mode"),
-  dailyLogCount: document.querySelector("#daily-log-count"),
-  dailyLogsList: document.querySelector("#daily-logs-list"),
   sessionTemplate: document.querySelector("#session-template"),
   exerciseTemplate: document.querySelector("#exercise-template"),
 };
@@ -146,15 +133,6 @@ function resetSelectedSession() {
   resetSelectedExercise();
 }
 
-function resetDailyLogForm() {
-  state.selectedDailyLog = null;
-  elements.dailyLogForm.reset();
-  elements.dailyLogDate.value = todayAsIsoDate();
-  elements.dailyLogMode.textContent = "Nuevo registro";
-  elements.saveDailyLogButton.textContent = "Guardar pasos";
-  elements.cancelDailyLogEditButton.classList.add("hidden");
-  renderDailyLogs();
-}
 
 
 function renderDailyLogs() {
@@ -917,12 +895,6 @@ function configureEventListeners() {
   elements.deleteExerciseButton.addEventListener("click", handleDeleteExercise);
   elements.editExerciseButton.addEventListener("click", openExerciseEditor);
 
-  elements.dailyLogForm.addEventListener("submit", handleSaveDailyLog);
-
-  elements.cancelDailyLogEditButton.addEventListener(
-    "click",
-    resetDailyLogForm,
-  );
 
     elements.editExerciseForm.addEventListener(
     "submit",
@@ -937,14 +909,10 @@ function configureEventListeners() {
 
 async function initializeApp() {
   elements.sessionDate.value = todayAsIsoDate();
-  elements.dailyLogDate.value = todayAsIsoDate();
 
   configureEventListeners();
 
-  await Promise.all([
-    loadSessions(),
-    loadDailyLogs(),
-  ]);
+  await loadSessions();
 }
 
 initializeApp();
