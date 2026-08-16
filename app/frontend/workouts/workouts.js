@@ -759,25 +759,24 @@ function configureEventListeners() {
   elements.sessionForm.addEventListener("submit", handleCreateSession);
   elements.exerciseForm.addEventListener("submit", handleCreateExercise);
   elements.addSetRowButton.addEventListener("click", addPendingSetRow);
-  elements.savePendingSetsButton.addEventListener("click", handleSavePendingSets);
+  elements.savePendingSetsButton.addEventListener(
+    "click",
+    handleSavePendingSets,
+  );
   elements.progressForm.addEventListener("submit", handleProgressSearch);
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
-  elements.deleteExerciseButton.addEventListener("click", handleDeleteExercise);
+  elements.deleteExerciseButton.addEventListener(
+    "click",
+    handleDeleteExercise,
+  );
   elements.editExerciseButton.addEventListener("click", openExerciseEditor);
-
-
-    elements.editExerciseForm.addEventListener(
-    "submit",
-    handleUpdateExercise,
-    );
-
-    elements.cancelEditExerciseButton.addEventListener(
+  elements.editExerciseForm.addEventListener("submit", handleUpdateExercise);
+  elements.cancelEditExerciseButton.addEventListener(
     "click",
     closeExerciseEditor,
-    );
+  );
 }
-
 async function initializeApp() {
   elements.sessionDate.value = todayAsIsoDate();
 
