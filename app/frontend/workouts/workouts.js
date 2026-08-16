@@ -133,136 +133,6 @@ function resetSelectedSession() {
   resetSelectedExercise();
 }
 
-
-
-function renderDailyLogs() {
-  elements.dailyLogCount.textContent = String(state.dailyLogs.length);
-  elements.dailyLogsList.innerHTML = "";
-
-  if (state.dailyLogs.length === 0) {
-    setListEmpty(
-      elements.dailyLogsList,
-      "Todavía no hay registros de pasos.",
-    );
-    return;
-  }
-
-  elements.dailyLogsList.className = "daily-logs-list";
-
-  for (const dailyLog of state.dailyLogs) {
-    const card = document.createElement("article");
-    card.className = "daily-log-card";
-
-    if (state.selectedDailyLog?.id === dailyLog.id) {
-      card.classList.add("selected");
-    }
-
-    card.innerHTML = `
-      <button class="daily-log-select-button" type="button">
-        <span class="daily-log-date">${formatDate(dailyLog.date)}</span>
-        <strong class="daily-log-steps">${formatNumber(dailyLog.steps)} pasos</strong>
-        <span class="daily-log-notes">${escapeHtml(dailyLog.notes || "Sin notas")}</span>
-      </button>
-      <button class="secondary-button edit-daily-log-button" type="button">
-        Editar
-      </button>
-    `;
-
-    card.querySelector(".daily-log-select-button").addEventListener(
-      "click",
-      () => selectDailyLog(dailyLog),
-    );
-
-    card.querySelector(".edit-daily-log-button").addEventListener(
-      "click",
-      () => selectDailyLog(dailyLog),
-    );
-
-    elements.dailyLogsList.append(card);
-  }
-}
-
-
-async function loadDailyLogs() {
-  try {
-    state.dailyLogs = await request("/daily-logs/");
-    renderDailyLogs();
-  } catch (error) {
-    showStatus(error.message, "error");
-    setListEmpty(
-      elements.dailyLogsList,
-      "No se pudieron cargar los registros diarios.",
-    );
-  }
-}
-
-
-function selectDailyLog(dailyLog) {
-  state.selectedDailyLog = dailyLog;
-
-  elements.dailyLogDate.value = dailyLog.date;
-  elements.dailyLogSteps.value = dailyLog.steps;
-  elements.dailyLogNotes.value = dailyLog.notes || "";
-  elements.dailyLogMode.textContent = "Editando registro";
-  elements.saveDailyLogButton.textContent = "Guardar cambios";
-  elements.cancelDailyLogEditButton.classList.remove("hidden");
-
-  renderDailyLogs();
-  elements.dailyLogSteps.focus();
-}
-
-
-async function handleSaveDailyLog(event) {
-  event.preventDefault();
-
-  const date = elements.dailyLogDate.value;
-  const steps = Number(elements.dailyLogSteps.value);
-  const notes = emptyToNull(elements.dailyLogNotes.value);
-
-  if (!Number.isInteger(steps) || steps < 0 || steps > 100000) {
-    showStatus(
-      "Los pasos deben ser un número entero entre 0 y 100000.",
-      "error",
-    );
-    return;
-  }
-
-  try {
-    const isEditing = state.selectedDailyLog !== null;
-
-    const dailyLog = await request(
-      isEditing ? `/daily-logs/${state.selectedDailyLog.date}` : "/daily-logs/",
-      {
-        method: isEditing ? "PUT" : "POST",
-        body: JSON.stringify(
-          isEditing
-            ? { steps, notes }
-            : { date, steps, notes },
-        ),
-      },
-    );
-
-    showStatus(
-      isEditing
-        ? `Registro de ${formatDate(dailyLog.date)} actualizado.`
-        : `Pasos de ${formatDate(dailyLog.date)} guardados.`,
-    );
-
-    await loadDailyLogs();
-    resetDailyLogForm();
-  } catch (error) {
-    if (!state.selectedDailyLog && error.message === "Ya existe un registro para esta fecha.") {
-      showStatus(
-        "Ya existe un registro para esa fecha. Selecciónalo en el historial para editarlo.",
-        "error",
-      );
-      return;
-    }
-
-    showStatus(error.message, "error");
-  }
-}
-
 function renderSessions() {
   elements.sessionCount.textContent = String(state.sessions.length);
   elements.sessionsList.innerHTML = "";
@@ -281,7 +151,8 @@ function renderSessions() {
 
     fragment.querySelector(".session-date").textContent = formatDate(session.date);
     fragment.querySelector(".session-name").textContent = session.name;
-    fragment.querySelector(".session-notes").textContent = session.notes || "Sin notas";
+    fragment.querySelector(".session-notes").textContent =
+      session.notes || "Sin notas";
 
     if (state.selectedSession?.id === session.id) {
       card.classList.add("selected");
