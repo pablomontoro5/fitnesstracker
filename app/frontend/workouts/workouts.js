@@ -5,8 +5,6 @@ const state = {
   selectedExercise: null,
   sets: [],
   pendingSets: [],
-  dailyLogs: [],
-  selectedDailyLog: null,
 };
 
 const elements = {
@@ -41,17 +39,6 @@ const elements = {
   progressForm: document.querySelector("#progress-form"),
   progressExerciseName: document.querySelector("#progress-exercise-name"),
   progressResult: document.querySelector("#progress-result"),
-  dailyLogForm: document.querySelector("#daily-log-form"),
-  dailyLogDate: document.querySelector("#daily-log-date"),
-  dailyLogSteps: document.querySelector("#daily-log-steps"),
-  dailyLogNotes: document.querySelector("#daily-log-notes"),
-  saveDailyLogButton: document.querySelector("#save-daily-log-button"),
-  cancelDailyLogEditButton: document.querySelector(
-    "#cancel-daily-log-edit-button",
-  ),
-  dailyLogMode: document.querySelector("#daily-log-mode"),
-  dailyLogCount: document.querySelector("#daily-log-count"),
-  dailyLogsList: document.querySelector("#daily-logs-list"),
   sessionTemplate: document.querySelector("#session-template"),
   exerciseTemplate: document.querySelector("#exercise-template"),
 };
@@ -146,144 +133,6 @@ function resetSelectedSession() {
   resetSelectedExercise();
 }
 
-function resetDailyLogForm() {
-  state.selectedDailyLog = null;
-  elements.dailyLogForm.reset();
-  elements.dailyLogDate.value = todayAsIsoDate();
-  elements.dailyLogMode.textContent = "Nuevo registro";
-  elements.saveDailyLogButton.textContent = "Guardar pasos";
-  elements.cancelDailyLogEditButton.classList.add("hidden");
-  renderDailyLogs();
-}
-
-
-function renderDailyLogs() {
-  elements.dailyLogCount.textContent = String(state.dailyLogs.length);
-  elements.dailyLogsList.innerHTML = "";
-
-  if (state.dailyLogs.length === 0) {
-    setListEmpty(
-      elements.dailyLogsList,
-      "Todavía no hay registros de pasos.",
-    );
-    return;
-  }
-
-  elements.dailyLogsList.className = "daily-logs-list";
-
-  for (const dailyLog of state.dailyLogs) {
-    const card = document.createElement("article");
-    card.className = "daily-log-card";
-
-    if (state.selectedDailyLog?.id === dailyLog.id) {
-      card.classList.add("selected");
-    }
-
-    card.innerHTML = `
-      <button class="daily-log-select-button" type="button">
-        <span class="daily-log-date">${formatDate(dailyLog.date)}</span>
-        <strong class="daily-log-steps">${formatNumber(dailyLog.steps)} pasos</strong>
-        <span class="daily-log-notes">${escapeHtml(dailyLog.notes || "Sin notas")}</span>
-      </button>
-      <button class="secondary-button edit-daily-log-button" type="button">
-        Editar
-      </button>
-    `;
-
-    card.querySelector(".daily-log-select-button").addEventListener(
-      "click",
-      () => selectDailyLog(dailyLog),
-    );
-
-    card.querySelector(".edit-daily-log-button").addEventListener(
-      "click",
-      () => selectDailyLog(dailyLog),
-    );
-
-    elements.dailyLogsList.append(card);
-  }
-}
-
-
-async function loadDailyLogs() {
-  try {
-    state.dailyLogs = await request("/daily-logs/");
-    renderDailyLogs();
-  } catch (error) {
-    showStatus(error.message, "error");
-    setListEmpty(
-      elements.dailyLogsList,
-      "No se pudieron cargar los registros diarios.",
-    );
-  }
-}
-
-
-function selectDailyLog(dailyLog) {
-  state.selectedDailyLog = dailyLog;
-
-  elements.dailyLogDate.value = dailyLog.date;
-  elements.dailyLogSteps.value = dailyLog.steps;
-  elements.dailyLogNotes.value = dailyLog.notes || "";
-  elements.dailyLogMode.textContent = "Editando registro";
-  elements.saveDailyLogButton.textContent = "Guardar cambios";
-  elements.cancelDailyLogEditButton.classList.remove("hidden");
-
-  renderDailyLogs();
-  elements.dailyLogSteps.focus();
-}
-
-
-async function handleSaveDailyLog(event) {
-  event.preventDefault();
-
-  const date = elements.dailyLogDate.value;
-  const steps = Number(elements.dailyLogSteps.value);
-  const notes = emptyToNull(elements.dailyLogNotes.value);
-
-  if (!Number.isInteger(steps) || steps < 0 || steps > 100000) {
-    showStatus(
-      "Los pasos deben ser un número entero entre 0 y 100000.",
-      "error",
-    );
-    return;
-  }
-
-  try {
-    const isEditing = state.selectedDailyLog !== null;
-
-    const dailyLog = await request(
-      isEditing ? `/daily-logs/${state.selectedDailyLog.date}` : "/daily-logs/",
-      {
-        method: isEditing ? "PUT" : "POST",
-        body: JSON.stringify(
-          isEditing
-            ? { steps, notes }
-            : { date, steps, notes },
-        ),
-      },
-    );
-
-    showStatus(
-      isEditing
-        ? `Registro de ${formatDate(dailyLog.date)} actualizado.`
-        : `Pasos de ${formatDate(dailyLog.date)} guardados.`,
-    );
-
-    await loadDailyLogs();
-    resetDailyLogForm();
-  } catch (error) {
-    if (!state.selectedDailyLog && error.message === "Ya existe un registro para esta fecha.") {
-      showStatus(
-        "Ya existe un registro para esa fecha. Selecciónalo en el historial para editarlo.",
-        "error",
-      );
-      return;
-    }
-
-    showStatus(error.message, "error");
-  }
-}
 
 function renderSessions() {
   elements.sessionCount.textContent = String(state.sessions.length);
@@ -910,41 +759,33 @@ function configureEventListeners() {
   elements.sessionForm.addEventListener("submit", handleCreateSession);
   elements.exerciseForm.addEventListener("submit", handleCreateExercise);
   elements.addSetRowButton.addEventListener("click", addPendingSetRow);
-  elements.savePendingSetsButton.addEventListener("click", handleSavePendingSets);
+  elements.savePendingSetsButton.addEventListener(
+    "click",
+    handleSavePendingSets,
+  );
   elements.progressForm.addEventListener("submit", handleProgressSearch);
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
-  elements.deleteExerciseButton.addEventListener("click", handleDeleteExercise);
-  elements.editExerciseButton.addEventListener("click", openExerciseEditor);
-
-  elements.dailyLogForm.addEventListener("submit", handleSaveDailyLog);
-
-  elements.cancelDailyLogEditButton.addEventListener(
+  elements.deleteExerciseButton.addEventListener(
     "click",
-    resetDailyLogForm,
+    handleDeleteExercise,
   );
-
-    elements.editExerciseForm.addEventListener(
-    "submit",
-    handleUpdateExercise,
-    );
-
-    elements.cancelEditExerciseButton.addEventListener(
+  elements.editExerciseButton.addEventListener("click", openExerciseEditor);
+  elements.editExerciseForm.addEventListener("submit", handleUpdateExercise);
+  elements.cancelEditExerciseButton.addEventListener(
     "click",
     closeExerciseEditor,
-    );
+  );
 }
 
 async function initializeApp() {
   elements.sessionDate.value = todayAsIsoDate();
-  elements.dailyLogDate.value = todayAsIsoDate();
 
   configureEventListeners();
 
-  await Promise.all([
-    loadSessions(),
-    loadDailyLogs(),
-  ]);
+  await loadSessions();
 }
 
 initializeApp();
+
+
