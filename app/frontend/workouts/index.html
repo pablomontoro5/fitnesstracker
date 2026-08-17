@@ -133,6 +133,25 @@
         <div id="session-detail-content" class="hidden">
           <form id="exercise-form" class="form-grid compact-form">
             <label>
+              Grupo muscular sugerido
+              <select id="exercise-suggestion-muscle-group">
+                <option value="">Selecciona un grupo</option>
+              </select>
+            </label>
+
+            <label>
+              Ejercicio sugerido
+              <select id="exercise-suggestion">
+                <option value="">Primero selecciona un grupo</option>
+              </select>
+            </label>
+
+            <p class="exercise-suggestion-help full-width">
+              Las sugerencias son opcionales. Puedes seleccionar una para rellenar los
+              campos o escribir un ejercicio personalizado.
+            </p>
+
+            <label>
               Ejercicio
               <input
                 id="exercise-name"
@@ -152,19 +171,6 @@
                 type="text"
                 maxlength="80"
                 placeholder="Ej.: Pectoral"
-                required
-              />
-            </label>
-
-            <label>
-              Posición
-              <input
-                id="exercise-position"
-                name="position"
-                type="number"
-                min="1"
-                max="100"
-                value="1"
                 required
               />
             </label>

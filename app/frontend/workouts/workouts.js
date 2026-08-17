@@ -7,7 +7,74 @@ const state = {
   pendingSets: [],
 };
 
+const exerciseSuggestions = {
+  Pectoral: [
+    "Press banca con barra",
+    "Press inclinado con mancuernas",
+    "Press inclinado con barra",
+    "Aperturas con mancuernas",
+    "Aperturas en máquina",
+    "Fondos en paralelas",
+  ],
+  Espalda: [
+    "Dominadas",
+    "Jalón al pecho",
+    "Remo con barra",
+    "Remo con mancuerna",
+    "Remo en máquina",
+    "Pullover en polea",
+  ],
+  Hombros: [
+    "Press militar",
+    "Press de hombro con mancuernas",
+    "Elevaciones laterales",
+    "Elevaciones frontales",
+    "Pájaros con mancuernas",
+    "Face pull",
+  ],
+  Bíceps: [
+    "Curl con barra",
+    "Curl con mancuernas",
+    "Curl inclinado con mancuernas",
+    "Curl martillo",
+    "Curl en polea",
+  ],
+  Tríceps: [
+    "Extensión de tríceps en polea",
+    "Press francés",
+    "Fondos para tríceps",
+    "Extensión por encima de la cabeza",
+    "Press cerrado",
+  ],
+  Cuádriceps: [
+    "Sentadilla",
+    "Prensa de piernas",
+    "Extensión de cuádriceps",
+    "Zancadas",
+    "Sentadilla búlgara",
+  ],
+  "Isquios y glúteos": [
+    "Peso muerto rumano",
+    "Curl femoral tumbado",
+    "Curl femoral sentado",
+    "Hip thrust",
+    "Buenos días",
+  ],
+  Gemelos: [
+    "Elevación de talones de pie",
+    "Elevación de talones sentado",
+    "Elevación de talones en prensa",
+  ],
+};
+
 const elements = {
+  exerciseForm: document.querySelector("#exercise-form"),
+  exerciseSuggestionMuscleGroup: document.querySelector(
+    "#exercise-suggestion-muscle-group",
+  ),
+  exerciseSuggestion: document.querySelector("#exercise-suggestion"),
+  exerciseName: document.querySelector("#exercise-name"),
+  exerciseMuscleGroup: document.querySelector("#exercise-muscle-group"),
   statusMessage: document.querySelector("#status-message"),
   sessionForm: document.querySelector("#session-form"),
   sessionDate: document.querySelector("#session-date"),
@@ -105,6 +172,72 @@ async function request(path, options = {}) {
 function setListEmpty(container, message) {
   container.className = "empty-state";
   container.textContent = message;
+}
+
+function createSelectOption(value, label = value) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+
+function populateSuggestionMuscleGroups() {
+  elements.exerciseSuggestionMuscleGroup.innerHTML = "";
+  elements.exerciseSuggestionMuscleGroup.append(
+    createSelectOption("", "Selecciona un grupo"),
+  );
+
+  for (const muscleGroup of Object.keys(exerciseSuggestions)) {
+    elements.exerciseSuggestionMuscleGroup.append(
+      createSelectOption(muscleGroup),
+    );
+  }
+}
+
+function resetExerciseSuggestions() {
+  elements.exerciseSuggestionMuscleGroup.value = "";
+  elements.exerciseSuggestion.innerHTML = "";
+  elements.exerciseSuggestion.append(
+    createSelectOption("", "Primero selecciona un grupo"),
+  );
+  elements.exerciseSuggestion.disabled = true;
+}
+
+function updateExerciseSuggestions() {
+  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
+
+  elements.exerciseSuggestion.innerHTML = "";
+
+  if (!muscleGroup) {
+    elements.exerciseSuggestion.append(
+      createSelectOption("", "Primero selecciona un grupo"),
+    );
+    elements.exerciseSuggestion.disabled = true;
+    return;
+  }
+
+  elements.exerciseSuggestion.append(
+    createSelectOption("", "Selecciona un ejercicio"),
+  );
+
+  for (const exerciseName of exerciseSuggestions[muscleGroup]) {
+    elements.exerciseSuggestion.append(createSelectOption(exerciseName));
+  }
+
+  elements.exerciseSuggestion.disabled = false;
+}
+
+function applyExerciseSuggestion() {
+  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
+  const exerciseName = elements.exerciseSuggestion.value;
+
+  if (!muscleGroup || !exerciseName) {
+    return;
+  }
+
+  elements.exerciseName.value = exerciseName;
+  elements.exerciseMuscleGroup.value = muscleGroup;
+  elements.exerciseName.focus();
 }
 
 function resetSelectedExercise() {
@@ -504,6 +637,7 @@ async function selectSession(session) {
   elements.deleteSessionButton.classList.remove("hidden");
   elements.exerciseForm.reset();
   elements.exerciseForm.elements.position.value = "1";
+  resetExerciseSuggestions();
   resetSelectedExercise();
   renderSessions();
 
@@ -581,6 +715,7 @@ async function handleCreateExercise(event) {
 
     elements.exerciseForm.reset();
     elements.exerciseForm.elements.position.value = String(exercise.position + 1);
+    resetExerciseSuggestions();
     showStatus(`Ejercicio “${exercise.name}” añadido.`);
     await loadExercises(state.selectedSession.id);
     await selectExercise(exercise);
@@ -776,10 +911,21 @@ function configureEventListeners() {
     "click",
     closeExerciseEditor,
   );
+  elements.exerciseSuggestionMuscleGroup.addEventListener(
+    "change",
+    updateExerciseSuggestions,
+  );
+
+  elements.exerciseSuggestion.addEventListener(
+    "change",
+    applyExerciseSuggestion,
+  );
 }
+
 async function initializeApp() {
   elements.sessionDate.value = todayAsIsoDate();
-
+  populateSuggestionMuscleGroups();
+  resetExerciseSuggestions();
   configureEventListeners();
 
   await loadSessions();
