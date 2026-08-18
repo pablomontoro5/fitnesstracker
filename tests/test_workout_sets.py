@@ -276,3 +276,113 @@ def test_negative_weight_is_rejected():
         )
 
     assert response.status_code == 422
+
+def test_update_workout_set():
+    with TestClient(app) as client:
+        exercise_id = create_exercise(client)
+
+        create_response = client.post(
+            f"/workout-exercises/{exercise_id}/sets/",
+            json={
+                "set_type": "working",
+                "position": 1,
+                "target_rep_range": "8-12",
+                "repetitions": 10,
+                "weight_kg": 30,
+                "rir": 2,
+                "notes": None,
+            },
+        )
+        assert create_response.status_code == 201
+
+        set_id = create_response.json()["id"]
+
+        response = client.put(
+            f"/workout-sets/{set_id}",
+            json={
+                "set_type": "drop_set",
+                "position": 2,
+                "target_rep_range": "10-15",
+                "repetitions": 12,
+                "weight_kg": 25,
+                "rir": -1,
+                "notes": "Reducir carga al llegar al fallo.",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == set_id
+    assert response.json()["set_type"] == "drop_set"
+    assert response.json()["position"] == 2
+    assert response.json()["target_rep_range"] == "10-15"
+    assert response.json()["repetitions"] == 12
+    assert response.json()["weight_kg"] == 25
+    assert response.json()["rir"] == -1
+    assert response.json()["notes"] == "Reducir carga al llegar al fallo."
+    assert response.json()["volume_kg"] == 300
+
+def test_update_missing_workout_set_returns_not_found():
+    with TestClient(app) as client:
+        response = client.put(
+            "/workout-sets/999999",
+            json={
+                "set_type": "working",
+                "position": 1,
+                "target_rep_range": "8-12",
+                "repetitions": 10,
+                "weight_kg": 30,
+                "rir": 2,
+                "notes": None,
+            },
+        )
+
+    assert response.status_code == 404
+
+def test_update_workout_set_rejects_duplicate_position():
+    with TestClient(app) as client:
+        exercise_id = create_exercise(client)
+
+        first_response = client.post(
+            f"/workout-exercises/{exercise_id}/sets/",
+            json={
+                "set_type": "warmup",
+                "position": 1,
+                "target_rep_range": None,
+                "repetitions": 15,
+                "weight_kg": 10,
+                "rir": None,
+                "notes": None,
+            },
+        )
+        assert first_response.status_code == 201
+
+        second_response = client.post(
+            f"/workout-exercises/{exercise_id}/sets/",
+            json={
+                "set_type": "working",
+                "position": 2,
+                "target_rep_range": "8-12",
+                "repetitions": 10,
+                "weight_kg": 30,
+                "rir": 2,
+                "notes": None,
+            },
+        )
+        assert second_response.status_code == 201
+
+        second_set_id = second_response.json()["id"]
+
+        response = client.put(
+            f"/workout-sets/{second_set_id}",
+            json={
+                "set_type": "working",
+                "position": 1,
+                "target_rep_range": "8-12",
+                "repetitions": 10,
+                "weight_kg": 30,
+                "rir": 2,
+                "notes": None,
+            },
+        )
+
+    assert response.status_code == 409
