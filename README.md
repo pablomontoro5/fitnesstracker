@@ -35,6 +35,7 @@ La versión inicial estará enfocada en un solo usuario y funcionamiento local. 
 
 - Crear plantillas de rutina, por ejemplo: `Empujes`, `Tirón` y `Pierna`.
 - Añadir ejercicios a una sesión con grupo muscular, orden y notas técnicas.
+- Seleccionar ejercicios sugeridos por grupo muscular o crear ejercicios personalizados.
 - Registrar cada serie con objetivo de repeticiones, repeticiones realizadas, carga, RIR y observaciones.
 - Registrar calentamiento y aproximaciones opcionales.
 - Consultar el historial de un ejercicio y su progreso básico de carga, repeticiones y volumen.
@@ -125,7 +126,7 @@ fitness-tracker/
 │       ├── style.css                  # Estilos compartidos
 │       ├── workouts/
 │       │   ├── index.html             # Módulo de entrenamiento
-│       │   └── workouts.js            # Lógica de sesiones, ejercicios y series
+│       │   └── workouts.js            # Sesiones, ejercicios, series, progreso y sugerencias
 │       └── daily-steps/
 │           ├── index.html             # Módulo de pasos diarios
 │           └── daily-steps.js         # Lógica de registros de pasos
@@ -143,6 +144,14 @@ fitness-tracker/
 Los routers mantienen los endpoints separados por dominio. El frontend se organiza por funcionalidades: cada módulo incluye su propia vista HTML y su lógica JavaScript, mientras que `style.css` concentra el diseño compartido.
 
 ---
+### Catálogo de ejercicios sugeridos
+
+El módulo de entrenamiento incluye un catálogo inicial de ejercicios agrupados por músculo. Al seleccionar un grupo muscular, se muestran ejercicios sugeridos y, al elegir uno, se completan automáticamente los campos de nombre y grupo muscular.
+
+Las sugerencias son opcionales: los campos permanecen editables para que cada usuario pueda registrar variantes, ejercicios con máquinas concretas o cualquier ejercicio personalizado.
+
+El catálogo se mantiene inicialmente en `app/frontend/workouts/workouts.js`. En una fase posterior podrá trasladarse al backend y ampliarse con equipamiento, instrucciones técnicas y variantes.
+
 
 ## Modelo de datos inicial
 
@@ -192,7 +201,6 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. El RIR
 | `GET` | `/workout-sessions/{session_id}/exercises/` | Listar ejercicios de una sesión por posición | Implementado |
 | `GET` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
 | `GET` / `POST` | `/workout-exercises/{exercise_id}/sets/` | Consultar o añadir series a un ejercicio | Implementado |
-| `GET` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
 | `GET` | `/workouts/progress?exercise_name={name}` | Obtener progreso, series de trabajo y volumen por ejercicio | Implementado |
 | `GET` / `POST` | `/runs/` | Listar o registrar sesiones de running | Próximamente |
 | `GET` / `POST` | `/meals/` | Listar o registrar comidas | Próximamente |
@@ -216,6 +224,7 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 - [x] Crear frontend responsive con página principal de navegación.
 - [x] Separar las vistas de entrenamiento y pasos diarios en módulos independientes.
 - [x] Añadir formularios para sesiones, ejercicios, series y pasos diarios.
+- [x] Añadir sugerencias de ejercicios por grupo muscular sin eliminar la creación manual.
 - [~] Ampliar las pruebas de endpoints y cálculos.
 
 ### Fase 2 — Seguimiento útil
@@ -295,15 +304,15 @@ python -m pytest
 
 ## Próximo incremento recomendado
 
-El siguiente corte vertical mejorará la experiencia de registro de ejercicios:
+El siguiente corte vertical ampliará el catálogo de ejercicios y mejorará el registro guiado:
 
-1. Añadir un catálogo inicial de ejercicios sugeridos por grupo muscular.
-2. Mantener la opción de crear ejercicios personalizados manualmente.
-3. Permitir seleccionar una sugerencia y rellenar automáticamente el nombre y grupo muscular.
-4. Mostrar notas técnicas o indicaciones básicas para cada ejercicio sugerido.
-5. Preparar la estructura para incorporar plantillas de rutinas y duplicar sesiones en el futuro.
+1. Separar los grupos de isquios y glúteos.
+2. Añadir Core/abdominales al catálogo.
+3. Incorporar equipamiento sugerido, por ejemplo: barra, mancuernas, máquina, polea o peso corporal.
+4. Mostrar una breve indicación técnica al seleccionar un ejercicio sugerido.
+5. Mantener siempre la creación manual y la edición de los campos autorrellenados.
 
-Este incremento mantiene la flexibilidad actual: el usuario podrá utilizar sugerencias o registrar cualquier variante, máquina o ejercicio personalizado.
+Después de esta mejora, el siguiente módulo recomendado será el registro de carreras, reutilizando la navegación y la estructura modular actual..
 ---
 
 ## Limitaciones iniciales

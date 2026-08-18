@@ -8,6 +8,13 @@ const state = {
 };
 
 const elements = {
+  exerciseForm: document.querySelector("#exercise-form"),
+  exerciseSuggestionMuscleGroup: document.querySelector(
+    "#exercise-suggestion-muscle-group",
+  ),
+  exerciseSuggestion: document.querySelector("#exercise-suggestion"),
+  exerciseName: document.querySelector("#exercise-name"),
+  exerciseMuscleGroup: document.querySelector("#exercise-muscle-group"),
   statusMessage: document.querySelector("#status-message"),
   sessionForm: document.querySelector("#session-form"),
   sessionDate: document.querySelector("#session-date"),
@@ -246,8 +253,33 @@ function populateSuggestionMuscleGroups() {
       createSelectOption(muscleGroup),
     );
   }
+function createSelectOption(value, label = value) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
 }
 
+function populateSuggestionMuscleGroups() {
+  elements.exerciseSuggestionMuscleGroup.innerHTML = "";
+  elements.exerciseSuggestionMuscleGroup.append(
+    createSelectOption("", "Selecciona un grupo"),
+  );
+
+  for (const muscleGroup of Object.keys(exerciseSuggestions)) {
+    elements.exerciseSuggestionMuscleGroup.append(
+      createSelectOption(muscleGroup),
+    );
+  }
+}
+
+function resetExerciseSuggestions() {
+  elements.exerciseSuggestionMuscleGroup.value = "";
+  elements.exerciseSuggestion.innerHTML = "";
+  elements.exerciseSuggestion.append(
+    createSelectOption("", "Primero selecciona un grupo"),
+  );
+  elements.exerciseSuggestion.disabled = true;
 function resetExerciseSuggestions() {
   elements.exerciseSuggestionMuscleGroup.value = "";
   elements.exerciseSuggestion.innerHTML = "";
@@ -267,9 +299,22 @@ function updateExerciseSuggestions() {
       createSelectOption("", "Primero selecciona un grupo"),
     );
     elements.exerciseSuggestion.disabled = true;
+function updateExerciseSuggestions() {
+  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
+
+  elements.exerciseSuggestion.innerHTML = "";
+
+  if (!muscleGroup) {
+    elements.exerciseSuggestion.append(
+      createSelectOption("", "Primero selecciona un grupo"),
+    );
+    elements.exerciseSuggestion.disabled = true;
     return;
   }
 
+  elements.exerciseSuggestion.append(
+    createSelectOption("", "Selecciona un ejercicio"),
+  );
   elements.exerciseSuggestion.append(
     createSelectOption("", "Selecciona un ejercicio"),
   );
@@ -339,7 +384,8 @@ function renderSessions() {
 
     fragment.querySelector(".session-date").textContent = formatDate(session.date);
     fragment.querySelector(".session-name").textContent = session.name;
-    fragment.querySelector(".session-notes").textContent = session.notes || "Sin notas";
+    fragment.querySelector(".session-notes").textContent =
+      session.notes || "Sin notas";
 
     if (state.selectedSession?.id === session.id) {
       card.classList.add("selected");
@@ -692,6 +738,7 @@ async function selectSession(session) {
   elements.exerciseForm.reset();
   elements.exerciseForm.elements.position.value = "1";
   resetExerciseSuggestions();
+  resetExerciseSuggestions();
   resetSelectedExercise();
   renderSessions();
 
@@ -769,6 +816,7 @@ async function handleCreateExercise(event) {
 
     elements.exerciseForm.reset();
     elements.exerciseForm.elements.position.value = String(exercise.position + 1);
+    resetExerciseSuggestions();
     resetExerciseSuggestions();
     showStatus(`Ejercicio “${exercise.name}” añadido.`);
     await loadExercises(state.selectedSession.id);
@@ -952,6 +1000,10 @@ function configureEventListeners() {
     "click",
     handleSavePendingSets,
   );
+  elements.savePendingSetsButton.addEventListener(
+    "click",
+    handleSavePendingSets,
+  );
   elements.progressForm.addEventListener("submit", handleProgressSearch);
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
@@ -984,6 +1036,7 @@ async function initializeApp() {
   resetExerciseSuggestions();
   configureEventListeners();
 
+  await loadSessions();
   await loadSessions();
 }
 
