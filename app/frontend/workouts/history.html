@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Historial de sesiones de entrenamiento registradas."
+  />
+  <title>Historial · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/static/workouts/index.html">
+      &larr; Volver a entrenamientos
+    </a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Historial</p>
+        <h2>Consulta tus entrenamientos registrados</h2>
+        <p>
+          Revisa ejercicios, series, volumen total y esfuerzo registrado en
+          cada sesión.
+        </p>
+      </div>
+
+      <button
+        id="refresh-history-button"
+        class="icon-button"
+        type="button"
+        title="Actualizar historial"
+        aria-label="Actualizar historial"
+      >
+        ↻
+      </button>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+
+    <section class="panel">
+      <div class="list-header">
+        <h2>Sesiones registradas</h2>
+        <span id="history-session-count" class="counter">0</span>
+      </div>
+
+      <div id="history-list" class="sessions-list empty-state">
+        Cargando historial…
+      </div>
+    </section>
+  </main>
+
+  <template id="history-session-template">
+    <article class="session-card history-session-card">
+      <button class="history-session-toggle" type="button">
+        <span class="session-date"></span>
+
+        <span class="history-session-main">
+          <strong class="session-name"></strong>
+          <small class="session-notes"></small>
+        </span>
+
+        <span class="history-session-summary">
+          <span class="history-exercise-count"></span>
+          <strong class="history-total-volume"></strong>
+        </span>
+
+        <span class="history-toggle-icon" aria-hidden="true">⌄</span>
+      </button>
+
+      <div class="history-session-detail hidden"></div>
+    </article>
+  </template>
+
+  <script src="/static/workouts/history.js" type="module"></script>
+</body>
+</html>

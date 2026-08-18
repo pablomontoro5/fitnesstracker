@@ -879,3 +879,138 @@ textarea:focus {
     flex-direction: column;
   }
 }
+
+.history-session-card {
+  overflow: hidden;
+}
+
+.history-session-toggle {
+  display: grid;
+  grid-template-columns: minmax(105px, auto) minmax(0, 1fr) auto auto;
+  align-items: center;
+  width: 100%;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.history-session-toggle:hover {
+  background: #fbfefc;
+}
+
+.history-session-card.expanded {
+  border-color: var(--primary);
+}
+
+.history-session-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.history-session-main .session-notes {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-session-summary {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.history-session-summary strong {
+  color: var(--primary);
+  font-size: 0.84rem;
+}
+
+.history-toggle-icon {
+  color: var(--primary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  transition: transform 0.2s ease;
+}
+
+.history-session-card.expanded .history-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.history-session-detail {
+  padding: 0 0.9rem 0.9rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.history-session-detail.empty-state {
+  margin: 0.75rem;
+  min-height: 80px;
+}
+
+.history-detail-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 650px) {
+  .history-session-toggle {
+    grid-template-columns: 1fr auto;
+  }
+
+  .history-session-toggle .session-date {
+    grid-column: 1;
+  }
+
+  .history-session-main {
+    grid-column: 1;
+  }
+
+  .history-session-summary {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+
+  .history-toggle-icon {
+    grid-row: 3;
+    grid-column: 2;
+  }
+
+  .history-exercise-header {
+    flex-direction: column;
+  }
+
+  .history-detail-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.history-link-container {
+  display: flex;
+  justify-content: center;
+  margin: 1.75rem 0 2rem;
+}
+
+a.history-button {
+  min-width: 280px;
+  background: #4f46e5;
+  color: #ffffff;
+  text-align: center;
+  text-decoration: none;
+}
+
+a.history-button:hover {
+  background: #3730a3;
+  color: #ffffff;
+}
