@@ -22,7 +22,7 @@ def test_create_workout_session():
 
 def test_list_workout_sessions():
     with TestClient(app) as client:
-        client.post(
+        create_response = client.post(
             "/workout-sessions/",
             json={
                 "date": "2026-08-15",
@@ -31,10 +31,16 @@ def test_list_workout_sessions():
             },
         )
 
+        assert create_response.status_code == 201
+
         response = client.get("/workout-sessions/")
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+    assert any(
+        session["id"] == create_response.json()["id"]
+        for session in response.json()
+    )
 
 
 def test_get_workout_session():
@@ -47,6 +53,8 @@ def test_get_workout_session():
                 "notes": None,
             },
         )
+
+        assert create_response.status_code == 201
 
         session_id = create_response.json()["id"]
         response = client.get(f"/workout-sessions/{session_id}")
@@ -65,6 +73,8 @@ def test_delete_workout_session():
                 "notes": None,
             },
         )
+
+        assert create_response.status_code == 201
 
         session_id = create_response.json()["id"]
 
