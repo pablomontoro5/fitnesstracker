@@ -5,11 +5,76 @@ const state = {
   selectedExercise: null,
   sets: [],
   pendingSets: [],
-  dailyLogs: [],
-  selectedDailyLog: null,
+};
+
+const exerciseSuggestions = {
+  Pectoral: [
+    "Press banca con barra",
+    "Press inclinado con mancuernas",
+    "Press inclinado con barra",
+    "Aperturas con mancuernas",
+    "Aperturas en máquina",
+    "Fondos en paralelas",
+  ],
+  Espalda: [
+    "Dominadas",
+    "Jalón al pecho",
+    "Remo con barra",
+    "Remo con mancuerna",
+    "Remo en máquina",
+    "Pullover en polea",
+  ],
+  Hombros: [
+    "Press militar",
+    "Press de hombro con mancuernas",
+    "Elevaciones laterales",
+    "Elevaciones frontales",
+    "Pájaros con mancuernas",
+    "Face pull",
+  ],
+  Bíceps: [
+    "Curl con barra",
+    "Curl con mancuernas",
+    "Curl inclinado con mancuernas",
+    "Curl martillo",
+    "Curl en polea",
+  ],
+  Tríceps: [
+    "Extensión de tríceps en polea",
+    "Press francés",
+    "Fondos para tríceps",
+    "Extensión por encima de la cabeza",
+    "Press cerrado",
+  ],
+  Cuádriceps: [
+    "Sentadilla",
+    "Prensa de piernas",
+    "Extensión de cuádriceps",
+    "Zancadas",
+    "Sentadilla búlgara",
+  ],
+  "Isquios y glúteos": [
+    "Peso muerto rumano",
+    "Curl femoral tumbado",
+    "Curl femoral sentado",
+    "Hip thrust",
+    "Buenos días",
+  ],
+  Gemelos: [
+    "Elevación de talones de pie",
+    "Elevación de talones sentado",
+    "Elevación de talones en prensa",
+  ],
 };
 
 const elements = {
+  exerciseForm: document.querySelector("#exercise-form"),
+  exerciseSuggestionMuscleGroup: document.querySelector(
+    "#exercise-suggestion-muscle-group",
+  ),
+  exerciseSuggestion: document.querySelector("#exercise-suggestion"),
+  exerciseName: document.querySelector("#exercise-name"),
+  exerciseMuscleGroup: document.querySelector("#exercise-muscle-group"),
   statusMessage: document.querySelector("#status-message"),
   sessionForm: document.querySelector("#session-form"),
   sessionDate: document.querySelector("#session-date"),
@@ -41,17 +106,6 @@ const elements = {
   progressForm: document.querySelector("#progress-form"),
   progressExerciseName: document.querySelector("#progress-exercise-name"),
   progressResult: document.querySelector("#progress-result"),
-  dailyLogForm: document.querySelector("#daily-log-form"),
-  dailyLogDate: document.querySelector("#daily-log-date"),
-  dailyLogSteps: document.querySelector("#daily-log-steps"),
-  dailyLogNotes: document.querySelector("#daily-log-notes"),
-  saveDailyLogButton: document.querySelector("#save-daily-log-button"),
-  cancelDailyLogEditButton: document.querySelector(
-    "#cancel-daily-log-edit-button",
-  ),
-  dailyLogMode: document.querySelector("#daily-log-mode"),
-  dailyLogCount: document.querySelector("#daily-log-count"),
-  dailyLogsList: document.querySelector("#daily-logs-list"),
   sessionTemplate: document.querySelector("#session-template"),
   exerciseTemplate: document.querySelector("#exercise-template"),
 };
@@ -120,6 +174,72 @@ function setListEmpty(container, message) {
   container.textContent = message;
 }
 
+function createSelectOption(value, label = value) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
+
+function populateSuggestionMuscleGroups() {
+  elements.exerciseSuggestionMuscleGroup.innerHTML = "";
+  elements.exerciseSuggestionMuscleGroup.append(
+    createSelectOption("", "Selecciona un grupo"),
+  );
+
+  for (const muscleGroup of Object.keys(exerciseSuggestions)) {
+    elements.exerciseSuggestionMuscleGroup.append(
+      createSelectOption(muscleGroup),
+    );
+  }
+}
+
+function resetExerciseSuggestions() {
+  elements.exerciseSuggestionMuscleGroup.value = "";
+  elements.exerciseSuggestion.innerHTML = "";
+  elements.exerciseSuggestion.append(
+    createSelectOption("", "Primero selecciona un grupo"),
+  );
+  elements.exerciseSuggestion.disabled = true;
+}
+
+function updateExerciseSuggestions() {
+  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
+
+  elements.exerciseSuggestion.innerHTML = "";
+
+  if (!muscleGroup) {
+    elements.exerciseSuggestion.append(
+      createSelectOption("", "Primero selecciona un grupo"),
+    );
+    elements.exerciseSuggestion.disabled = true;
+    return;
+  }
+
+  elements.exerciseSuggestion.append(
+    createSelectOption("", "Selecciona un ejercicio"),
+  );
+
+  for (const exerciseName of exerciseSuggestions[muscleGroup]) {
+    elements.exerciseSuggestion.append(createSelectOption(exerciseName));
+  }
+
+  elements.exerciseSuggestion.disabled = false;
+}
+
+function applyExerciseSuggestion() {
+  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
+  const exerciseName = elements.exerciseSuggestion.value;
+
+  if (!muscleGroup || !exerciseName) {
+    return;
+  }
+
+  elements.exerciseName.value = exerciseName;
+  elements.exerciseMuscleGroup.value = muscleGroup;
+  elements.exerciseName.focus();
+}
+
 function resetSelectedExercise() {
   state.selectedExercise = null;
   state.sets = [];
@@ -146,145 +266,6 @@ function resetSelectedSession() {
   resetSelectedExercise();
 }
 
-function resetDailyLogForm() {
-  state.selectedDailyLog = null;
-  elements.dailyLogForm.reset();
-  elements.dailyLogDate.value = todayAsIsoDate();
-  elements.dailyLogMode.textContent = "Nuevo registro";
-  elements.saveDailyLogButton.textContent = "Guardar pasos";
-  elements.cancelDailyLogEditButton.classList.add("hidden");
-  renderDailyLogs();
-}
-
-
-function renderDailyLogs() {
-  elements.dailyLogCount.textContent = String(state.dailyLogs.length);
-  elements.dailyLogsList.innerHTML = "";
-
-  if (state.dailyLogs.length === 0) {
-    setListEmpty(
-      elements.dailyLogsList,
-      "Todavía no hay registros de pasos.",
-    );
-    return;
-  }
-
-  elements.dailyLogsList.className = "daily-logs-list";
-
-  for (const dailyLog of state.dailyLogs) {
-    const card = document.createElement("article");
-    card.className = "daily-log-card";
-
-    if (state.selectedDailyLog?.id === dailyLog.id) {
-      card.classList.add("selected");
-    }
-
-    card.innerHTML = `
-      <button class="daily-log-select-button" type="button">
-        <span class="daily-log-date">${formatDate(dailyLog.date)}</span>
-        <strong class="daily-log-steps">${formatNumber(dailyLog.steps)} pasos</strong>
-        <span class="daily-log-notes">${escapeHtml(dailyLog.notes || "Sin notas")}</span>
-      </button>
-      <button class="secondary-button edit-daily-log-button" type="button">
-        Editar
-      </button>
-    `;
-
-    card.querySelector(".daily-log-select-button").addEventListener(
-      "click",
-      () => selectDailyLog(dailyLog),
-    );
-
-    card.querySelector(".edit-daily-log-button").addEventListener(
-      "click",
-      () => selectDailyLog(dailyLog),
-    );
-
-    elements.dailyLogsList.append(card);
-  }
-}
-
-
-async function loadDailyLogs() {
-  try {
-    state.dailyLogs = await request("/daily-logs/");
-    renderDailyLogs();
-  } catch (error) {
-    showStatus(error.message, "error");
-    setListEmpty(
-      elements.dailyLogsList,
-      "No se pudieron cargar los registros diarios.",
-    );
-  }
-}
-
-
-function selectDailyLog(dailyLog) {
-  state.selectedDailyLog = dailyLog;
-
-  elements.dailyLogDate.value = dailyLog.date;
-  elements.dailyLogSteps.value = dailyLog.steps;
-  elements.dailyLogNotes.value = dailyLog.notes || "";
-  elements.dailyLogMode.textContent = "Editando registro";
-  elements.saveDailyLogButton.textContent = "Guardar cambios";
-  elements.cancelDailyLogEditButton.classList.remove("hidden");
-
-  renderDailyLogs();
-  elements.dailyLogSteps.focus();
-}
-
-
-async function handleSaveDailyLog(event) {
-  event.preventDefault();
-
-  const date = elements.dailyLogDate.value;
-  const steps = Number(elements.dailyLogSteps.value);
-  const notes = emptyToNull(elements.dailyLogNotes.value);
-
-  if (!Number.isInteger(steps) || steps < 0 || steps > 100000) {
-    showStatus(
-      "Los pasos deben ser un número entero entre 0 y 100000.",
-      "error",
-    );
-    return;
-  }
-
-  try {
-    const isEditing = state.selectedDailyLog !== null;
-
-    const dailyLog = await request(
-      isEditing ? `/daily-logs/${state.selectedDailyLog.date}` : "/daily-logs/",
-      {
-        method: isEditing ? "PUT" : "POST",
-        body: JSON.stringify(
-          isEditing
-            ? { steps, notes }
-            : { date, steps, notes },
-        ),
-      },
-    );
-
-    showStatus(
-      isEditing
-        ? `Registro de ${formatDate(dailyLog.date)} actualizado.`
-        : `Pasos de ${formatDate(dailyLog.date)} guardados.`,
-    );
-
-    await loadDailyLogs();
-    resetDailyLogForm();
-  } catch (error) {
-    if (!state.selectedDailyLog && error.message === "Ya existe un registro para esta fecha.") {
-      showStatus(
-        "Ya existe un registro para esa fecha. Selecciónalo en el historial para editarlo.",
-        "error",
-      );
-      return;
-    }
-
-    showStatus(error.message, "error");
-  }
-}
-
 function renderSessions() {
   elements.sessionCount.textContent = String(state.sessions.length);
   elements.sessionsList.innerHTML = "";
@@ -303,7 +284,8 @@ function renderSessions() {
 
     fragment.querySelector(".session-date").textContent = formatDate(session.date);
     fragment.querySelector(".session-name").textContent = session.name;
-    fragment.querySelector(".session-notes").textContent = session.notes || "Sin notas";
+    fragment.querySelector(".session-notes").textContent =
+      session.notes || "Sin notas";
 
     if (state.selectedSession?.id === session.id) {
       card.classList.add("selected");
@@ -655,6 +637,7 @@ async function selectSession(session) {
   elements.deleteSessionButton.classList.remove("hidden");
   elements.exerciseForm.reset();
   elements.exerciseForm.elements.position.value = "1";
+  resetExerciseSuggestions();
   resetSelectedExercise();
   renderSessions();
 
@@ -732,6 +715,7 @@ async function handleCreateExercise(event) {
 
     elements.exerciseForm.reset();
     elements.exerciseForm.elements.position.value = String(exercise.position + 1);
+    resetExerciseSuggestions();
     showStatus(`Ejercicio “${exercise.name}” añadido.`);
     await loadExercises(state.selectedSession.id);
     await selectExercise(exercise);
@@ -910,41 +894,41 @@ function configureEventListeners() {
   elements.sessionForm.addEventListener("submit", handleCreateSession);
   elements.exerciseForm.addEventListener("submit", handleCreateExercise);
   elements.addSetRowButton.addEventListener("click", addPendingSetRow);
-  elements.savePendingSetsButton.addEventListener("click", handleSavePendingSets);
+  elements.savePendingSetsButton.addEventListener(
+    "click",
+    handleSavePendingSets,
+  );
   elements.progressForm.addEventListener("submit", handleProgressSearch);
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
-  elements.deleteExerciseButton.addEventListener("click", handleDeleteExercise);
-  elements.editExerciseButton.addEventListener("click", openExerciseEditor);
-
-  elements.dailyLogForm.addEventListener("submit", handleSaveDailyLog);
-
-  elements.cancelDailyLogEditButton.addEventListener(
+  elements.deleteExerciseButton.addEventListener(
     "click",
-    resetDailyLogForm,
+    handleDeleteExercise,
   );
-
-    elements.editExerciseForm.addEventListener(
-    "submit",
-    handleUpdateExercise,
-    );
-
-    elements.cancelEditExerciseButton.addEventListener(
+  elements.editExerciseButton.addEventListener("click", openExerciseEditor);
+  elements.editExerciseForm.addEventListener("submit", handleUpdateExercise);
+  elements.cancelEditExerciseButton.addEventListener(
     "click",
     closeExerciseEditor,
-    );
+  );
+  elements.exerciseSuggestionMuscleGroup.addEventListener(
+    "change",
+    updateExerciseSuggestions,
+  );
+
+  elements.exerciseSuggestion.addEventListener(
+    "change",
+    applyExerciseSuggestion,
+  );
 }
 
 async function initializeApp() {
   elements.sessionDate.value = todayAsIsoDate();
-  elements.dailyLogDate.value = todayAsIsoDate();
-
+  populateSuggestionMuscleGroups();
+  resetExerciseSuggestions();
   configureEventListeners();
 
-  await Promise.all([
-    loadSessions(),
-    loadDailyLogs(),
-  ]);
+  await loadSessions();
 }
 
 initializeApp();
