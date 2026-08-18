@@ -1,10 +1,10 @@
 import sqlite3
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Response,status
 
 from app.db import get_connection
-from app.schemas import WorkoutSessionCreate, WorkoutSessionResponse
+from app.schemas import WorkoutSessionCreate, WorkoutSessionResponse, WorkoutSessionUpdate
 
 router = APIRouter(
     prefix="/workout-sessions",
@@ -89,10 +89,50 @@ def get_workout_session(session_id: int) -> WorkoutSessionResponse:
     return row_to_workout_session(row)
 
 
-@router.delete(
+@router.put(
     "/{session_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=WorkoutSessionResponse,
 )
+def update_workout_session(
+    session_id: int,
+    workout_session: WorkoutSessionUpdate,
+) -> WorkoutSessionResponse:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE workout_sessions
+            SET
+                date = ?,
+                name = ?,
+                notes = ?
+            WHERE id = ?
+            """,
+            (
+                workout_session.date.isoformat(),
+                workout_session.name.strip(),
+                workout_session.notes,
+                session_id,
+            ),
+        )
+
+        if cursor.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existe una sesión con ese id.",
+            )
+
+        row = connection.execute(
+            """
+            SELECT id, date, name, notes
+            FROM workout_sessions
+            WHERE id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+
+    return row_to_workout_session(row)
+
+@router.delete("/{session_id}", response_model=None)
 def delete_workout_session(session_id: int) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
