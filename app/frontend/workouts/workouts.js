@@ -253,24 +253,6 @@ function populateSuggestionMuscleGroups() {
       createSelectOption(muscleGroup),
     );
   }
-function createSelectOption(value, label = value) {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = label;
-  return option;
-}
-
-function populateSuggestionMuscleGroups() {
-  elements.exerciseSuggestionMuscleGroup.innerHTML = "";
-  elements.exerciseSuggestionMuscleGroup.append(
-    createSelectOption("", "Selecciona un grupo"),
-  );
-
-  for (const muscleGroup of Object.keys(exerciseSuggestions)) {
-    elements.exerciseSuggestionMuscleGroup.append(
-      createSelectOption(muscleGroup),
-    );
-  }
 }
 
 function resetExerciseSuggestions() {
@@ -280,25 +262,8 @@ function resetExerciseSuggestions() {
     createSelectOption("", "Primero selecciona un grupo"),
   );
   elements.exerciseSuggestion.disabled = true;
-function resetExerciseSuggestions() {
-  elements.exerciseSuggestionMuscleGroup.value = "";
-  elements.exerciseSuggestion.innerHTML = "";
-  elements.exerciseSuggestion.append(
-    createSelectOption("", "Primero selecciona un grupo"),
-  );
-  elements.exerciseSuggestion.disabled = true;
 }
 
-function updateExerciseSuggestions() {
-  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
-
-  elements.exerciseSuggestion.innerHTML = "";
-
-  if (!muscleGroup) {
-    elements.exerciseSuggestion.append(
-      createSelectOption("", "Primero selecciona un grupo"),
-    );
-    elements.exerciseSuggestion.disabled = true;
 function updateExerciseSuggestions() {
   const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
 
@@ -312,9 +277,6 @@ function updateExerciseSuggestions() {
     return;
   }
 
-  elements.exerciseSuggestion.append(
-    createSelectOption("", "Selecciona un ejercicio"),
-  );
   elements.exerciseSuggestion.append(
     createSelectOption("", "Selecciona un ejercicio"),
   );
@@ -338,7 +300,6 @@ function applyExerciseSuggestion() {
   elements.exerciseMuscleGroup.value = muscleGroup;
   elements.exerciseName.focus();
 }
-
 function resetSelectedExercise() {
   state.selectedExercise = null;
   state.sets = [];
@@ -738,7 +699,6 @@ async function selectSession(session) {
   elements.exerciseForm.reset();
   elements.exerciseForm.elements.position.value = "1";
   resetExerciseSuggestions();
-  resetExerciseSuggestions();
   resetSelectedExercise();
   renderSessions();
 
@@ -816,7 +776,6 @@ async function handleCreateExercise(event) {
 
     elements.exerciseForm.reset();
     elements.exerciseForm.elements.position.value = String(exercise.position + 1);
-    resetExerciseSuggestions();
     resetExerciseSuggestions();
     showStatus(`Ejercicio “${exercise.name}” añadido.`);
     await loadExercises(state.selectedSession.id);
@@ -1000,10 +959,6 @@ function configureEventListeners() {
     "click",
     handleSavePendingSets,
   );
-  elements.savePendingSetsButton.addEventListener(
-    "click",
-    handleSavePendingSets,
-  );
   elements.progressForm.addEventListener("submit", handleProgressSearch);
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
@@ -1037,9 +992,7 @@ async function initializeApp() {
   configureEventListeners();
 
   await loadSessions();
-  await loadSessions();
 }
 
 initializeApp();
-
 
