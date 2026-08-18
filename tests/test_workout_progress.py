@@ -131,7 +131,10 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
     assert first_session["session_name"] == "Empujes A"
     assert first_session["total_volume_kg"] == 540
     assert len(first_session["sets"]) == 2
+    assert len(first_session["sets"]) == 2
+    assert first_session["sets"][0]["position"] == 2
     assert first_session["sets"][0]["volume_kg"] == 300
+    assert first_session["sets"][1]["position"] == 3
     assert first_session["sets"][1]["volume_kg"] == 240
 
     second_session = data["sessions"][1]

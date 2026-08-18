@@ -57,7 +57,7 @@ def test_list_workout_sets_orders_by_position():
     with TestClient(app) as client:
         exercise_id = create_exercise(client)
 
-        client.post(
+        working_response = client.post(
             f"/workout-exercises/{exercise_id}/sets/",
             json={
                 "set_type": "working",
@@ -69,8 +69,9 @@ def test_list_workout_sets_orders_by_position():
                 "notes": None,
             },
         )
+        assert working_response.status_code == 201, working_response.json()
 
-        client.post(
+        warmup_response = client.post(
             f"/workout-exercises/{exercise_id}/sets/",
             json={
                 "set_type": "warmup",
@@ -82,16 +83,21 @@ def test_list_workout_sets_orders_by_position():
                 "notes": None,
             },
         )
+        assert warmup_response.status_code == 201, warmup_response.json()
 
         response = client.get(
             f"/workout-exercises/{exercise_id}/sets/"
         )
 
-    assert response.status_code == 200
-    assert response.json()[0]["position"] == 1
-    assert response.json()[0]["set_type"] == "warmup"
-    assert response.json()[1]["position"] == 2
+    assert response.status_code == 200, response.json()
 
+    sets = response.json()
+
+    assert len(sets) == 2
+    assert sets[0]["position"] == 1
+    assert sets[0]["set_type"] == "warmup"
+    assert sets[1]["position"] == 2
+    assert sets[1]["set_type"] == "working"
 
 def test_set_requires_existing_exercise():
     with TestClient(app) as client:
@@ -227,6 +233,44 @@ def test_rir_below_negative_three_is_rejected():
                 "repetitions": 8,
                 "weight_kg": 20,
                 "rir": -3.5,
+                "notes": None,
+            },
+        )
+
+    assert response.status_code == 422
+def test_zero_repetitions_are_rejected():
+    with TestClient(app) as client:
+        exercise_id = create_exercise(client)
+
+        response = client.post(
+            f"/workout-exercises/{exercise_id}/sets/",
+            json={
+                "set_type": "working",
+                "position": 1,
+                "target_rep_range": "8-12",
+                "repetitions": 0,
+                "weight_kg": 30,
+                "rir": 2,
+                "notes": None,
+            },
+        )
+
+    assert response.status_code == 422
+
+
+def test_negative_weight_is_rejected():
+    with TestClient(app) as client:
+        exercise_id = create_exercise(client)
+
+        response = client.post(
+            f"/workout-exercises/{exercise_id}/sets/",
+            json={
+                "set_type": "working",
+                "position": 1,
+                "target_rep_range": "8-12",
+                "repetitions": 10,
+                "weight_kg": -1,
+                "rir": 2,
                 "notes": None,
             },
         )

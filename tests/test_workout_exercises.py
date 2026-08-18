@@ -184,9 +184,9 @@ def test_update_workout_exercise_rejects_duplicate_position():
         first_response = client.post(
             f"/workout-sessions/{session_id}/exercises/",
             json={
-                "name": "Press banca",
+                "name": "Aperturas en pec deck",
                 "muscle_group": "Pectoral",
-                "position": 1,
+                "position": 2,
                 "technique_notes": None,
             },
         )
@@ -195,20 +195,20 @@ def test_update_workout_exercise_rejects_duplicate_position():
         second_response = client.post(
             f"/workout-sessions/{session_id}/exercises/",
             json={
-                "name": "Aperturas",
+                "name": "Press banca en máquina",
                 "muscle_group": "Pectoral",
-                "position": 2,
+                "position": 1,
                 "technique_notes": None,
             },
         )
         assert second_response.status_code == 201
 
-        second_exercise_id = second_response.json()["id"]
+        first_exercise_id = first_response.json()["id"]
 
         response = client.put(
-            f"/workout-exercises/{second_exercise_id}",
+            f"/workout-exercises/{first_exercise_id}",
             json={
-                "name": "Aperturas",
+                "name": "Aperturas en pec deck",
                 "muscle_group": "Pectoral",
                 "position": 1,
                 "technique_notes": None,
