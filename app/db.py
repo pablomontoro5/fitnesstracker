@@ -98,3 +98,18 @@ def initialize_database() -> None:
             )
             """
         )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                distance_km REAL NOT NULL CHECK (distance_km > 0),
+                duration_seconds INTEGER NOT NULL CHECK (duration_seconds > 0),
+                average_pace_seconds_km REAL NOT NULL
+                    CHECK (average_pace_seconds_km > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )

@@ -209,9 +209,9 @@ def update_workout_session(
     return row_to_workout_session(row)
 
 
-@router.put(
+@router.delete(
     "/{session_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
 )
 def delete_workout_session(session_id: int) -> Response:
     with get_connection() as connection:
