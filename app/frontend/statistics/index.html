@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: resumen de pasos, gimnasio, running y métricas corporales."
+  />
+  <title>Estadísticas · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Evolución</p>
+        <h2>Estadísticas de actividad</h2>
+        <p>
+          Consulta tu actividad física, entrenamiento, running y evolución de
+          peso dentro del periodo que elijas.
+        </p>
+      </div>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Periodo</p>
+          <h2>Filtrar estadísticas</h2>
+        </div>
+      </div>
+
+      <form id="statistics-form" class="form-grid statistics-filter-form">
+        <label>
+          Fecha de inicio
+          <input id="start-date" name="start_date" type="date" required />
+        </label>
+
+        <label>
+          Fecha de fin
+          <input id="end-date" name="end_date" type="date" required />
+        </label>
+
+        <div class="statistics-quick-actions full-width">
+          <button
+            class="secondary-button"
+            type="button"
+            data-period="7-days"
+          >
+            Últimos 7 días
+          </button>
+
+          <button
+            class="secondary-button"
+            type="button"
+            data-period="30-days"
+          >
+            Últimos 30 días
+          </button>
+
+          <button
+            class="secondary-button"
+            type="button"
+            data-period="this-month"
+          >
+            Este mes
+          </button>
+        </div>
+
+        <button class="primary-button full-width" type="submit">
+          Actualizar estadísticas
+        </button>
+      </form>
+    </section>
+
+    <section
+      id="statistics-content"
+      class="statistics-grid"
+      aria-live="polite"
+    >
+      <article class="statistic-card">
+        <p class="eyebrow">Actividad</p>
+        <h2>Pasos</h2>
+
+        <strong id="steps-total" class="statistic-value">—</strong>
+        <p id="steps-detail" class="statistic-detail">
+          Cargando datos…
+        </p>
+      </article>
+
+      <article class="statistic-card">
+        <p class="eyebrow">Gimnasio</p>
+        <h2>Entrenamiento</h2>
+
+        <strong id="workouts-sessions" class="statistic-value">—</strong>
+        <p id="workouts-detail" class="statistic-detail">
+          Cargando datos…
+        </p>
+      </article>
+
+      <article class="statistic-card">
+        <p class="eyebrow">Actividad</p>
+        <h2>Running</h2>
+
+        <strong id="running-distance" class="statistic-value">—</strong>
+        <p id="running-detail" class="statistic-detail">
+          Cargando datos…
+        </p>
+      </article>
+
+      <article class="statistic-card">
+        <p class="eyebrow">Evolución</p>
+        <h2>Peso corporal</h2>
+
+        <strong id="body-weight" class="statistic-value">—</strong>
+        <p id="body-detail" class="statistic-detail">
+          Cargando datos…
+        </p>
+      </article>
+    </section>
+  </main>
+
+  <script src="/static/statistics/statistics.js" type="module"></script>
+</body>
+</html>
