@@ -33,15 +33,17 @@ class BodyMetricResponse(BaseModel):
     bmi: float
     notes: str | None
 
+class BodyMetricUpdate(BaseModel):
+    date: date
+    weight_kg: float = Field(gt=0, le=500)
+    height_cm: float = Field(gt=0, le=300)
+    notes: str | None = Field(default=None, max_length=1000)
+
 class WorkoutSessionCreate(BaseModel):
     date: date
     name: str = Field(min_length=1, max_length=100)
     notes: str | None = Field(default=None, max_length=1000)
 
-class WorkoutSessionUpdate(BaseModel):
-    date: date
-    name: str = Field(min_length=1, max_length=100)
-    notes: str | None = Field(default=None, max_length=1000)
 
 class WorkoutSessionUpdate(BaseModel):
     date: date
@@ -93,14 +95,7 @@ class WorkoutSetCreate(BaseModel):
     weight_kg: float = Field(ge=0, le=1000)
     rir: float | None = Field(default=None, ge=-3, le=10)
     notes: str | None = Field(default=None, max_length=1000)
-class WorkoutSetUpdate(BaseModel):
-    set_type: Literal["warmup", "approximation", "working", "drop_set"]
-    position: int = Field(ge=1, le=100)
-    target_rep_range: str | None = Field(default=None, max_length=30)
-    repetitions: int = Field(gt=0, le=1000)
-    weight_kg: float = Field(ge=0, le=1000)
-    rir: float | None = Field(default=None, ge=-3, le=10)
-    notes: str | None = Field(default=None, max_length=1000)
+
 
 class WorkoutSetResponse(BaseModel):
     id: int
