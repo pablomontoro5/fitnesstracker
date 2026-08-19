@@ -130,3 +130,24 @@ class WorkoutProgressResponse(BaseModel):
     exercise_name: str
     sessions: list[WorkoutProgressSessionResponse]
 
+class RunCreate(BaseModel):
+    date: date
+    distance_km: float = Field(gt=0, le=1000)
+    duration_seconds: int = Field(gt=0, le=172800)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class RunUpdate(BaseModel):
+    date: date
+    distance_km: float = Field(gt=0, le=1000)
+    duration_seconds: int = Field(gt=0, le=172800)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class RunResponse(BaseModel):
+    id: int
+    date: date
+    distance_km: float
+    duration_seconds: int
+    average_pace_seconds_km: float
+    notes: str | None
