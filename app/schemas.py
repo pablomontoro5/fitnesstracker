@@ -39,6 +39,22 @@ class WorkoutSessionCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=1000)
 
 
+class WorkoutSessionUpdate(BaseModel):
+    date: date
+    name: str = Field(min_length=1, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutSetUpdate(BaseModel):
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int = Field(ge=1, le=100)
+    target_rep_range: str | None = Field(default=None, max_length=30)
+    repetitions: int = Field(gt=0, le=1000)
+    weight_kg: float = Field(ge=0, le=1000)
+    rir: float | None = Field(default=None, ge=-3, le=10)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
 class WorkoutSessionResponse(BaseModel):
     id: int
     date: date
@@ -107,3 +123,4 @@ class WorkoutProgressSessionResponse(BaseModel):
 class WorkoutProgressResponse(BaseModel):
     exercise_name: str
     sessions: list[WorkoutProgressSessionResponse]
+
