@@ -178,7 +178,7 @@ def get_workout_set(set_id: int) -> WorkoutSetResponse:
 
 @router.delete(
     "/workout-sets/{set_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
 )
 def delete_workout_set(set_id: int) -> Response:
     with get_connection() as connection:
@@ -197,3 +197,6 @@ def delete_workout_set(set_id: int) -> Response:
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+
