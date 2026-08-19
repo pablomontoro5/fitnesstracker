@@ -151,3 +151,45 @@ class RunResponse(BaseModel):
     duration_seconds: int
     average_pace_seconds_km: float
     notes: str | None
+
+class StatisticsStepsResponse(BaseModel):
+    total: int
+    days_logged: int
+    average_per_logged_day: float
+
+
+class StatisticsWorkoutsResponse(BaseModel):
+    sessions: int
+    exercises: int
+    working_sets: int
+    repetitions: int
+    volume_kg: float
+
+
+class StatisticsRunningResponse(BaseModel):
+    runs: int
+    distance_km: float
+    duration_seconds: int
+    average_pace_seconds_km: float | None
+
+
+class StatisticsBodyMetricResponse(BaseModel):
+    date: date
+    weight_kg: float
+    height_cm: float
+    bmi: float
+
+
+class StatisticsBodyMetricsResponse(BaseModel):
+    records: int
+    latest: StatisticsBodyMetricResponse | None
+    weight_change_kg: float | None
+
+
+class ActivityStatisticsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    steps: StatisticsStepsResponse
+    workouts: StatisticsWorkoutsResponse
+    running: StatisticsRunningResponse
+    body_metrics: StatisticsBodyMetricsResponse
