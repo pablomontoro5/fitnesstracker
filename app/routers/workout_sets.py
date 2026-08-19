@@ -273,3 +273,9 @@ def delete_workout_set(set_id: int) -> Response:
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+<<<<<<< HEAD
+
+
+
+=======
+>>>>>>> 6764c064a4bb653729ff94a0763368277f6407f5

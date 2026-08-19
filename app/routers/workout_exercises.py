@@ -217,7 +217,7 @@ def update_workout_exercise(
 
 @router.delete(
     "/workout-exercises/{exercise_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
 )
 def delete_workout_exercise(exercise_id: int) -> Response:
     with get_connection() as connection:

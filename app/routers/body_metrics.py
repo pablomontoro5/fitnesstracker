@@ -107,7 +107,7 @@ def get_body_metric(metric_id: int) -> BodyMetricResponse:
 
 @router.delete(
     "/{metric_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
 )
 def delete_body_metric(metric_id: int) -> Response:
     with get_connection() as connection:

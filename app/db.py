@@ -8,7 +8,7 @@ DATABASE_PATH = DATA_DIR / "fitness_tracker.db"
 
 def get_connection() -> sqlite3.Connection:
     """Devuelve una conexión configurada con la base de datos SQLite."""
-    DATA_DIR.mkdir(exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row

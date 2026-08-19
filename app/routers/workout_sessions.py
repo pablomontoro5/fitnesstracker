@@ -67,6 +67,85 @@ def list_workout_sessions() -> list[WorkoutSessionResponse]:
 
     return [row_to_workout_session(row) for row in rows]
 
+@router.post(
+    "/{session_id}/repeat",
+    response_model=WorkoutSessionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def repeat_workout_session(session_id: int) -> WorkoutSessionResponse:
+    with get_connection() as connection:
+        original_session = connection.execute(
+            """
+            SELECT id, name, notes
+            FROM workout_sessions
+            WHERE id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+
+        if original_session is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existe una sesión con ese id.",
+            )
+
+        new_session_cursor = connection.execute(
+            """
+            INSERT INTO workout_sessions (date, name, notes)
+            VALUES (?, ?, ?)
+            """,
+            (
+                date.today().isoformat(),
+                original_session["name"],
+                original_session["notes"],
+            ),
+        )
+
+        new_session_id = new_session_cursor.lastrowid
+
+        original_exercises = connection.execute(
+            """
+            SELECT name, muscle_group, position, technique_notes
+            FROM workout_exercises
+            WHERE workout_session_id = ?
+            ORDER BY position ASC
+            """,
+            (session_id,),
+        ).fetchall()
+
+        connection.executemany(
+            """
+            INSERT INTO workout_exercises (
+                workout_session_id,
+                name,
+                muscle_group,
+                position,
+                technique_notes
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    new_session_id,
+                    exercise["name"],
+                    exercise["muscle_group"],
+                    exercise["position"],
+                    exercise["technique_notes"],
+                )
+                for exercise in original_exercises
+            ],
+        )
+
+        row = connection.execute(
+            """
+            SELECT id, date, name, notes
+            FROM workout_sessions
+            WHERE id = ?
+            """,
+            (new_session_id,),
+        ).fetchone()
+
+    return row_to_workout_session(row)
 
 @router.get("/{session_id}", response_model=WorkoutSessionResponse)
 def get_workout_session(session_id: int) -> WorkoutSessionResponse:
@@ -101,10 +180,7 @@ def update_workout_session(
         cursor = connection.execute(
             """
             UPDATE workout_sessions
-            SET
-                date = ?,
-                name = ?,
-                notes = ?
+            SET date = ?, name = ?, notes = ?
             WHERE id = ?
             """,
             (
@@ -132,7 +208,11 @@ def update_workout_session(
 
     return row_to_workout_session(row)
 
-@router.delete("/{session_id}", response_model=None)
+
+@router.put(
+    "/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def delete_workout_session(session_id: int) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
