@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: registro de carreras, distancia, duración y ritmo medio."
+  />
+  <title>Running · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Running</p>
+        <h2>Registra tus carreras y controla tu ritmo</h2>
+        <p>
+          Guarda distancia, duración y notas. El ritmo medio se calcula
+          automáticamente en minutos por kilómetro.
+        </p>
+      </div>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+
+    <div class="app-grid runs-grid">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Nueva carrera</p>
+            <h2>Registrar salida</h2>
+          </div>
+        </div>
+
+        <form id="run-form" class="form-grid">
+          <label>
+            Fecha
+            <input id="run-date" name="date" type="date" required />
+          </label>
+
+          <label>
+            Distancia en km
+            <input
+              id="run-distance-km"
+              name="distance_km"
+              type="number"
+              min="0.01"
+              max="1000"
+              step="0.01"
+              placeholder="Ej.: 5"
+              required
+            />
+          </label>
+
+          <fieldset class="duration-fieldset full-width">
+            <legend>Duración</legend>
+
+            <div class="duration-inputs">
+              <label>
+                Horas
+                <input
+                  id="run-hours"
+                  name="hours"
+                  type="number"
+                  min="0"
+                  max="48"
+                  value="0"
+                  required
+                />
+              </label>
+
+              <label>
+                Minutos
+                <input
+                  id="run-minutes"
+                  name="minutes"
+                  type="number"
+                  min="0"
+                  max="59"
+                  value="0"
+                  required
+                />
+              </label>
+
+              <label>
+                Segundos
+                <input
+                  id="run-seconds"
+                  name="seconds"
+                  type="number"
+                  min="0"
+                  max="59"
+                  value="0"
+                  required
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="pace-preview full-width">
+            <span>Ritmo medio estimado</span>
+            <strong id="pace-preview">—</strong>
+          </div>
+
+          <label class="full-width">
+            Notas <span class="optional">opcional</span>
+            <textarea
+              id="run-notes"
+              name="notes"
+              maxlength="1000"
+              rows="3"
+              placeholder="Ej.: Rodaje suave, terreno mixto o sensaciones."
+            ></textarea>
+          </label>
+
+          <button class="primary-button full-width" type="submit">
+            Guardar carrera
+          </button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Historial</p>
+            <h2>Carreras registradas</h2>
+          </div>
+
+          <button
+            id="refresh-runs-button"
+            class="icon-button"
+            type="button"
+            title="Actualizar carreras"
+            aria-label="Actualizar carreras"
+          >
+            ↻
+          </button>
+        </div>
+
+        <div class="list-header">
+          <h3>Salidas</h3>
+          <span id="run-count" class="counter">0</span>
+        </div>
+
+        <div id="runs-list" class="runs-list empty-state">
+          Cargando carreras…
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Detalle</p>
+          <h2 id="selected-run-title">Selecciona una carrera</h2>
+        </div>
+
+        <div class="run-actions">
+          <button
+            id="delete-run-button"
+            class="danger-button hidden"
+            type="button"
+          >
+            Eliminar carrera
+          </button>
+        </div>
+      </div>
+
+      <div id="run-empty-state" class="empty-state large-empty-state">
+        Selecciona una carrera del historial para ver o editar sus datos.
+      </div>
+
+      <form id="edit-run-form" class="form-grid hidden">
+        <label>
+          Fecha
+          <input
+            id="edit-run-date"
+            name="date"
+            type="date"
+            required
+          />
+        </label>
+
+        <label>
+          Distancia en km
+          <input
+            id="edit-run-distance-km"
+            name="distance_km"
+            type="number"
+            min="0.01"
+            max="1000"
+            step="0.01"
+            required
+          />
+        </label>
+
+        <fieldset class="duration-fieldset full-width">
+          <legend>Duración</legend>
+
+          <div class="duration-inputs">
+            <label>
+              Horas
+              <input
+                id="edit-run-hours"
+                name="hours"
+                type="number"
+                min="0"
+                max="48"
+                required
+              />
+            </label>
+
+            <label>
+              Minutos
+              <input
+                id="edit-run-minutes"
+                name="minutes"
+                type="number"
+                min="0"
+                max="59"
+                required
+              />
+            </label>
+
+            <label>
+              Segundos
+              <input
+                id="edit-run-seconds"
+                name="seconds"
+                type="number"
+                min="0"
+                max="59"
+                required
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="pace-preview full-width">
+          <span>Ritmo medio estimado</span>
+          <strong id="edit-pace-preview">—</strong>
+        </div>
+
+        <label class="full-width">
+          Notas <span class="optional">opcional</span>
+          <textarea
+            id="edit-run-notes"
+            name="notes"
+            maxlength="1000"
+            rows="3"
+          ></textarea>
+        </label>
+
+        <div class="form-actions full-width">
+          <button
+            id="cancel-edit-run-button"
+            class="secondary-button"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button class="primary-button" type="submit">
+            Guardar cambios
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <template id="run-template">
+    <article class="run-card">
+      <button class="run-select-button" type="button">
+        <span class="run-date"></span>
+
+        <span class="run-main">
+          <strong class="run-distance"></strong>
+          <small class="run-notes"></small>
+        </span>
+
+        <span class="run-summary">
+          <strong class="run-pace"></strong>
+          <small class="run-duration"></small>
+        </span>
+      </button>
+    </article>
+  </template>
+
+  <script src="/static/runs/runs.js" type="module"></script>
+</body>
+</html>
