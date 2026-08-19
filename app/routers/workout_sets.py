@@ -3,7 +3,7 @@ import sqlite3
 from fastapi import APIRouter, HTTPException, Response, status
 
 from app.db import get_connection
-from app.schemas import WorkoutSetCreate, WorkoutSetResponse
+from app.schemas import WorkoutSetCreate, WorkoutSetResponse, WorkoutSetUpdate
 
 
 router = APIRouter(
@@ -176,10 +176,86 @@ def get_workout_set(set_id: int) -> WorkoutSetResponse:
     return row_to_workout_set(row)
 
 
+@router.put(
+    "/workout-sets/{set_id}",
+    response_model=WorkoutSetResponse,
+)
+def update_workout_set(
+    set_id: int,
+    workout_set: WorkoutSetUpdate,
+) -> WorkoutSetResponse:
+    try:
+        with get_connection() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE workout_sets
+                SET
+                    set_type = ?,
+                    position = ?,
+                    target_rep_range = ?,
+                    repetitions = ?,
+                    weight_kg = ?,
+                    rir = ?,
+                    notes = ?
+                WHERE id = ?
+                """,
+                (
+                    workout_set.set_type,
+                    workout_set.position,
+                    workout_set.target_rep_range,
+                    workout_set.repetitions,
+                    workout_set.weight_kg,
+                    workout_set.rir,
+                    workout_set.notes,
+                    set_id,
+                ),
+            )
+
+            if cursor.rowcount == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No existe una serie con ese id.",
+                )
+
+            row = connection.execute(
+                """
+                SELECT
+                    id,
+                    workout_exercise_id,
+                    set_type,
+                    position,
+                    target_rep_range,
+                    repetitions,
+                    weight_kg,
+                    rir,
+                    notes
+                FROM workout_sets
+                WHERE id = ?
+                """,
+                (set_id,),
+            ).fetchone()
+
+    except sqlite3.IntegrityError as error:
+        error_message = str(error)
+
+        if "workout_sets.workout_exercise_id, workout_sets.position" in error_message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe una serie en esa posición para este ejercicio.",
+            ) from error
+
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"No se pudo actualizar la serie: {error_message}",
+        ) from error
+
+    return row_to_workout_set(row)
+
 @router.delete(
     "/workout-sets/{set_id}",
     response_model=None,
 )
+
 def delete_workout_set(set_id: int) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
@@ -197,6 +273,9 @@ def delete_workout_set(set_id: int) -> Response:
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> 6764c064a4bb653729ff94a0763368277f6407f5

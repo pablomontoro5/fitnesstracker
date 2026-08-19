@@ -44,69 +44,13 @@
       </div>
     </section>
 
-
-      <div class="app-grid">
-        <section class="panel sessions-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Paso 1</p>
-              <h2>Sesiones</h2>
-            </div>
-
-            <button
-              id="refresh-sessions-button"
-              class="icon-button"
-              type="button"
-              title="Actualizar sesiones"
-              aria-label="Actualizar sesiones"
-            >
-              ↻
-            </button>
-          </div>
-
-          <form id="session-form" class="form-grid">
-            <label>
-              Fecha
-              <input id="session-date" name="date" type="date" required />
-            </label>
-
-            <label>
-              Nombre de la sesión
-              <input
-                id="session-name"
-                name="name"
-                type="text"
-                maxlength="100"
-                placeholder="Ej.: Empujes"
-                required
-              />
-            </label>
-
-            <label class="full-width">
-              Notas <span class="optional">opcional</span>
-              <textarea
-                id="session-notes"
-                name="notes"
-                maxlength="1000"
-                rows="2"
-                placeholder="Ej.: Priorizar técnica y recorrido completo."
-              ></textarea>
-            </label>
-
-            <button class="primary-button full-width" type="submit">
-              Crear sesión
-            </button>
-          </form>
-
-          <div class="list-header">
-            <h3>Sesiones registradas</h3>
-            <span id="session-count" class="counter">0</span>
-          </div>
-
-          <div id="sessions-list" class="sessions-list empty-state">
-            Cargando sesiones…
-          </div>
-        </section>
+    <div class="history-link-container">
+      <a class="primary-button history-button"
+        href="/static/workouts/history.html">
+        Ver historial de entrenamientos
+      </a>
+    </div>
+    
     <p id="status-message" class="status-message" aria-live="polite"></p>
 
     <div class="app-grid">
