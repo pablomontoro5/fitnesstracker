@@ -42,7 +42,7 @@ app.include_router(workout_progress.router)
 
 app.mount(
     "/static",
-    StaticFiles(directory=FRONTEND_DIR,html=True),
+    StaticFiles(directory=FRONTEND_DIR, html=True),
     name="static",
 )
 
