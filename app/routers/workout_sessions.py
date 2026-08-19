@@ -213,6 +213,12 @@ def update_workout_session(
     "/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
+
+@router.delete(
+    "/{session_id}",
+    response_model=None,
+)
+
 def delete_workout_session(session_id: int) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
