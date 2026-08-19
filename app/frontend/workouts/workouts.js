@@ -8,13 +8,6 @@ const state = {
 };
 
 const elements = {
-  exerciseForm: document.querySelector("#exercise-form"),
-  exerciseSuggestionMuscleGroup: document.querySelector(
-    "#exercise-suggestion-muscle-group",
-  ),
-  exerciseSuggestion: document.querySelector("#exercise-suggestion"),
-  exerciseName: document.querySelector("#exercise-name"),
-  exerciseMuscleGroup: document.querySelector("#exercise-muscle-group"),
   statusMessage: document.querySelector("#status-message"),
   sessionForm: document.querySelector("#session-form"),
   sessionDate: document.querySelector("#session-date"),
@@ -25,6 +18,7 @@ const elements = {
   sessionEmptyState: document.querySelector("#session-empty-state"),
   sessionDetailContent: document.querySelector("#session-detail-content"),
   deleteSessionButton: document.querySelector("#delete-session-button"),
+  repeatSessionButton: document.querySelector("#repeat-session-button"),
   exerciseForm: document.querySelector("#exercise-form"),
   exerciseSuggestionMuscleGroup: document.querySelector(
     "#exercise-suggestion-muscle-group",
@@ -33,28 +27,7 @@ const elements = {
   exerciseName: document.querySelector("#exercise-name"),
   exerciseMuscleGroup: document.querySelector("#exercise-muscle-group"),
   exercisesList: document.querySelector("#exercises-list"),
-  exerciseCount: document.querySelector("#exercise-count"),
-  selectedExerciseTitle: document.querySelector("#selected-exercise-title"),
-  exerciseEmptyState: document.querySelector("#exercise-empty-state"),
-  exerciseDetailContent: document.querySelector("#exercise-detail-content"),
-  deleteExerciseButton: document.querySelector("#delete-exercise-button"),
-  editExerciseButton: document.querySelector("#edit-exercise-button"),
-  editExerciseForm: document.querySelector("#edit-exercise-form"),
-  cancelEditExerciseButton: document.querySelector(
-  "#cancel-edit-exercise-button",
-  ),
-  pendingSetsList: document.querySelector("#pending-sets-list"),
-  pendingSetCount: document.querySelector("#pending-set-count"),
-  addSetRowButton: document.querySelector("#add-set-row-button"),
-  savePendingSetsButton: document.querySelector("#save-pending-sets-button"),
-  setsList: document.querySelector("#sets-list"),
-  setCount: document.querySelector("#set-count"),
-  progressForm: document.querySelector("#progress-form"),
-  progressExerciseName: document.querySelector("#progress-exercise-name"),
-  progressResult: document.querySelector("#progress-result"),
-  sessionTemplate: document.querySelector("#session-template"),
-  exerciseTemplate: document.querySelector("#exercise-template"),
-};
+}
 
 const exerciseSuggestions = {
   Pectoral: [
@@ -325,6 +298,7 @@ function resetSelectedSession() {
   elements.sessionEmptyState.classList.remove("hidden");
   elements.sessionDetailContent.classList.add("hidden");
   elements.deleteSessionButton.classList.add("hidden");
+  elements.repeatSessionButton.classList.add("hidden");
   elements.exerciseCount.textContent = "0";
   setListEmpty(elements.exercisesList, "No hay ejercicios en esta sesión.");
   resetSelectedExercise();
@@ -628,6 +602,7 @@ async function handleSavePendingSets() {
     resetPendingSets();
   } catch (error) {
     showStatus(error.message, "error");
+    await loadSets(state.selectedExercise.id);
   } finally {
     elements.savePendingSetsButton.disabled = false;
     elements.addSetRowButton.disabled = false;
@@ -700,6 +675,7 @@ async function selectSession(session) {
   elements.sessionEmptyState.classList.add("hidden");
   elements.sessionDetailContent.classList.remove("hidden");
   elements.deleteSessionButton.classList.remove("hidden");
+  elements.repeatSessionButton.classList.remove("hidden");
   elements.exerciseForm.reset();
   elements.exerciseForm.elements.position.value = "1";
   resetExerciseSuggestions();
@@ -955,6 +931,35 @@ async function handleProgressSearch(event) {
   }
 }
 
+async function handleRepeatSession() {
+  if (!state.selectedSession) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `¿Crear una nueva sesión de hoy a partir de “${state.selectedSession.name}”?`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const repeatedSession = await request(
+      `/workout-sessions/${state.selectedSession.id}/repeat`,
+      {
+        method: "POST",
+      },
+    );
+
+    showStatus(`Sesión “${repeatedSession.name}” repetida para hoy.`);
+    await loadSessions();
+    await selectSession(repeatedSession);
+  } catch (error) {
+    showStatus(error.message, "error");
+  }
+}
+
 function configureEventListeners() {
   elements.sessionForm.addEventListener("submit", handleCreateSession);
   elements.exerciseForm.addEventListener("submit", handleCreateExercise);
@@ -985,6 +990,11 @@ function configureEventListeners() {
   elements.exerciseSuggestion.addEventListener(
     "change",
     applyExerciseSuggestion,
+  );
+
+  elements.repeatSessionButton.addEventListener(
+    "click",
+    handleRepeatSession,
   );
 }
 
