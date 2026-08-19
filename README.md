@@ -127,16 +127,23 @@ fitness-tracker/
 │       ├── workouts/
 │       │   ├── index.html             # Módulo de entrenamiento
 │       │   └── workouts.js            # Sesiones, ejercicios, series, progreso y sugerencias
+│       │   └── history.html           # Historial de sesiones
+│       │   └── history.js            
 │       └── daily-steps/
 │           ├── index.html             # Módulo de pasos diarios
 │           └── daily-steps.js         # Lógica de registros de pasos
 ├── data/
 │   └── fitness_tracker.db
-├── tests/
-│   ├── test_body_metrics.py
-│   ├── test_daily_logs.py
-│   ├── test_workout_exercises.py
-│   └── test_workout_sessions.py
+tests/
+  ├── test_body_metrics.py
+  ├── test_daily_logs.py
+  ├── test_db.py
+  ├── test_health.py
+  ├── test_workout_cascades.py
+  ├── test_workout_exercises.py
+  ├── test_workout_progress.py
+  ├── test_workout_sessions.py
+  └── test_workout_sets.py
 ├── requirements.txt
 └── README.md
 ```
@@ -193,14 +200,16 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. El RIR
 | Método | Endpoint | Propósito | Estado |
 | --- | --- | --- | --- |
 | `GET` / `POST` | `/daily-logs/` | Consultar o crear registros diarios | Implementado |
-| `GET` / `PUT` / `DELETE` | `/daily-logs/{id}` | Consultar, editar o borrar un día | Implementado |
+| `GET` / `PUT` / `DELETE` | `/daily-logs/{log_date}` | Consultar, editar o borrar un día | Implementado |
 | `GET` / `POST` | `/body-metrics/` | Consultar o registrar peso, altura e IMC | Implementado |
 | `GET` / `POST` | `/workout-sessions/` | Listar o crear sesiones de gimnasio | Implementado |
 | `GET` / `PUT` / `DELETE` | `/workout-sessions/{session_id}` | Consultar, editar o eliminar una sesión | Implementado |
 | `POST` | `/workout-sessions/{session_id}/exercises/` | Añadir un ejercicio a una sesión | Implementado |
 | `GET` | `/workout-sessions/{session_id}/exercises/` | Listar ejercicios de una sesión por posición | Implementado |
-| `GET` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
-| `GET` / `POST` | `/workout-exercises/{exercise_id}/sets/` | Consultar o añadir series a un ejercicio | Implementado |
+| `GET` / `PUT` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
+| `GET` / `PUT` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
+| `POST` / `/workout-sessions/{session_id}/repeat` | Repetir una serie individual | Implementado |
+| `GET` / `POST` | `/workout-exercises/{exercise_id}/sets/` | Repetición de un ejercicio | Implementado |
 | `GET` | `/workouts/progress?exercise_name={name}` | Obtener progreso, series de trabajo y volumen por ejercicio | Implementado |
 | `GET` / `POST` | `/runs/` | Listar o registrar sesiones de running | Próximamente |
 | `GET` / `POST` | `/meals/` | Listar o registrar comidas | Próximamente |
@@ -225,11 +234,12 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 - [x] Separar las vistas de entrenamiento y pasos diarios en módulos independientes.
 - [x] Añadir formularios para sesiones, ejercicios, series y pasos diarios.
 - [x] Añadir sugerencias de ejercicios por grupo muscular sin eliminar la creación manual.
-- [~] Ampliar las pruebas de endpoints y cálculos.
+- [x] Ampliar pruebas de endpoints, validaciones, conflictos y borrados en cascada .
 
 ### Fase 2 — Seguimiento útil
 
-- [ ] Plantillas de rutinas y duplicación de entrenamientos.
+- [ ] Añadir plantillas de rutinas reutilizables.
+- [x] Duplicar sesiones de entrenamiento sin duplicar series..
 - [ ] Historial y gráficos simples de peso, volumen y ejercicios.
 - [ ] Registro de running con distancia, duración y ritmo.
 - [ ] Registro de comidas y totales diarios de macronutrientes.
