@@ -32,10 +32,7 @@ function escapeHtml(value) {
   return element.innerHTML;
 }
 
-function emptyToNull(value) {
-  const trimmedValue = value.trim();
-  return trimmedValue === "" ? null : trimmedValue;
-}
+
 
 function setTypeLabel(setType) {
   const labels = {

@@ -175,7 +175,6 @@ def get_workout_set(set_id: int) -> WorkoutSetResponse:
 
     return row_to_workout_set(row)
 
-
 @router.put(
     "/workout-sets/{set_id}",
     response_model=WorkoutSetResponse,
@@ -251,11 +250,11 @@ def update_workout_set(
 
     return row_to_workout_set(row)
 
+
 @router.delete(
     "/workout-sets/{set_id}",
     response_model=None,
 )
-
 def delete_workout_set(set_id: int) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
@@ -273,9 +272,6 @@ def delete_workout_set(set_id: int) -> Response:
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-<<<<<<< HEAD
 
 
 
-=======
->>>>>>> 6764c064a4bb653729ff94a0763368277f6407f5
