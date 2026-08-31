@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: registra comidas, alimentos y macronutrientes diarios."
+  />
+  <title>Nutrición · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Nutrición</p>
+        <h2>Registra tus comidas y macronutrientes</h2>
+        <p>
+          Crea un día nutricional, organiza tus comidas y registra calorías,
+          proteínas, carbohidratos y grasas de cada alimento.
+        </p>
+      </div>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Día nutricional</p>
+          <h2>Selecciona o crea un día</h2>
+        </div>
+
+        <button
+          id="refresh-nutrition-days-button"
+          class="icon-button"
+          type="button"
+          title="Actualizar días nutricionales"
+          aria-label="Actualizar días nutricionales"
+        >
+          ↻
+        </button>
+      </div>
+
+      <form id="nutrition-day-form" class="form-grid">
+        <label>
+          Fecha
+          <input id="nutrition-day-date" type="date" required />
+        </label>
+
+        <label>
+          Notas <span class="optional">opcional</span>
+          <input
+            id="nutrition-day-notes"
+            type="text"
+            maxlength="1000"
+            placeholder="Ej.: Día de entrenamiento."
+          />
+        </label>
+
+        <button class="primary-button full-width" type="submit">
+          Crear día nutricional
+        </button>
+      </form>
+
+      <div class="list-header">
+        <h3>Días registrados</h3>
+        <span id="nutrition-day-count" class="counter">0</span>
+      </div>
+
+      <div
+        id="nutrition-days-list"
+        class="nutrition-days-list empty-state"
+      >
+        Cargando días nutricionales…
+      </div>
+    </section>
+
+    <section id="nutrition-content" class="hidden">
+      <section class="nutrition-summary-grid">
+        <article class="nutrition-summary-card">
+          <span>Calorías</span>
+          <strong id="total-calories">0 kcal</strong>
+        </article>
+
+        <article class="nutrition-summary-card">
+          <span>Proteína</span>
+          <strong id="total-protein">0 g</strong>
+        </article>
+
+        <article class="nutrition-summary-card">
+          <span>Carbohidratos</span>
+          <strong id="total-carbs">0 g</strong>
+        </article>
+
+        <article class="nutrition-summary-card">
+          <span>Grasas</span>
+          <strong id="total-fat">0 g</strong>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Comidas</p>
+            <h2 id="selected-day-title">Día seleccionado</h2>
+          </div>
+        </div>
+
+        <form id="nutrition-meal-form" class="form-grid nutrition-meal-form">
+          <label>
+            Nombre de la comida
+            <input
+              id="nutrition-meal-name"
+              type="text"
+              maxlength="100"
+              placeholder="Ej.: Desayuno"
+              required
+            />
+          </label>
+
+          <label>
+            Posición
+            <input
+              id="nutrition-meal-position"
+              type="number"
+              min="1"
+              max="20"
+              value="1"
+              required
+            />
+          </label>
+
+          <button class="primary-button full-width" type="submit">
+            Añadir comida
+          </button>
+        </form>
+
+        <div id="nutrition-meals-list" class="nutrition-meals-list">
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Alimentos</p>
+            <h2 id="selected-meal-title">Selecciona una comida</h2>
+          </div>
+
+          <button
+            id="delete-meal-button"
+            class="danger-button hidden"
+            type="button"
+          >
+            Eliminar comida
+          </button>
+        </div>
+
+        <div id="nutrition-food-empty-state" class="empty-state large-empty-state">
+          Selecciona una comida para registrar sus alimentos.
+        </div>
+
+        <div id="nutrition-food-content" class="hidden">
+          <form id="nutrition-food-form" class="form-grid nutrition-food-form">
+            <label class="full-width">
+              Alimento
+              <input
+                id="nutrition-food-name"
+                type="text"
+                maxlength="120"
+                placeholder="Ej.: Avena"
+                required
+              />
+            </label>
+
+            <label>
+              Cantidad en gramos
+              <input
+                id="nutrition-food-quantity"
+                type="number"
+                min="0.01"
+                max="10000"
+                step="0.01"
+                placeholder="Ej.: 80"
+                required
+              />
+            </label>
+
+            <label>
+              Calorías
+              <input
+                id="nutrition-food-calories"
+                type="number"
+                min="0"
+                max="50000"
+                step="0.01"
+                placeholder="Ej.: 304"
+                required
+              />
+            </label>
+
+            <label>
+              Proteína (g)
+              <input
+                id="nutrition-food-protein"
+                type="number"
+                min="0"
+                max="10000"
+                step="0.01"
+                placeholder="Ej.: 10.4"
+                required
+              />
+            </label>
+
+            <label>
+              Carbohidratos (g)
+              <input
+                id="nutrition-food-carbs"
+                type="number"
+                min="0"
+                max="10000"
+                step="0.01"
+                placeholder="Ej.: 48.8"
+                required
+              />
+            </label>
+
+            <label>
+              Grasas (g)
+              <input
+                id="nutrition-food-fat"
+                type="number"
+                min="0"
+                max="10000"
+                step="0.01"
+                placeholder="Ej.: 5.6"
+                required
+              />
+            </label>
+
+            <label>
+              Posición
+              <input
+                id="nutrition-food-position"
+                type="number"
+                min="1"
+                max="100"
+                value="1"
+                required
+              />
+            </label>
+
+            <label class="full-width">
+              Notas <span class="optional">opcional</span>
+              <textarea
+                id="nutrition-food-notes"
+                maxlength="1000"
+                rows="3"
+                placeholder="Ej.: Pesado en seco, marca o modo de preparación."
+              ></textarea>
+            </label>
+
+            <button class="primary-button full-width" type="submit">
+              Añadir alimento
+            </button>
+          </form>
+
+          <div class="list-header">
+            <h3>Alimentos registrados</h3>
+            <span id="nutrition-food-count" class="counter">0</span>
+          </div>
+
+          <div id="nutrition-foods-list" class="nutrition-foods-list">
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <template id="nutrition-day-template">
+    <article class="nutrition-day-card">
+      <button class="nutrition-day-select-button" type="button">
+        <strong class="nutrition-day-date"></strong>
+        <small class="nutrition-day-notes"></small>
+      </button>
+    </article>
+  </template>
+
+  <template id="nutrition-meal-template">
+    <article class="nutrition-meal-card">
+      <button class="nutrition-meal-select-button" type="button">
+        <span class="nutrition-meal-position"></span>
+
+        <span class="nutrition-meal-main">
+          <strong class="nutrition-meal-name"></strong>
+          <small class="nutrition-meal-summary"></small>
+        </span>
+      </button>
+    </article>
+  </template>
+
+  <template id="nutrition-food-template">
+    <article class="nutrition-food-card">
+      <div class="nutrition-food-main">
+        <strong class="nutrition-food-name"></strong>
+        <small class="nutrition-food-meta"></small>
+        <small class="nutrition-food-notes"></small>
+      </div>
+
+      <div class="nutrition-food-macros">
+        <span class="nutrition-food-calories"></span>
+        <span class="nutrition-food-protein"></span>
+        <span class="nutrition-food-carbs"></span>
+        <span class="nutrition-food-fat"></span>
+      </div>
+
+      <button class="danger-button nutrition-food-delete-button" type="button">
+        Eliminar
+      </button>
+    </article>
+  </template>
+
+  <script src="/static/nutrition/nutrition.js" type="module"></script>
+</body>
+</html>
