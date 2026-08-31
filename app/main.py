@@ -10,6 +10,7 @@ from app.routers import (
     body_metrics,
     daily_logs,
     nutrition_days,
+    nutrition_meals,
     runs,
     statistics,
     workout_exercises,
@@ -35,7 +36,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
+app.include_router(nutrition_meals.router)
 app.include_router(nutrition_days.router)
 app.include_router(daily_logs.router)
 app.include_router(body_metrics.router)
