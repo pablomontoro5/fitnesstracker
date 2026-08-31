@@ -9,6 +9,7 @@ from app.db import initialize_database
 from app.routers import (
     body_metrics,
     daily_logs,
+    nutrition_days,
     runs,
     statistics,
     workout_exercises,
@@ -35,6 +36,7 @@ app = FastAPI(
 )
 
 
+app.include_router(nutrition_days.router)
 app.include_router(daily_logs.router)
 app.include_router(body_metrics.router)
 app.include_router(workout_sessions.router)
