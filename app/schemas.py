@@ -207,3 +207,19 @@ class NutritionDayResponse(BaseModel):
     id: int
     date: date
     notes: str | None
+
+class NutritionMealCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    position: int = Field(ge=1, le=20)
+
+
+class NutritionMealUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    position: int = Field(ge=1, le=20)
+
+
+class NutritionMealResponse(BaseModel):
+    id: int
+    nutrition_day_id: int
+    name: str
+    position: int
