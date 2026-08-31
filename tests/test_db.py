@@ -31,3 +31,23 @@ def test_database_file_is_created():
     initialize_database()
 
     assert DATABASE_PATH.exists()
+
+
+def test_initialize_database_creates_nutrition_tables():
+    with get_connection() as connection:
+        table_names = {
+            row["name"]
+            for row in connection.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+                """
+            ).fetchall()
+        }
+
+    assert {
+        "nutrition_days",
+        "nutrition_meals",
+        "nutrition_foods",
+    }.issubset(table_names)
