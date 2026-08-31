@@ -193,3 +193,17 @@ class ActivityStatisticsResponse(BaseModel):
     workouts: StatisticsWorkoutsResponse
     running: StatisticsRunningResponse
     body_metrics: StatisticsBodyMetricsResponse
+
+class NutritionDayCreate(BaseModel):
+    date: date
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class NutritionDayUpdate(BaseModel):
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class NutritionDayResponse(BaseModel):
+    id: int
+    date: date
+    notes: str | None
