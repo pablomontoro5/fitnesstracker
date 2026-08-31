@@ -113,3 +113,56 @@ def initialize_database() -> None:
             )
             """
         )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS nutrition_days (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL UNIQUE,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS nutrition_meals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nutrition_day_id INTEGER NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                position INTEGER NOT NULL CHECK (position > 0),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (nutrition_day_id)
+                    REFERENCES nutrition_days(id)
+                    ON DELETE CASCADE,
+                UNIQUE (nutrition_day_id, position)
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS nutrition_foods (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nutrition_meal_id INTEGER NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                quantity_g REAL NOT NULL CHECK (quantity_g > 0),
+                calories REAL NOT NULL CHECK (calories >= 0),
+                protein_g REAL NOT NULL CHECK (protein_g >= 0),
+                carbs_g REAL NOT NULL CHECK (carbs_g >= 0),
+                fat_g REAL NOT NULL CHECK (fat_g >= 0),
+                position INTEGER NOT NULL CHECK (position > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (nutrition_meal_id)
+                    REFERENCES nutrition_meals(id)
+                    ON DELETE CASCADE,
+                UNIQUE (nutrition_meal_id, position)
+            )
+            """
+        )
+
+
+
+    

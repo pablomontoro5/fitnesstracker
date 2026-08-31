@@ -193,3 +193,67 @@ class ActivityStatisticsResponse(BaseModel):
     workouts: StatisticsWorkoutsResponse
     running: StatisticsRunningResponse
     body_metrics: StatisticsBodyMetricsResponse
+
+class NutritionDayCreate(BaseModel):
+    date: date
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class NutritionDayUpdate(BaseModel):
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class NutritionDayResponse(BaseModel):
+    id: int
+    date: date
+    notes: str | None
+
+class NutritionMealCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    position: int = Field(ge=1, le=20)
+
+
+class NutritionMealUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    position: int = Field(ge=1, le=20)
+
+
+class NutritionMealResponse(BaseModel):
+    id: int
+    nutrition_day_id: int
+    name: str
+    position: int
+
+class NutritionFoodCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    quantity_g: float = Field(gt=0, le=10000)
+    calories: float = Field(ge=0, le=50000)
+    protein_g: float = Field(ge=0, le=10000)
+    carbs_g: float = Field(ge=0, le=10000)
+    fat_g: float = Field(ge=0, le=10000)
+    position: int = Field(ge=1, le=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class NutritionFoodUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    quantity_g: float = Field(gt=0, le=10000)
+    calories: float = Field(ge=0, le=50000)
+    protein_g: float = Field(ge=0, le=10000)
+    carbs_g: float = Field(ge=0, le=10000)
+    fat_g: float = Field(ge=0, le=10000)
+    position: int = Field(ge=1, le=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class NutritionFoodResponse(BaseModel):
+    id: int
+    nutrition_meal_id: int
+    name: str
+    quantity_g: float
+    calories: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    position: int
+    notes: str | None
