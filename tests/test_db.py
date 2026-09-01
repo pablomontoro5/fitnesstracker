@@ -34,6 +34,7 @@ def test_database_file_is_created():
 
 
 def test_initialize_database_creates_nutrition_tables():
+    initialize_database()
     with get_connection() as connection:
         table_names = {
             row["name"]

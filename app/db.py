@@ -1,9 +1,18 @@
+import os
 import sqlite3
 from pathlib import Path
 
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
-DATABASE_PATH = DATA_DIR / "fitness_tracker.db"
+
+DATABASE_FILENAME = (
+    "fitness_tracker_test.db"
+    if os.environ.get("FITNESS_TRACKER_TESTING") == "1"
+    else "fitness_tracker.db"
+)
+
+DATABASE_PATH = DATA_DIR / DATABASE_FILENAME
 
 
 def get_connection() -> sqlite3.Connection:
