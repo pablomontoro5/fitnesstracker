@@ -1,9 +1,10 @@
 import sqlite3
-
+from datetime import date
 from fastapi import APIRouter, HTTPException, Response, status
 
 from app.db import get_connection
 from app.schemas import (
+    WorkoutSessionResponse,
     WorkoutTemplateCreate,
     WorkoutTemplateExerciseCreate,
     WorkoutTemplateExerciseResponse,
@@ -567,3 +568,141 @@ def delete_workout_template_set(set_id: int) -> Response:
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.post(
+    "/{template_id}/create-session",
+    response_model=WorkoutSessionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_session_from_workout_template(
+    template_id: int,
+) -> WorkoutSessionResponse:
+    with get_connection() as connection:
+        workout_template = connection.execute(
+            """
+            SELECT id, name, notes
+            FROM workout_templates
+            WHERE id = ?
+            """,
+            (template_id,),
+        ).fetchone()
+
+        if workout_template is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existe una plantilla con ese id.",
+            )
+
+        session_cursor = connection.execute(
+            """
+            INSERT INTO workout_sessions (date, name, notes)
+            VALUES (?, ?, ?)
+            """,
+            (
+                date.today().isoformat(),
+                workout_template["name"],
+                workout_template["notes"],
+            ),
+        )
+
+        session_id = session_cursor.lastrowid
+
+        template_exercises = connection.execute(
+            """
+            SELECT
+                id,
+                name,
+                muscle_group,
+                position,
+                technique_notes
+            FROM workout_template_exercises
+            WHERE workout_template_id = ?
+            ORDER BY position ASC, id ASC
+            """,
+            (template_id,),
+        ).fetchall()
+
+        for template_exercise in template_exercises:
+            exercise_cursor = connection.execute(
+                """
+                INSERT INTO workout_exercises (
+                    workout_session_id,
+                    name,
+                    muscle_group,
+                    position,
+                    technique_notes
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    template_exercise["name"],
+                    template_exercise["muscle_group"],
+                    template_exercise["position"],
+                    template_exercise["technique_notes"],
+                ),
+            )
+
+            exercise_id = exercise_cursor.lastrowid
+
+            template_sets = connection.execute(
+                """
+                SELECT
+                    set_type,
+                    position,
+                    target_rep_range,
+                    repetitions,
+                    weight_kg,
+                    rir,
+                    notes
+                FROM workout_template_sets
+                WHERE workout_template_exercise_id = ?
+                ORDER BY position ASC, id ASC
+                """,
+                (template_exercise["id"],),
+            ).fetchall()
+
+            connection.executemany(
+                """
+                INSERT INTO workout_sets (
+                    workout_exercise_id,
+                    set_type,
+                    position,
+                    target_rep_range,
+                    repetitions,
+                    weight_kg,
+                    rir,
+                    notes
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        exercise_id,
+                        template_set["set_type"],
+                        template_set["position"],
+                        template_set["target_rep_range"],
+                        template_set["repetitions"],
+                        template_set["weight_kg"],
+                        template_set["rir"],
+                        template_set["notes"],
+                    )
+                    for template_set in template_sets
+                ],
+            )
+
+        created_session = connection.execute(
+            """
+            SELECT id, date, name, notes
+            FROM workout_sessions
+            WHERE id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+
+    return WorkoutSessionResponse(
+        id=created_session["id"],
+        date=date.fromisoformat(created_session["date"]),
+        name=created_session["name"],
+        notes=created_session["notes"],
+    )
