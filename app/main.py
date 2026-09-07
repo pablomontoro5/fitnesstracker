@@ -10,6 +10,7 @@ from app.routers import (
     backups,
     body_metrics,
     daily_logs,
+    exports,
     nutrition_days,
     nutrition_foods,
     nutrition_meals,
@@ -50,6 +51,7 @@ app.include_router(workout_progress.router)
 app.include_router(runs.router)
 app.include_router(statistics.router)
 app.include_router(backups.router)
+app.include_router(exports.router)
 app.mount(
     "/static",
     StaticFiles(directory=FRONTEND_DIR, html=True),
