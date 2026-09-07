@@ -143,8 +143,53 @@
         </p>
       </article>
     </section>
+
+  <section class="charts-section" aria-labelledby="charts-title">
+      <div class="charts-heading">
+        <div>
+          <p class="eyebrow">Tendencias</p>
+          <h2 id="charts-title">Evolución durante el periodo</h2>
+          <p>
+            Visualiza los datos registrados en las fechas seleccionadas.
+          </p>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <article class="chart-card">
+          <h3>Pasos diarios</h3>
+          <p class="chart-description">
+            Pasos registrados cada día.
+          </p>
+          <div class="chart-canvas-wrapper">
+            <canvas id="steps-chart"></canvas>
+          </div>
+        </article>
+
+        <article class="chart-card">
+          <h3>Peso corporal</h3>
+          <p class="chart-description">
+            Evolución del peso en kilogramos.
+          </p>
+          <div class="chart-canvas-wrapper">
+            <canvas id="weight-chart"></canvas>
+          </div>
+        </article>
+
+        <article class="chart-card chart-card-wide">
+          <h3>Distancia de running</h3>
+          <p class="chart-description">
+            Kilómetros recorridos por día.
+          </p>
+          <div class="chart-canvas-wrapper">
+            <canvas id="running-chart"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/static/statistics/statistics.js" type="module"></script>
 </body>
 </html>

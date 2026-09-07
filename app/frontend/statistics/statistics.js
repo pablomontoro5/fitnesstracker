@@ -17,8 +17,16 @@ const elements = {
 
   bodyWeight: document.querySelector("#body-weight"),
   bodyDetail: document.querySelector("#body-detail"),
+  stepsChart: document.querySelector("#steps-chart"),
+  weightChart: document.querySelector("#weight-chart"),
+  runningChart: document.querySelector("#running-chart"),
 };
 
+const charts = {
+  steps: null,
+  weight: null,
+  running: null,
+};
 
 function formatNumber(value, maximumFractionDigits = 2) {
   return new Intl.NumberFormat("es-ES", {
@@ -107,6 +115,25 @@ async function requestStatistics(startDate, endDate) {
   return body;
 }
 
+async function requestCharts(startDate, endDate) {
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+  });
+
+  const response = await fetch(`/statistics/charts?${params}`);
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const detail = Array.isArray(body?.detail)
+      ? body.detail.map((error) => error.msg).join(". ")
+      : body?.detail;
+
+    throw new Error(detail || "No se pudieron cargar las gráficas.");
+  }
+
+  return body;
+}
 
 function setLoadingState() {
   elements.stepsTotal.textContent = "…";
@@ -168,6 +195,113 @@ function renderStatistics(summary) {
     `${changeText}`;
 }
 
+function formatChartDate(dateString) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${dateString}T12:00:00`));
+}
+
+
+function destroyChart(chartName) {
+  if (charts[chartName]) {
+    charts[chartName].destroy();
+    charts[chartName] = null;
+  }
+}
+
+
+function renderLineChart({
+  chartName,
+  canvas,
+  points,
+  valueKey,
+  label,
+  color,
+}) {
+  destroyChart(chartName);
+
+  if (!points.length) {
+    return;
+  }
+
+  charts[chartName] = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: points.map((point) => formatChartDate(point.date)),
+      datasets: [
+        {
+          label,
+          data: points.map((point) => point[valueKey]),
+          borderColor: color,
+          backgroundColor: `${color}22`,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: chartName !== "weight",
+          ticks: {
+            callback(value) {
+              if (chartName === "steps") {
+                return `${formatNumber(value, 0)} pasos`;
+              }
+
+              if (chartName === "weight") {
+                return `${formatNumber(value)} kg`;
+              }
+
+              return `${formatNumber(value)} km`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+
+function renderCharts(chartData) {
+  renderLineChart({
+    chartName: "steps",
+    canvas: elements.stepsChart,
+    points: chartData.steps,
+    valueKey: "steps",
+    label: "Pasos",
+    color: "#176b48",
+  });
+
+  renderLineChart({
+    chartName: "weight",
+    canvas: elements.weightChart,
+    points: chartData.weight,
+    valueKey: "weight_kg",
+    label: "Peso corporal",
+    color: "#4f46e5",
+  });
+
+  renderLineChart({
+    chartName: "running",
+    canvas: elements.runningChart,
+    points: chartData.running,
+    valueKey: "distance_km",
+    label: "Distancia",
+    color: "#e58c12",
+  });
+}
 
 function setPeriod(period) {
   const today = new Date();
@@ -217,8 +351,13 @@ async function loadStatistics() {
   setLoadingState();
 
   try {
-    const summary = await requestStatistics(startDate, endDate);
+    const [summary, chartData] = await Promise.all([
+      requestStatistics(startDate, endDate),
+      requestCharts(startDate, endDate),
+    ]);
+
     renderStatistics(summary);
+    renderCharts(chartData);
   } catch (error) {
     showStatus(error.message, "error");
   }

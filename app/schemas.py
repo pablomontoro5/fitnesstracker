@@ -257,3 +257,25 @@ class NutritionFoodResponse(BaseModel):
     fat_g: float
     position: int
     notes: str | None
+
+class StatisticsStepsChartPoint(BaseModel):
+    date: date
+    steps: int
+
+
+class StatisticsWeightChartPoint(BaseModel):
+    date: date
+    weight_kg: float
+
+
+class StatisticsRunningChartPoint(BaseModel):
+    date: date
+    distance_km: float
+
+
+class ActivityChartsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    steps: list[StatisticsStepsChartPoint]
+    weight: list[StatisticsWeightChartPoint]
+    running: list[StatisticsRunningChartPoint]

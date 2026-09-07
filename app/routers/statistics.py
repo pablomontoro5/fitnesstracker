@@ -4,6 +4,10 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db import get_connection
 from app.schemas import (
+    ActivityChartsResponse,
+    StatisticsRunningChartPoint,
+    StatisticsStepsChartPoint,
+    StatisticsWeightChartPoint,
     ActivityStatisticsResponse,
     StatisticsBodyMetricResponse,
     StatisticsBodyMetricsResponse,
@@ -174,4 +178,84 @@ def get_activity_statistics(
             latest=latest_body_metric,
             weight_change_kg=weight_change_kg,
         ),
+    )
+@router.get(
+    "/charts",
+    response_model=ActivityChartsResponse,
+)
+def get_activity_charts(
+    start_date: date = Query(
+        description="Fecha inicial del periodo, incluida.",
+    ),
+    end_date: date = Query(
+        description="Fecha final del periodo, incluida.",
+    ),
+) -> ActivityChartsResponse:
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="start_date no puede ser posterior a end_date.",
+        )
+
+    start_date_value = start_date.isoformat()
+    end_date_value = end_date.isoformat()
+
+    with get_connection() as connection:
+        steps_rows = connection.execute(
+            """
+            SELECT date, steps
+            FROM daily_logs
+            WHERE date BETWEEN ? AND ?
+            ORDER BY date ASC, id ASC
+            """,
+            (start_date_value, end_date_value),
+        ).fetchall()
+
+        weight_rows = connection.execute(
+            """
+            SELECT date, weight_kg
+            FROM body_metrics
+            WHERE date BETWEEN ? AND ?
+            ORDER BY date ASC, id ASC
+            """,
+            (start_date_value, end_date_value),
+        ).fetchall()
+
+        running_rows = connection.execute(
+            """
+            SELECT
+                date,
+                ROUND(SUM(distance_km), 2) AS distance_km
+            FROM runs
+            WHERE date BETWEEN ? AND ?
+            GROUP BY date
+            ORDER BY date ASC
+            """,
+            (start_date_value, end_date_value),
+        ).fetchall()
+
+    return ActivityChartsResponse(
+        start_date=start_date,
+        end_date=end_date,
+        steps=[
+            StatisticsStepsChartPoint(
+                date=date.fromisoformat(row["date"]),
+                steps=row["steps"],
+            )
+            for row in steps_rows
+        ],
+        weight=[
+            StatisticsWeightChartPoint(
+                date=date.fromisoformat(row["date"]),
+                weight_kg=row["weight_kg"],
+            )
+            for row in weight_rows
+        ],
+        running=[
+            StatisticsRunningChartPoint(
+                date=date.fromisoformat(row["date"]),
+                distance_km=row["distance_km"],
+            )
+            for row in running_rows
+        ],
     )
