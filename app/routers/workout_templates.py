@@ -9,6 +9,9 @@ from app.schemas import (
     WorkoutTemplateExerciseResponse,
     WorkoutTemplateExerciseUpdate,
     WorkoutTemplateResponse,
+    WorkoutTemplateSetCreate,
+    WorkoutTemplateSetResponse,
+    WorkoutTemplateSetUpdate,
 )
 
 
@@ -57,11 +60,50 @@ def ensure_workout_template_exists(template_id: int) -> None:
             detail="No existe una plantilla con ese id.",
         )
 
+def row_to_workout_template_set(
+    row: sqlite3.Row,
+) -> WorkoutTemplateSetResponse:
+    return WorkoutTemplateSetResponse(
+        id=row["id"],
+        workout_template_exercise_id=row[
+            "workout_template_exercise_id"
+        ],
+        set_type=row["set_type"],
+        position=row["position"],
+        target_rep_range=row["target_rep_range"],
+        repetitions=row["repetitions"],
+        weight_kg=row["weight_kg"],
+        rir=row["rir"],
+        notes=row["notes"],
+        volume_kg=row["repetitions"] * row["weight_kg"],
+    )
+
+
+def ensure_workout_template_exercise_exists(
+    exercise_id: int,
+) -> None:
+    with get_connection() as connection:
+        workout_template_exercise = connection.execute(
+            """
+            SELECT id
+            FROM workout_template_exercises
+            WHERE id = ?
+            """,
+            (exercise_id,),
+        ).fetchone()
+
+    if workout_template_exercise is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe un ejercicio de plantilla con ese id.",
+        )
+
 @router.post(
     "/",
     response_model=WorkoutTemplateResponse,
     status_code=status.HTTP_201_CREATED,
 )
+
 def create_workout_template(
     workout_template: WorkoutTemplateCreate,
 ) -> WorkoutTemplateResponse:
@@ -329,4 +371,199 @@ def delete_workout_template_exercise(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe un ejercicio de plantilla con ese id.",
         )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.post(
+    "/exercises/{exercise_id}/sets/",
+    response_model=WorkoutTemplateSetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_workout_template_set(
+    exercise_id: int,
+    workout_template_set: WorkoutTemplateSetCreate,
+) -> WorkoutTemplateSetResponse:
+    ensure_workout_template_exercise_exists(exercise_id)
+
+    try:
+        with get_connection() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO workout_template_sets (
+                    workout_template_exercise_id,
+                    set_type,
+                    position,
+                    target_rep_range,
+                    repetitions,
+                    weight_kg,
+                    rir,
+                    notes
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    exercise_id,
+                    workout_template_set.set_type,
+                    workout_template_set.position,
+                    workout_template_set.target_rep_range,
+                    workout_template_set.repetitions,
+                    workout_template_set.weight_kg,
+                    workout_template_set.rir,
+                    workout_template_set.notes,
+                ),
+            )
+
+            row = connection.execute(
+                """
+                SELECT
+                    id,
+                    workout_template_exercise_id,
+                    set_type,
+                    position,
+                    target_rep_range,
+                    repetitions,
+                    weight_kg,
+                    rir,
+                    notes
+                FROM workout_template_sets
+                WHERE id = ?
+                """,
+                (cursor.lastrowid,),
+            ).fetchone()
+    except sqlite3.IntegrityError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Ya existe una serie en esa posición "
+                "para este ejercicio de plantilla."
+            ),
+        ) from error
+
+    return row_to_workout_template_set(row)
+
+
+@router.get(
+    "/exercises/{exercise_id}/sets/",
+    response_model=list[WorkoutTemplateSetResponse],
+)
+def list_workout_template_sets(
+    exercise_id: int,
+) -> list[WorkoutTemplateSetResponse]:
+    ensure_workout_template_exercise_exists(exercise_id)
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                id,
+                workout_template_exercise_id,
+                set_type,
+                position,
+                target_rep_range,
+                repetitions,
+                weight_kg,
+                rir,
+                notes
+            FROM workout_template_sets
+            WHERE workout_template_exercise_id = ?
+            ORDER BY position ASC
+            """,
+            (exercise_id,),
+        ).fetchall()
+
+    return [
+        row_to_workout_template_set(row)
+        for row in rows
+    ]
+
+
+@router.put(
+    "/sets/{set_id}",
+    response_model=WorkoutTemplateSetResponse,
+)
+def update_workout_template_set(
+    set_id: int,
+    workout_template_set: WorkoutTemplateSetUpdate,
+) -> WorkoutTemplateSetResponse:
+    try:
+        with get_connection() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE workout_template_sets
+                SET
+                    set_type = ?,
+                    position = ?,
+                    target_rep_range = ?,
+                    repetitions = ?,
+                    weight_kg = ?,
+                    rir = ?,
+                    notes = ?
+                WHERE id = ?
+                """,
+                (
+                    workout_template_set.set_type,
+                    workout_template_set.position,
+                    workout_template_set.target_rep_range,
+                    workout_template_set.repetitions,
+                    workout_template_set.weight_kg,
+                    workout_template_set.rir,
+                    workout_template_set.notes,
+                    set_id,
+                ),
+            )
+
+            if cursor.rowcount == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No existe una serie de plantilla con ese id.",
+                )
+
+            row = connection.execute(
+                """
+                SELECT
+                    id,
+                    workout_template_exercise_id,
+                    set_type,
+                    position,
+                    target_rep_range,
+                    repetitions,
+                    weight_kg,
+                    rir,
+                    notes
+                FROM workout_template_sets
+                WHERE id = ?
+                """,
+                (set_id,),
+            ).fetchone()
+    except sqlite3.IntegrityError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Ya existe una serie en esa posición "
+                "para este ejercicio de plantilla."
+            ),
+        ) from error
+
+    return row_to_workout_template_set(row)
+
+
+@router.delete(
+    "/sets/{set_id}",
+    response_model=None,
+)
+def delete_workout_template_set(set_id: int) -> Response:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            DELETE FROM workout_template_sets
+            WHERE id = ?
+            """,
+            (set_id,),
+        )
+
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe una serie de plantilla con ese id.",
+        )
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
