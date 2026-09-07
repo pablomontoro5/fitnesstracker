@@ -430,3 +430,107 @@ def test_statistics_summary_rejects_invalid_date():
         )
 
     assert response.status_code == 422
+
+def test_statistics_charts_returns_ordered_series_in_period():
+    with TestClient(app) as client:
+        create_daily_log(
+            client,
+            date="2026-09-30",
+            steps=8000,
+        )
+        create_daily_log(
+            client,
+            date="2026-10-01",
+            steps=12000,
+        )
+
+        create_body_metric(
+            client,
+            date="2026-09-30",
+            weight_kg=80,
+        )
+        create_body_metric(
+            client,
+            date="2026-10-01",
+            weight_kg=79.5,
+        )
+
+        create_run(
+            client,
+            date="2026-09-30",
+            distance_km=5,
+            duration_seconds=1500,
+        )
+        create_run(
+            client,
+            date="2026-09-30",
+            distance_km=2.5,
+            duration_seconds=900,
+        )
+        create_run(
+            client,
+            date="2026-10-01",
+            distance_km=10,
+            duration_seconds=3600,
+        )
+
+        response = client.get(
+            "/statistics/charts",
+            params={
+                "start_date": "2026-09-30",
+                "end_date": "2026-10-01",
+            },
+        )
+
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "start_date": "2026-09-30",
+        "end_date": "2026-10-01",
+        "steps": [
+            {
+                "date": "2026-09-30",
+                "steps": 8000,
+            },
+            {
+                "date": "2026-10-01",
+                "steps": 12000,
+            },
+        ],
+        "weight": [
+            {
+                "date": "2026-09-30",
+                "weight_kg": 80,
+            },
+            {
+                "date": "2026-10-01",
+                "weight_kg": 79.5,
+            },
+        ],
+        "running": [
+            {
+                "date": "2026-09-30",
+                "distance_km": 7.5,
+            },
+            {
+                "date": "2026-10-01",
+                "distance_km": 10,
+            },
+        ],
+    }
+
+
+def test_statistics_charts_rejects_inverted_date_range():
+    with TestClient(app) as client:
+        response = client.get(
+            "/statistics/charts",
+            params={
+                "start_date": "2026-10-01",
+                "end_date": "2026-09-30",
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "start_date no puede ser posterior a end_date."
+    )
