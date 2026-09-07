@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
-from app.services.backups import create_database_backup
+from app.services import backups
 
 
 router = APIRouter(
@@ -15,7 +15,7 @@ router = APIRouter(
     response_class=FileResponse,
 )
 def download_database_backup() -> FileResponse:
-    backup_path = create_database_backup()
+    backup_path = backups.create_database_backup()
 
     return FileResponse(
         path=backup_path,
