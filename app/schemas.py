@@ -279,3 +279,13 @@ class ActivityChartsResponse(BaseModel):
     steps: list[StatisticsStepsChartPoint]
     weight: list[StatisticsWeightChartPoint]
     running: list[StatisticsRunningChartPoint]
+
+class WorkoutTemplateCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutTemplateResponse(BaseModel):
+    id: int
+    name: str
+    notes: str | None
