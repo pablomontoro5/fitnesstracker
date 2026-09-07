@@ -115,6 +115,11 @@ h3 {
   background: rgba(255, 255, 255, 0.13);
 }
 
+.backup-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .intro-card {
   display: flex;
   align-items: center;
@@ -839,6 +844,9 @@ textarea:focus {
   .progress-form {
     align-items: stretch;
     flex-direction: column;
+  }
+  .backup-button {
+    width: 100%;
   }
 
   .docs-link {

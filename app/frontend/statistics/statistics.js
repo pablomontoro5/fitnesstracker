@@ -4,6 +4,7 @@ const elements = {
   endDate: document.querySelector("#end-date"),
   quickActions: document.querySelector(".statistics-quick-actions"),
   statusMessage: document.querySelector("#status-message"),
+  downloadBackupButton: document.querySelector("#download-backup-button"),
 
   stepsTotal: document.querySelector("#steps-total"),
   stepsDetail: document.querySelector("#steps-detail"),
@@ -224,6 +225,56 @@ async function loadStatistics() {
 }
 
 
+function getBackupFilename(contentDisposition) {
+  const match = contentDisposition?.match(
+    /filename="([^"]+)"/i,
+  );
+
+  return match?.[1] || "fitness_tracker_backup.db";
+}
+
+
+async function downloadDatabaseBackup() {
+  const button = elements.downloadBackupButton;
+
+  button.disabled = true;
+  button.textContent = "Creando copia de seguridad…";
+
+  try {
+    const response = await fetch("/backups/database", {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        "No se pudo crear la copia de seguridad. Inténtalo de nuevo.",
+      );
+    }
+
+    const backupBlob = await response.blob();
+    const downloadUrl = URL.createObjectURL(backupBlob);
+    const downloadLink = document.createElement("a");
+
+    downloadLink.href = downloadUrl;
+    downloadLink.download = getBackupFilename(
+      response.headers.get("content-disposition"),
+    );
+
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+
+    URL.revokeObjectURL(downloadUrl);
+
+    showStatus("Copia de seguridad descargada correctamente.");
+  } catch (error) {
+    showStatus(error.message, "error");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Descargar copia de seguridad";
+  }
+}
+
 function configureEventListeners() {
   elements.form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -239,6 +290,10 @@ function configureEventListeners() {
 
     setPeriod(button.dataset.period);
     await loadStatistics();
+  });
+
+  elements.downloadBackupButton.addEventListener("click", async () => {
+    await downloadDatabaseBackup();
   });
 }
 
