@@ -20,6 +20,7 @@ from app.routers import (
     workout_progress,
     workout_sessions,
     workout_sets,
+    workout_templates,
 )
 
 
@@ -52,6 +53,7 @@ app.include_router(runs.router)
 app.include_router(statistics.router)
 app.include_router(backups.router)
 app.include_router(exports.router)
+app.include_router(workout_templates.router)
 app.mount(
     "/static",
     StaticFiles(directory=FRONTEND_DIR, html=True),
