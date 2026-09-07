@@ -172,6 +172,13 @@ def initialize_database() -> None:
             """
         )
 
-
-
-    
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
