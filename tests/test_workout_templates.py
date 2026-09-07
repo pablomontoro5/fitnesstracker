@@ -395,3 +395,145 @@ def test_update_and_delete_workout_template_set():
     assert update_response.json()["volume_kg"] == 480
 
     assert delete_response.status_code == 204
+
+def test_create_session_from_workout_template_copies_exercises_and_sets():
+    with TestClient(app) as client:
+        workout_template = create_template(
+            client,
+            name="Torso A",
+            notes="Rutina principal de torso.",
+        )
+
+        first_template_exercise = create_template_exercise(
+            client,
+            template_id=workout_template["id"],
+            name="Press banca",
+            muscle_group="Pectoral",
+            position=1,
+            technique_notes="Escápulas retraídas.",
+        )
+        second_template_exercise = create_template_exercise(
+            client,
+            template_id=workout_template["id"],
+            name="Remo con barra",
+            muscle_group="Espalda",
+            position=2,
+            technique_notes=None,
+        )
+
+        create_template_set(
+            client,
+            exercise_id=first_template_exercise["id"],
+            set_type="warmup",
+            position=1,
+            target_rep_range="12-15",
+            repetitions=15,
+            weight_kg=20,
+            rir=None,
+            notes="Preparación.",
+        )
+        create_template_set(
+            client,
+            exercise_id=first_template_exercise["id"],
+            set_type="working",
+            position=2,
+            target_rep_range="8-10",
+            repetitions=8,
+            weight_kg=80,
+            rir=2,
+            notes="Serie principal.",
+        )
+        create_template_set(
+            client,
+            exercise_id=second_template_exercise["id"],
+            set_type="working",
+            position=1,
+            target_rep_range="10-12",
+            repetitions=10,
+            weight_kg=60,
+            rir=2,
+            notes=None,
+        )
+
+        response = client.post(
+            f"/workout-templates/{workout_template['id']}/create-session"
+        )
+
+        assert response.status_code == 201
+
+        created_session = response.json()
+
+        exercises_response = client.get(
+            f"/workout-sessions/{created_session['id']}/exercises/"
+        )
+
+        assert exercises_response.status_code == 200
+
+        copied_exercises = exercises_response.json()
+
+        assert created_session["name"] == "Torso A"
+        assert created_session["notes"] == "Rutina principal de torso."
+        assert len(copied_exercises) == 2
+
+        assert copied_exercises[0]["name"] == "Press banca"
+        assert copied_exercises[0]["muscle_group"] == "Pectoral"
+        assert copied_exercises[0]["position"] == 1
+        assert copied_exercises[0]["technique_notes"] == "Escápulas retraídas."
+
+        assert copied_exercises[1]["name"] == "Remo con barra"
+        assert copied_exercises[1]["muscle_group"] == "Espalda"
+        assert copied_exercises[1]["position"] == 2
+        assert copied_exercises[1]["technique_notes"] is None
+
+        first_sets_response = client.get(
+            f"/workout-exercises/{copied_exercises[0]['id']}/sets/"
+        )
+        second_sets_response = client.get(
+            f"/workout-exercises/{copied_exercises[1]['id']}/sets/"
+        )
+
+    assert first_sets_response.status_code == 200
+    assert second_sets_response.status_code == 200
+
+    assert first_sets_response.json() == [
+        {
+            "id": first_sets_response.json()[0]["id"],
+            "workout_exercise_id": copied_exercises[0]["id"],
+            "set_type": "warmup",
+            "position": 1,
+            "target_rep_range": "12-15",
+            "repetitions": 15,
+            "weight_kg": 20,
+            "rir": None,
+            "notes": "Preparación.",
+            "volume_kg": 300,
+        },
+        {
+            "id": first_sets_response.json()[1]["id"],
+            "workout_exercise_id": copied_exercises[0]["id"],
+            "set_type": "working",
+            "position": 2,
+            "target_rep_range": "8-10",
+            "repetitions": 8,
+            "weight_kg": 80,
+            "rir": 2,
+            "notes": "Serie principal.",
+            "volume_kg": 640,
+        },
+    ]
+
+    assert second_sets_response.json()[0]["set_type"] == "working"
+    assert second_sets_response.json()[0]["repetitions"] == 10
+    assert second_sets_response.json()[0]["weight_kg"] == 60
+    assert second_sets_response.json()[0]["volume_kg"] == 600
+
+def test_create_session_from_missing_workout_template_returns_404():
+    with TestClient(app) as client:
+        response = client.post(
+            "/workout-templates/999999/create-session"
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == (
+        "No existe una plantilla con ese id."
+    )
