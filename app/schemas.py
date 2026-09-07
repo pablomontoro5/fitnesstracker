@@ -311,3 +311,35 @@ class WorkoutTemplateExerciseResponse(BaseModel):
     muscle_group: str
     position: int
     technique_notes: str | None
+
+class WorkoutTemplateSetCreate(BaseModel):
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int = Field(ge=1, le=100)
+    target_rep_range: str | None = Field(default=None, max_length=30)
+    repetitions: int = Field(gt=0, le=1000)
+    weight_kg: float = Field(ge=0, le=1000)
+    rir: float | None = Field(default=None, ge=-3, le=10)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutTemplateSetUpdate(BaseModel):
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int = Field(ge=1, le=100)
+    target_rep_range: str | None = Field(default=None, max_length=30)
+    repetitions: int = Field(gt=0, le=1000)
+    weight_kg: float = Field(ge=0, le=1000)
+    rir: float | None = Field(default=None, ge=-3, le=10)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutTemplateSetResponse(BaseModel):
+    id: int
+    workout_template_exercise_id: int
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int
+    target_rep_range: str | None
+    repetitions: int
+    weight_kg: float
+    rir: float | None
+    notes: str | None
+    volume_kg: float
