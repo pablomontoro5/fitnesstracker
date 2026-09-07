@@ -329,5 +329,4 @@ def delete_workout_template_exercise(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe un ejercicio de plantilla con ese id.",
         )
-
     return Response(status_code=status.HTTP_204_NO_CONTENT)
