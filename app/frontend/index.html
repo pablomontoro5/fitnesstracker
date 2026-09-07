@@ -85,18 +85,38 @@
         <span class="navigation-card-footer">Abrir estadísticas →</span>
       </a>
 
-      <a class="navigation-card" href="/static/nutrition/">
-  <div>
-    <p class="eyebrow">Nutrición</p>
-      <h2>Dieta diaria</h2>
-      <p>
-        Registra comidas, alimentos, calorías y macronutrientes diarios.
-      </p>
-    </div>
+            <a class="navigation-card" href="/static/nutrition/">
+              <div>
+                <p class="eyebrow">Nutrición</p>
+                <h2>Dieta diaria</h2>
+                <p>
+                  Registra comidas, alimentos, calorías y macronutrientes diarios.
+                </p>
+              </div>
 
-    <span class="navigation-card-footer">Abrir nutrición →</span>
-  </a>
+              <span class="navigation-card-footer">Abrir nutrición →</span>
+            </a>
+
+        <article class="navigation-card export-card">
+          <div>
+            <p class="eyebrow">Datos</p>
+            <h2>Exportar datos</h2>
+            <p>
+              Descarga un archivo JSON con tus pasos, entrenamientos, running,
+              métricas corporales y nutrición.
+            </p>
+          </div>
+
+          <button
+            id="download-export-button"
+            class="secondary-button export-button"
+            type="button"
+          >
+            Descargar exportación
+          </button>
+        </article>
     </section>
   </main>
+  <script src="/static/home.js" type="module"></script>
 </body>
 </html>
