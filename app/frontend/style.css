@@ -1411,4 +1411,16 @@ a.history-button:hover {
     grid-column: auto;
     width: 100%;
   }
+  .export-button {
+    width: 100%;
+  }
+}
+
+.export-card {
+  min-height: 190px;
+}
+
+
+.export-button {
+  justify-self: start;
 }
