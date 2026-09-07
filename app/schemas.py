@@ -289,3 +289,25 @@ class WorkoutTemplateResponse(BaseModel):
     id: int
     name: str
     notes: str | None
+
+class WorkoutTemplateExerciseCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    muscle_group: str = Field(min_length=1, max_length=80)
+    position: int = Field(ge=1, le=100)
+    technique_notes: str | None = Field(default=None, max_length=2000)
+
+
+class WorkoutTemplateExerciseUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    muscle_group: str = Field(min_length=1, max_length=80)
+    position: int = Field(ge=1, le=100)
+    technique_notes: str | None = Field(default=None, max_length=2000)
+
+
+class WorkoutTemplateExerciseResponse(BaseModel):
+    id: int
+    workout_template_id: int
+    name: str
+    muscle_group: str
+    position: int
+    technique_notes: str | None
