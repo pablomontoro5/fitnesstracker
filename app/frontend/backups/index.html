@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Copias de seguridad | Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Fitness Tracker</p>
+        <h1>Copias de seguridad</h1>
+      </div>
+      <a class="docs-link" href="/">Volver al inicio</a>
+    </div>
+  </header>
+
+  <main class="container backups-page">
+    <a class="back-link" href="/">← Volver al inicio</a>
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Protección de datos</p>
+        <h2>Gestiona tus datos con seguridad</h2>
+        <p>Descarga una copia completa de tu base de datos o restaura una copia anterior cuando lo necesites.</p>
+      </div>
+    </section>
+
+    <p id="backup-status" class="status-message" role="status" aria-live="polite"></p>
+
+    <div class="backups-grid">
+      <section class="panel backup-card">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Exportación</p>
+            <h2>Descargar copia</h2>
+          </div>
+        </div>
+        <p>Descarga una copia SQLite completa de tus registros, plantillas y sesiones.</p>
+        <button id="download-backup-button" class="primary-button" type="button">
+          Descargar copia SQLite
+        </button>
+      </section>
+
+      <section class="panel backup-card backup-restore-card">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Restauración</p>
+            <h2>Restaurar copia</h2>
+          </div>
+        </div>
+        <p class="warning-text">La restauración reemplazará los datos actuales. Antes de hacerlo se creará automáticamente una copia de seguridad de protección.</p>
+
+        <form id="restore-form">
+          <label for="restore-file">
+            Archivo SQLite
+            <span class="optional">Solo archivos .db</span>
+            <input id="restore-file" name="file" type="file" accept=".db,application/octet-stream" required>
+          </label>
+          <button id="restore-button" class="danger-button restore-submit-button" type="submit">
+            Restaurar datos
+          </button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/backups/backups.js"></script>
+</body>
+</html>
