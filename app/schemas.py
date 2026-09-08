@@ -343,3 +343,27 @@ class WorkoutTemplateSetResponse(BaseModel):
     rir: float | None
     notes: str | None
     volume_kg: float
+
+GoalType = Literal[
+    "daily_steps",
+    "weekly_workouts",
+    "weekly_running_km",
+]
+
+
+class FitnessGoalUpsert(BaseModel):
+    target_value: float = Field(gt=0, le=1_000_000)
+
+
+class FitnessGoalResponse(BaseModel):
+    id: int
+    goal_type: GoalType
+    target_value: float
+
+
+class FitnessGoalProgressResponse(BaseModel):
+    goal_type: GoalType
+    target_value: float
+    current_value: float
+    progress_percentage: float
+    is_completed: bool
