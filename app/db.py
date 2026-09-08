@@ -223,3 +223,21 @@ def initialize_database() -> None:
             )
             """
         )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS fitness_goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_type TEXT NOT NULL UNIQUE CHECK (
+                    goal_type IN (
+                        'daily_steps',
+                        'weekly_workouts',
+                        'weekly_running_km'
+                    )
+                ),
+                target_value REAL NOT NULL CHECK (target_value > 0),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )

@@ -12,6 +12,7 @@ def clean_database():
     initialize_database()
 
     with get_connection() as connection:
+        connection.execute("DELETE FROM fitness_goals")
         connection.execute("DELETE FROM nutrition_foods")
         connection.execute("DELETE FROM nutrition_meals")
         connection.execute("DELETE FROM nutrition_days")
