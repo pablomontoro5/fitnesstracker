@@ -44,12 +44,21 @@
       </div>
     </section>
 
-    <div class="history-link-container">
-      <a class="primary-button history-button"
-        href="/static/workouts/history.html">
-        Ver historial de entrenamientos
-      </a>
-    </div>
+        <div class="history-link-container">
+          <a
+            class="primary-button history-button"
+            href="/static/workouts/history.html"
+          >
+            Ver historial de entrenamientos
+          </a>
+
+          <a
+            class="secondary-button templates-link-button"
+            href="/static/workout-templates/"
+          >
+            Gestionar plantillas
+          </a>
+        </div>
 
     
     <p id="status-message" class="status-message" aria-live="polite"></p>
@@ -437,19 +446,20 @@
     </section>
   </main>
 
-  <template id="session-template">
-      <template id="workout-template">
-        <article class="template-card">
-          <div class="template-main">
-            <strong class="template-name"></strong>
-            <small class="template-notes"></small>
-          </div>
+    <template id="workout-template">
+    <article class="template-card">
+      <div class="template-main">
+        <strong class="template-name"></strong>
+        <small class="template-notes"></small>
+      </div>
 
-          <button class="secondary-button use-template-button" type="button">
-            Usar hoy
-          </button>
-        </article>
-      </template>
+      <button class="secondary-button use-template-button" type="button">
+        Usar hoy
+      </button>
+    </article>
+  </template>
+
+  <template id="session-template">
     <article class="session-card">
       <button class="session-select-button" type="button">
         <span class="session-date"></span>
