@@ -1662,3 +1662,145 @@ a.history-button:hover {
     width: 100%;
   }
 }
+
+.goals-page {
+  padding-bottom: 2rem;
+}
+
+.goals-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin: 1.25rem 0 2rem;
+}
+
+.goal-card {
+  display: grid;
+  min-height: 420px;
+  align-content: start;
+}
+
+.goal-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.goal-icon {
+  display: grid;
+  flex: 0 0 2.6rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  font-size: 1.25rem;
+}
+
+.goal-description {
+  min-height: 3.9rem;
+  margin-bottom: 1.1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.goal-progress-summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.65rem;
+}
+
+.goal-progress-summary strong {
+  color: var(--primary);
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+}
+
+.goal-progress-summary span {
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  text-align: right;
+}
+
+.goal-progress-track {
+  height: 0.72rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5ece7;
+}
+
+.goal-progress-bar {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 0.25s ease;
+}
+
+.goal-card.completed .goal-progress-bar {
+  background: #16834f;
+}
+
+.goal-progress-text {
+  min-height: 1.3rem;
+  margin: 0.6rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.goal-completed-message {
+  margin: 0.5rem 0 0;
+  color: var(--primary);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.goal-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: auto;
+  padding-top: 1.2rem;
+}
+
+.goal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+@media (max-width: 1000px) {
+  .goals-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .goals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .goal-card {
+    min-height: auto;
+  }
+
+  .goal-description {
+    min-height: auto;
+  }
+
+  .goal-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .goal-actions .primary-button,
+  .goal-actions .danger-button {
+    width: 100%;
+  }
+}
