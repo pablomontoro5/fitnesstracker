@@ -1557,3 +1557,39 @@ a.history-button:hover {
     width: 100%;
   }
 }
+
+.templates-link-button {
+  min-width: 280px;
+  text-align: center;
+  text-decoration: none;
+}
+
+
+.template-select-button {
+  display: grid;
+  width: 100%;
+  gap: 0.2rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+
+.template-card.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+
+@media (max-width: 560px) {
+  .history-link-container {
+    flex-direction: column;
+  }
+
+  .templates-link-button {
+    width: 100%;
+    min-width: 0;
+  }
+}
