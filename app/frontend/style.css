@@ -1593,3 +1593,72 @@ a.history-button:hover {
     min-width: 0;
   }
 }
+
+.backups-page {
+  padding-bottom: 2rem;
+}
+
+.backups-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin: 1.25rem 0 2rem;
+}
+
+.backup-card {
+  display: grid;
+  min-height: 250px;
+  align-content: start;
+}
+
+.backup-card p:not(.eyebrow) {
+  margin-bottom: 1.25rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.backup-restore-card {
+  border-color: #f2b8b1;
+}
+
+.warning-text {
+  padding: 0.8rem 0.9rem;
+  border-left: 3px solid var(--danger);
+  border-radius: 0 0.55rem 0.55rem 0;
+  background: var(--danger-soft);
+  color: #8d1d15 !important;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+#restore-form {
+  display: grid;
+  gap: 1rem;
+}
+
+#restore-file {
+  padding: 0.55rem;
+  background: #fff;
+  font-size: 0.86rem;
+}
+
+.restore-submit-button {
+  justify-self: start;
+  background: var(--danger);
+  color: #fff;
+}
+
+.restore-submit-button:hover {
+  background: var(--danger-hover);
+}
+
+@media (max-width: 700px) {
+  .backups-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .restore-submit-button,
+  #download-backup-button {
+    width: 100%;
+  }
+}
