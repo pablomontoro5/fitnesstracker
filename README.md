@@ -1,67 +1,108 @@
 # Fitness Tracker — Health & Training Log 🏋️‍♂️🏃‍♂️
 
-**Fitness Tracker** es una aplicación web personal para centralizar el seguimiento diario de actividad, entrenamientos de gimnasio, running, alimentación y composición corporal.
+**Fitness Tracker** es una aplicación web personal para centralizar el seguimiento diario de actividad, entrenamientos de gimnasio, running, alimentación, composición corporal y objetivos de actividad.
 
-El proyecto nace con una arquitectura incremental, inspirada en *Virtual Wardrobe Weather*: backend modular con FastAPI, persistencia local con SQLite, API documentada automáticamente, pruebas y un frontend sencillo. La primera meta es una aplicación web funcional y responsive; posteriormente podrá evolucionar a una experiencia móvil para iOS mediante una PWA o un cliente nativo conectado a la misma API.
+El proyecto sigue una arquitectura incremental: backend modular con FastAPI, persistencia local con SQLite, API documentada automáticamente, pruebas con Pytest y un frontend responsive en HTML, CSS y JavaScript. La aplicación está pensada inicialmente para un único usuario y uso local, con posibilidad de evolucionar más adelante a PWA o a un cliente móvil conectado a la misma API.
 
 ---
 
 ## Objetivo
 
-Registrar en un único lugar los datos que normalmente quedan repartidos entre notas, hojas de cálculo y varias aplicaciones:
+Registrar en un único lugar datos que normalmente quedan repartidos entre notas, hojas de cálculo y varias aplicaciones:
 
 - Pasos diarios y actividad general.
 - Rutinas de gimnasio por sesión, ejercicio, serie, repeticiones, carga y RIR.
-- Seguimiento de progreso por ejercicio y notas técnicas.
-- Sesiones de running con distancia, duración, ritmo medio por kilómetro y recorrido.
-- Comidas y resumen nutricional diario.
+- Plantillas de entrenamiento reutilizables.
+- Seguimiento de progreso por ejercicio, volumen y notas técnicas.
+- Sesiones de running con distancia, duración y ritmo medio por kilómetro.
+- Comidas, alimentos, calorías y macronutrientes diarios.
 - Peso, altura, IMC y evolución corporal.
-
-La captura de referencia muestra una rutina de empujes basada en series con rangos de repeticiones, carga, RIR y observaciones. El módulo de gimnasio se diseñará para reflejar esa forma de entrenar, sin obligar a usar una plantilla cerrada.
+- Objetivos de pasos diarios, entrenamientos semanales y kilómetros de running semanales.
+- Exportación JSON y copias de seguridad/restauración de la base SQLite.
 
 ---
 
-## Alcance del MVP
+## Funcionalidades actuales
 
-La versión inicial estará enfocada en un solo usuario y funcionamiento local. No incluirá todavía autenticación, sincronización con relojes, conteo automático de calorías ni mapas interactivos completos.
+### Pasos diarios
 
-### Registro diario
+- Crear, consultar, editar y eliminar registros diarios.
+- Guardar pasos y notas por fecha.
+- Evitar registros duplicados para un mismo día.
 
-- Crear o consultar un día de seguimiento.
-- Registrar pasos y notas generales.
-- Ver un resumen de actividad, entrenamiento, nutrición y peso del día.
+### Entrenamiento
 
-### Gimnasio
+- Crear, consultar, editar y eliminar sesiones de gimnasio.
+- Añadir ejercicios ordenados por posición dentro de una sesión.
+- Registrar grupo muscular, notas técnicas y ejercicios personalizados.
+- Añadir, editar y eliminar series con:
+  - Tipo de serie: `warmup`, `approximation`, `working` o `drop_set`.
+  - Rango objetivo de repeticiones.
+  - Repeticiones realizadas.
+  - Carga en kilogramos.
+  - RIR y observaciones.
+- Calcular volumen por serie y progreso básico por ejercicio.
+- Repetir una sesión existente para crear una nueva sesión con la fecha actual.
 
-- Crear plantillas de rutina, por ejemplo: `Empujes`, `Tirón` y `Pierna`.
-- Añadir ejercicios a una sesión con grupo muscular, orden y notas técnicas.
-- Seleccionar ejercicios sugeridos por grupo muscular o crear ejercicios personalizados.
-- Registrar cada serie con objetivo de repeticiones, repeticiones realizadas, carga, RIR y observaciones.
-- Registrar calentamiento y aproximaciones opcionales.
-- Consultar el historial de un ejercicio y su progreso básico de carga, repeticiones y volumen.
+### Plantillas de entrenamiento
+
+- Crear, listar, consultar y eliminar plantillas.
+- Configurar ejercicios y series previstas por plantilla.
+- Mantener orden de ejercicios y series mediante posiciones únicas.
+- Crear una sesión real desde una plantilla sin modificar la plantilla original.
+- Gestionar plantillas y utilizarlas desde la interfaz de entrenamiento.
 
 ### Running
 
-- Registrar fecha, distancia total, duración, ritmo medio y notas.
-- Guardar un recorrido opcional como puntos GPS o archivo GPX para habilitar mapas más adelante.
-- Mostrar el historial de sesiones y métricas simples de evolución.
+- Crear, consultar, editar y eliminar sesiones de running.
+- Guardar fecha, distancia, duración, ritmo medio y notas.
+- Calcular automáticamente el ritmo medio en segundos por kilómetro.
 
-### Alimentación y cuerpo
+### Nutrición
 
-- Crear comidas y añadir alimentos manualmente.
-- Guardar calorías y macronutrientes cuando estén disponibles.
-- Registrar peso y altura.
-- Calcular el IMC como referencia: `peso_kg / altura_m²`.
-- Mostrar la evolución del peso e IMC.
+- Crear días de nutrición.
+- Añadir comidas ordenadas dentro de un día.
+- Añadir alimentos con cantidad, calorías y macronutrientes.
+- Consultar la información nutricional diaria.
+
+### Métricas corporales
+
+- Registrar peso, altura y notas por fecha.
+- Calcular el IMC automáticamente.
+- Consultar métricas corporales y su evolución desde el módulo de estadísticas.
+
+### Estadísticas
+
+- Consultar un resumen de pasos, entrenamiento, running y métricas corporales por periodo.
+- Visualizar series temporales de pasos, peso y kilómetros de running.
+
+### Objetivos
+
+- Configurar un objetivo de pasos diarios.
+- Configurar un objetivo semanal de sesiones de entrenamiento.
+- Configurar un objetivo semanal de kilómetros de running.
+- Calcular el progreso en el backend a partir de los registros existentes.
+- Mostrar valor actual, objetivo, porcentaje de progreso y estado de completado.
+- Eliminar objetivos sin eliminar los registros de actividad asociados.
+
+### Datos y copias de seguridad
+
+- Exportar los datos de la aplicación a JSON.
+- Descargar una copia completa de la base SQLite.
+- Restaurar una copia SQLite desde la interfaz.
+- Validar integridad SQLite, tablas necesarias y columnas obligatorias antes de restaurar.
+- Crear automáticamente un backup de seguridad antes de reemplazar los datos activos.
 
 ---
 
 ## Decisiones de producto
 
-- **Web primero y móvil después:** el frontend será responsive desde el inicio. Una PWA permitirá instalar la aplicación en iPhone más adelante sin duplicar el backend.
-- **Datos propios y editables:** todos los registros creados por el usuario podrán consultarse, corregirse y eliminarse.
-- **Registro rápido:** introducir una serie o una sesión debe requerir pocos campos; los detalles como notas, GPS o macronutrientes serán opcionales.
-- **Sin afirmaciones médicas:** peso e IMC se muestran como métricas de seguimiento, no como diagnóstico o recomendación sanitaria.
+- **Web primero y móvil después:** el frontend es responsive desde el inicio; una PWA podrá permitir su instalación en móvil más adelante.
+- **Datos propios y editables:** los registros creados por el usuario se pueden consultar, corregir y eliminar.
+- **Registro rápido:** los campos esenciales son obligatorios; notas y datos adicionales son opcionales.
+- **Fuente de verdad en el backend:** los cálculos de ritmo, IMC, volumen y progreso de objetivos se realizan en la API.
+- **Sin afirmaciones médicas:** peso e IMC son métricas de seguimiento, no diagnósticos ni recomendaciones sanitarias.
+- **Seguridad de datos local:** las restauraciones validan el archivo y generan una copia de protección antes de modificar la base activa.
 
 ---
 
@@ -71,39 +112,49 @@ La versión inicial estará enfocada en un solo usuario y funcionamiento local. 
 
 - Python
 - FastAPI
-- SQLite mediante `sqlite3` durante el MVP
+- SQLite mediante `sqlite3`
 - Pydantic para validación de datos
-- Pytest para pruebas
+- `python-multipart` para subida de copias SQLite
+- Pytest y HTTPX para pruebas
 
 ### Frontend
 
 - HTML
 - CSS
-- JavaScript
+- JavaScript sin framework
 - Diseño responsive orientado a móvil
 
 ### Evolución prevista
 
-- Leaflet + OpenStreetMap para visualizar rutas de running.
-- Importación GPX.
-- PWA (manifest y service worker).
-- PostgreSQL cuando exista necesidad de despliegue multiusuario o mayor concurrencia.
+- Importación GPX y mapas de recorrido con Leaflet + OpenStreetMap.
+- PWA mediante manifest y service worker.
+- Modo sin conexión básico.
+- Objetivos de nutrición y composición corporal.
+- PostgreSQL si se requiere despliegue multiusuario o mayor concurrencia.
 
-FastAPI ofrecerá documentación interactiva en `/docs` y `/redoc`.
+FastAPI ofrece documentación interactiva en `/docs` y documentación alternativa en `/redoc`.
 
-### Rutas del frontend
+---
+
+## Rutas del frontend
 
 Con la aplicación en ejecución, las vistas principales están disponibles en:
 
 | Ruta | Descripción |
 | --- | --- |
 | `/` | Panel principal de navegación |
-| `/static/workouts/` | Registro de sesiones, ejercicios, series y progreso |
+| `/static/workouts/` | Sesiones, ejercicios, series, plantillas y progreso de entrenamiento |
 | `/static/daily-steps/` | Registro y edición de pasos diarios |
+| `/static/runs/` | Registro e historial de running |
+| `/static/nutrition/` | Registro de días, comidas y alimentos |
+| `/static/statistics/` | Resúmenes y gráficas por periodo |
+| `/static/goals/` | Configuración y seguimiento de objetivos de actividad |
+| `/static/backups/` | Descarga y restauración de copias SQLite |
 | `/docs` | Documentación interactiva de la API |
 | `/redoc` | Documentación alternativa de la API |
 
-Los archivos estáticos se sirven mediante FastAPI con `StaticFiles(..., html=True)`, lo que permite que cada módulo use su propio `index.html`.
+Los archivos estáticos se sirven mediante FastAPI con `StaticFiles(..., html=True)`, por lo que cada módulo puede disponer de su propio `index.html` y JavaScript.
+
 ---
 
 ## Estructura del proyecto
@@ -115,106 +166,161 @@ fitness-tracker/
 │   ├── db.py
 │   ├── schemas.py
 │   ├── routers/
+│   │   ├── backups.py
 │   │   ├── body_metrics.py
 │   │   ├── daily_logs.py
+│   │   ├── exports.py
+│   │   ├── goals.py
+│   │   ├── nutrition_days.py
+│   │   ├── nutrition_foods.py
+│   │   ├── nutrition_meals.py
+│   │   ├── restores.py
+│   │   ├── runs.py
+│   │   ├── statistics.py
 │   │   ├── workout_exercises.py
 │   │   ├── workout_progress.py
 │   │   ├── workout_sessions.py
-│   │   └── workout_sets.py
+│   │   ├── workout_sets.py
+│   │   └── workout_templates.py
+│   ├── services/
+│   │   ├── backups.py
+│   │   ├── exports.py
+│   │   └── restores.py
 │   └── frontend/
-│       ├── index.html                 # Panel principal de navegación
+│       ├── index.html                 # Panel principal
+│       ├── home.js                    # Exportación JSON desde Inicio
 │       ├── style.css                  # Estilos compartidos
-│       ├── workouts/
-│       │   ├── index.html             # Módulo de entrenamiento
-│       │   └── workouts.js            # Sesiones, ejercicios, series, progreso y sugerencias
-│       │   └── history.html           # Historial de sesiones
-│       │   └── history.js            
-│       └── daily-steps/
-│           ├── index.html             # Módulo de pasos diarios
-│           └── daily-steps.js         # Lógica de registros de pasos
-├── data/
-│   └── fitness_tracker.db
-tests/
-  ├── test_body_metrics.py
-  ├── test_daily_logs.py
-  ├── test_db.py
-  ├── test_health.py
-  ├── test_workout_cascades.py
-  ├── test_workout_exercises.py
-  ├── test_workout_progress.py
-  ├── test_workout_sessions.py
-  └── test_workout_sets.py
+│       ├── backups/
+│       │   ├── index.html
+│       │   └── backups.js
+│       ├── daily-steps/
+│       │   ├── index.html
+│       │   └── daily-steps.js
+│       ├── goals/
+│       │   ├── index.html
+│       │   └── goals.js
+│       ├── nutrition/
+│       │   ├── index.html
+│       │   └── nutrition.js
+│       ├── runs/
+│       │   ├── index.html
+│       │   └── runs.js
+│       ├── statistics/
+│       │   ├── index.html
+│       │   └── statistics.js
+│       ├── workout-templates/
+│       │   ├── index.html
+│       │   └── workout_templates.js
+│       └── workouts/
+│           ├── index.html
+│           ├── workouts.js
+│           ├── history.html
+│           └── history.js
+├── data/                              # Datos locales; no versionar bases ni backups
+├── tests/
+│   ├── conftest.py
+│   ├── test_backups.py
+│   ├── test_backups_router.py
+│   ├── test_body_metrics.py
+│   ├── test_daily_logs.py
+│   ├── test_exports.py
+│   ├── test_exports_router.py
+│   ├── test_goals.py
+│   ├── test_restores.py
+│   ├── test_restores_router.py
+│   ├── test_runs.py
+│   ├── test_statistics.py
+│   ├── test_workout_templates.py
+│   └── ...
 ├── requirements.txt
 └── README.md
 ```
 
-Los routers mantienen los endpoints separados por dominio. El frontend se organiza por funcionalidades: cada módulo incluye su propia vista HTML y su lógica JavaScript, mientras que `style.css` concentra el diseño compartido.
+Los routers separan los endpoints por dominio. El frontend se organiza por funcionalidad: cada módulo posee su propia vista HTML y lógica JavaScript, mientras `style.css` concentra la apariencia común.
 
 ---
-### Catálogo de ejercicios sugeridos
 
-El módulo de entrenamiento incluye un catálogo inicial de ejercicios agrupados por músculo. Al seleccionar un grupo muscular, se muestran ejercicios sugeridos y, al elegir uno, se completan automáticamente los campos de nombre y grupo muscular.
+## Catálogo de ejercicios sugeridos
 
-Las sugerencias son opcionales: los campos permanecen editables para que cada usuario pueda registrar variantes, ejercicios con máquinas concretas o cualquier ejercicio personalizado.
+El módulo de entrenamiento incluye un catálogo inicial de ejercicios agrupados por músculo. Al seleccionar un grupo muscular se muestran sugerencias y, al elegir una, se completan automáticamente los campos de nombre y grupo muscular.
 
-El catálogo se mantiene inicialmente en `app/frontend/workouts/workouts.js`. En una fase posterior podrá trasladarse al backend y ampliarse con equipamiento, instrucciones técnicas y variantes.
+Las sugerencias son opcionales: los campos se mantienen editables para poder registrar variantes, máquinas concretas o ejercicios personalizados. El catálogo se mantiene inicialmente en `app/frontend/workouts/workouts.js` y podrá trasladarse al backend en una iteración futura.
 
+---
 
-## Modelo de datos inicial
+## Modelo de datos
 
 | Entidad | Campos principales |
 | --- | --- |
-| `daily_logs` | `id`, `date`, `steps`, `notes` |
-| `workout_templates` | `id`, `name`, `description` |
-| `exercise_templates` | `id`, `workout_template_id`, `name`, `muscle_group`, `position`, `technique_notes` |
-| `workout_sessions` | `id`, `date`, `name`, `notes` |
-| `workout_exercises` | `id`, `workout_session_id`, `exercise_name`, `muscle_group`, `position`, `technique_notes` |
-| `workout_sets` | `id`, `workout_exercise_id`, `set_type`, `target_rep_range`, `repetitions`, `weight_kg`, `rir`, `notes` |
-| `runs` | `id`, `date`, `distance_km`, `duration_seconds`, `average_pace_seconds_km`, `notes`, `route_data` |
-| `meals` | `id`, `date`, `meal_type`, `name`, `calories`, `protein_g`, `carbs_g`, `fat_g` |
-| `body_metrics` | `id`, `date`, `weight_kg`, `height_cm`, `bmi`, `notes` |
+| `daily_logs` | `id`, `date`, `steps`, `notes`, `created_at` |
+| `body_metrics` | `id`, `date`, `weight_kg`, `height_cm`, `bmi`, `notes`, `created_at` |
+| `workout_sessions` | `id`, `date`, `name`, `notes`, `created_at` |
+| `workout_exercises` | `id`, `workout_session_id`, `name`, `muscle_group`, `position`, `technique_notes`, `created_at` |
+| `workout_sets` | `id`, `workout_exercise_id`, `set_type`, `position`, `target_rep_range`, `repetitions`, `weight_kg`, `rir`, `notes`, `created_at` |
+| `runs` | `id`, `date`, `distance_km`, `duration_seconds`, `average_pace_seconds_km`, `notes`, `created_at` |
+| `nutrition_days` | `id`, `date`, `notes`, `created_at` |
+| `nutrition_meals` | `id`, `nutrition_day_id`, `name`, `position`, `created_at` |
+| `nutrition_foods` | `id`, `nutrition_meal_id`, `name`, `quantity_g`, `calories`, `protein_g`, `carbs_g`, `fat_g`, `position`, `notes`, `created_at` |
+| `workout_templates` | `id`, `name`, `notes`, `created_at` |
+| `workout_template_exercises` | `id`, `workout_template_id`, `name`, `muscle_group`, `position`, `technique_notes`, `created_at` |
+| `workout_template_sets` | `id`, `workout_template_exercise_id`, `set_type`, `position`, `target_rep_range`, `repetitions`, `weight_kg`, `rir`, `notes`, `created_at` |
+| `fitness_goals` | `id`, `goal_type`, `target_value`, `created_at`, `updated_at` |
 
 ### Convenciones importantes
 
-- `weight_kg` será un número decimal; las cargas de gimnasio se guardarán en kilogramos.
-- `duration_seconds` y `average_pace_seconds_km` evitan errores al ordenar o calcular tiempos.
-- `rir` representa *reps in reserve*; puede ser decimal o nulo si no se registra.
-- `set_type` permitirá diferenciar `warmup`, `approximation`, `working` y `drop_set`.
-- `route_data` se mantendrá opcional y se definirá como JSON o referencia a un GPX en una fase posterior.
+- `weight_kg`, `height_cm`, `distance_km` y las cargas de gimnasio son valores numéricos.
+- `duration_seconds` y `average_pace_seconds_km` permiten cálculos y ordenación fiables de las carreras.
+- `rir` representa *reps in reserve* y puede ser decimal o nulo.
+- `set_type` diferencia `warmup`, `approximation`, `working` y `drop_set`.
+- Las posiciones de ejercicios y series son únicas dentro de su entidad padre.
+- `fitness_goals.goal_type` acepta `daily_steps`, `weekly_workouts` o `weekly_running_km`.
 
 ---
 
-## Cálculos del MVP
+## Cálculos
 
 - **IMC:** `peso_kg / (altura_cm / 100)²`.
 - **Ritmo medio:** `duración total en segundos / distancia en km`.
 - **Volumen de una serie:** `repeticiones × carga_kg`.
-- **Volumen de un ejercicio/sesión:** suma de los volúmenes de sus series de trabajo.
+- **Volumen de un ejercicio o sesión:** suma de los volúmenes de sus series de trabajo.
+- **Objetivo diario de pasos:** pasos del registro correspondiente a hoy.
+- **Objetivo semanal de entrenamientos:** sesiones registradas desde el lunes hasta hoy.
+- **Objetivo semanal de running:** suma de kilómetros de las carreras registradas desde el lunes hasta hoy.
 
-Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. El RIR se almacenará junto a la serie, pero no alterará este cálculo básico.
+Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un objetivo de 8 km semanales mostrará el valor real acumulado, aunque la barra visual se limita al 100 % al completarlo o superarlo.
 
 ---
 
-## Endpoints previstos
+## Endpoints principales
 
-| Método | Endpoint | Propósito | Estado |
-| --- | --- | --- | --- |
-| `GET` / `POST` | `/daily-logs/` | Consultar o crear registros diarios | Implementado |
-| `GET` / `PUT` / `DELETE` | `/daily-logs/{log_date}` | Consultar, editar o borrar un día | Implementado |
-| `GET` / `POST` | `/body-metrics/` | Consultar o registrar peso, altura e IMC | Implementado |
-| `GET` / `POST` | `/workout-sessions/` | Listar o crear sesiones de gimnasio | Implementado |
-| `GET` / `PUT` / `DELETE` | `/workout-sessions/{session_id}` | Consultar, editar o eliminar una sesión | Implementado |
-| `POST` | `/workout-sessions/{session_id}/exercises/` | Añadir un ejercicio a una sesión | Implementado |
-| `GET` | `/workout-sessions/{session_id}/exercises/` | Listar ejercicios de una sesión por posición | Implementado |
-| `GET` / `PUT` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
-| `GET` / `PUT` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar o eliminar un ejercicio | Implementado |
-| `POST` / `/workout-sessions/{session_id}/repeat` | Repetir una serie individual | Implementado |
-| `GET` / `POST` | `/workout-exercises/{exercise_id}/sets/` | Repetición de un ejercicio | Implementado |
-| `GET` | `/workouts/progress?exercise_name={name}` | Obtener progreso, series de trabajo y volumen por ejercicio | Implementado |
-| `GET` / `POST` | `/runs/` | Listar o registrar sesiones de running | Próximamente |
-| `GET` / `POST` | `/meals/` | Listar o registrar comidas | Próximamente |
+| Método | Endpoint | Propósito |
+| --- | --- | --- |
+| `GET` / `POST` | `/daily-logs/` | Consultar o crear registros de pasos |
+| `GET` / `PUT` / `DELETE` | `/daily-logs/{log_date}` | Consultar, editar o borrar un registro diario |
+| `GET` / `POST` | `/body-metrics/` | Consultar o registrar peso, altura e IMC |
+| `GET` / `POST` | `/workout-sessions/` | Listar o crear sesiones de gimnasio |
+| `GET` / `PUT` / `DELETE` | `/workout-sessions/{session_id}` | Consultar, editar o eliminar una sesión |
+| `POST` | `/workout-sessions/{session_id}/repeat` | Repetir una sesión con la fecha actual |
+| `POST` / `GET` | `/workout-sessions/{session_id}/exercises/` | Crear o listar ejercicios de una sesión |
+| `GET` / `PUT` / `DELETE` | `/workout-exercises/{exercise_id}` | Consultar, editar o eliminar un ejercicio |
+| `POST` / `GET` | `/workout-exercises/{exercise_id}/sets/` | Crear o listar series de un ejercicio |
+| `GET` / `PUT` / `DELETE` | `/workout-sets/{set_id}` | Consultar, editar o eliminar una serie |
+| `GET` | `/workouts/progress?exercise_name={name}` | Consultar progreso por ejercicio |
+| `GET` / `POST` | `/runs/` | Listar o crear carreras |
+| `GET` / `PUT` / `DELETE` | `/runs/{run_id}` | Consultar, editar o eliminar una carrera |
+| `GET` / `POST` | `/nutrition-days/` | Gestionar días de nutrición |
+| `GET` / `POST` | `/workout-templates/` | Listar o crear plantillas de entrenamiento |
+| `GET` / `DELETE` | `/workout-templates/{template_id}` | Consultar o eliminar una plantilla |
+| `POST` | `/workout-templates/{template_id}/create-session` | Crear una sesión real desde una plantilla |
+| `PUT` | `/goals/{goal_type}` | Crear o actualizar un objetivo |
+| `GET` | `/goals/` | Listar objetivos configurados |
+| `GET` | `/goals/progress` | Consultar progreso de objetivos |
+| `DELETE` | `/goals/{goal_type}` | Eliminar un objetivo |
+| `POST` | `/exports/json` | Descargar todos los datos en JSON |
+| `POST` | `/backups/database` | Descargar una copia SQLite |
+| `POST` | `/restores/database` | Restaurar una copia SQLite validada |
 
-Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API coherente y documentada.
+Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuestas de la API.
 
 ---
 
@@ -224,39 +330,37 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 
 - [x] Crear proyecto FastAPI, SQLite e inicialización de tablas.
 - [x] Añadir registro diario de pasos.
-- [x] Crear, consultar y eliminar sesiones de gimnasio.
-- [x] Añadir ejercicios ordenados dentro de una sesión.
-- [x] Añadir series con tipo, rango objetivo, repeticiones, carga, RIR y notas.
-- [x] Calcular volumen básico por serie.
+- [x] Crear, consultar, editar y eliminar sesiones de gimnasio.
+- [x] Añadir ejercicios y series ordenadas dentro de una sesión.
+- [x] Calcular volumen básico por serie y progreso por ejercicio.
 - [x] Implementar registro de peso, altura e IMC.
-- [x] Consultar progreso básico por ejercicio.
-- [x] Crear frontend responsive con página principal de navegación.
-- [x] Separar las vistas de entrenamiento y pasos diarios en módulos independientes.
-- [x] Añadir formularios para sesiones, ejercicios, series y pasos diarios.
-- [x] Añadir sugerencias de ejercicios por grupo muscular sin eliminar la creación manual.
-- [x] Ampliar pruebas de endpoints, validaciones, conflictos y borrados en cascada .
+- [x] Crear frontend responsive con páginas modulares.
+- [x] Añadir registro de running con distancia, duración y ritmo.
+- [x] Añadir registro de nutrición y macronutrientes.
+- [x] Añadir estadísticas y gráficas simples.
+- [x] Añadir plantillas de entrenamiento reutilizables.
+- [x] Añadir exportación JSON, backup SQLite y restauración validada.
+- [x] Añadir objetivos de pasos, entrenamientos y running.
 
-### Fase 2 — Seguimiento útil
+### Fase 2 — Seguimiento avanzado
 
-- [ ] Añadir plantillas de rutinas reutilizables.
-- [x] Duplicar sesiones de entrenamiento sin duplicar series..
-- [ ] Historial y gráficos simples de peso, volumen y ejercicios.
-- [ ] Registro de running con distancia, duración y ritmo.
-- [ ] Registro de comidas y totales diarios de macronutrientes.
-- [ ] Validación clara entre frontend y backend.
+- [ ] Añadir historial y gráficas más detalladas de peso, volumen y ejercicios.
+- [ ] Añadir objetivos de peso, nutrición y composición corporal.
+- [ ] Ampliar el catálogo de ejercicios con equipamiento, variantes e indicaciones técnicas.
+- [ ] Añadir objetivos configurables de descanso y consistencia.
+- [ ] Mejorar validaciones y mensajes de error entre frontend y backend.
 
 ### Fase 3 — Rutas y experiencia móvil
 
-- [ ] Importación GPX y mapa de recorrido con Leaflet.
-- [ ] Instalación como PWA en iOS.
-- [ ] Modo sin conexión básico y sincronización al recuperar red.
-- [ ] Exportación de datos personales a CSV/JSON.
+- [ ] Importar archivos GPX y visualizar rutas con Leaflet.
+- [ ] Instalar la aplicación como PWA.
+- [ ] Añadir modo sin conexión básico y sincronización al recuperar conexión.
 
 ### Fase 4 — Integraciones y personalización
 
-- [ ] Integración opcional con Apple Health, Health Connect o fuentes equivalentes, previa revisión de permisos y privacidad.
-- [ ] Objetivos personalizados de pasos, peso, nutrición y entrenamiento.
-- [ ] Panel de tendencias y alertas configurables.
+- [ ] Integración opcional con Apple Health, Health Connect u otras fuentes equivalentes, previa revisión de permisos y privacidad.
+- [ ] Añadir alertas y recordatorios configurables.
+- [ ] Migrar a PostgreSQL si se necesita despliegue multiusuario o más concurrencia.
 
 ---
 
@@ -265,11 +369,11 @@ Los nombres y campos exactos pueden evolucionar, pero se mantendrá una API cohe
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/fitness-tracker.git
-cd fitness-tracker
+git clone https://github.com/pablomontoro5/fitnesstracker.git
+cd fitnesstracker
 ```
 
-### 2. Crear entorno virtual
+### 2. Crear un entorno virtual
 
 ```bash
 python -m venv .venv
@@ -281,56 +385,52 @@ Linux/macOS:
 source .venv/bin/activate
 ```
 
-Windows:
+Windows PowerShell:
 
-```bash
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Windows CMD:
+
+```bat
 .venv\Scripts\activate
 ```
 
 ### 3. Instalar dependencias
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ### 4. Ejecutar la aplicación
 
 ```bash
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
-### 5. Abrir documentación
+### 5. Abrir la aplicación
 
-- Aplicación: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
-- Swagger UI: [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
-- ReDoc: [http://127.0.0.1:8001/redoc](http://127.0.0.1:8001/redoc)
+- Aplicación: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+
 ### 6. Ejecutar pruebas
 
 ```bash
-python -m pytest
+python -m pytest -q
 ```
 
 ---
 
-## Próximo incremento recomendado
+## Limitaciones actuales
 
-El siguiente corte vertical ampliará el catálogo de ejercicios y mejorará el registro guiado:
-
-1. Separar los grupos de isquios y glúteos.
-2. Añadir Core/abdominales al catálogo.
-3. Incorporar equipamiento sugerido, por ejemplo: barra, mancuernas, máquina, polea o peso corporal.
-4. Mostrar una breve indicación técnica al seleccionar un ejercicio sugerido.
-5. Mantener siempre la creación manual y la edición de los campos autorrellenados.
-
-Después de esta mejora, el siguiente módulo recomendado será el registro de carreras, reutilizando la navegación y la estructura modular actual..
----
-
-## Limitaciones iniciales
-
-- Proyecto personal y de un único usuario.
-- Los pasos se introducen manualmente durante el MVP.
+- Proyecto personal para un único usuario.
+- Los pasos, entrenamientos, carreras y datos nutricionales se introducen manualmente.
+- No hay autenticación ni sincronización en la nube.
+- No hay integración actual con relojes, Apple Health, Health Connect ni dispositivos de actividad.
+- Los mapas, rutas GPS e importación GPX aún no están implementados.
 - El registro nutricional no sustituye orientación profesional.
-- Los mapas y datos GPS no forman parte de la primera versión.
 - El IMC es una métrica descriptiva y no evalúa por sí solo salud ni composición corporal.
 
 ---
