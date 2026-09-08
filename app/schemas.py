@@ -279,3 +279,67 @@ class ActivityChartsResponse(BaseModel):
     steps: list[StatisticsStepsChartPoint]
     weight: list[StatisticsWeightChartPoint]
     running: list[StatisticsRunningChartPoint]
+
+class WorkoutTemplateCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutTemplateResponse(BaseModel):
+    id: int
+    name: str
+    notes: str | None
+
+class WorkoutTemplateExerciseCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    muscle_group: str = Field(min_length=1, max_length=80)
+    position: int = Field(ge=1, le=100)
+    technique_notes: str | None = Field(default=None, max_length=2000)
+
+
+class WorkoutTemplateExerciseUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    muscle_group: str = Field(min_length=1, max_length=80)
+    position: int = Field(ge=1, le=100)
+    technique_notes: str | None = Field(default=None, max_length=2000)
+
+
+class WorkoutTemplateExerciseResponse(BaseModel):
+    id: int
+    workout_template_id: int
+    name: str
+    muscle_group: str
+    position: int
+    technique_notes: str | None
+
+class WorkoutTemplateSetCreate(BaseModel):
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int = Field(ge=1, le=100)
+    target_rep_range: str | None = Field(default=None, max_length=30)
+    repetitions: int = Field(gt=0, le=1000)
+    weight_kg: float = Field(ge=0, le=1000)
+    rir: float | None = Field(default=None, ge=-3, le=10)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutTemplateSetUpdate(BaseModel):
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int = Field(ge=1, le=100)
+    target_rep_range: str | None = Field(default=None, max_length=30)
+    repetitions: int = Field(gt=0, le=1000)
+    weight_kg: float = Field(ge=0, le=1000)
+    rir: float | None = Field(default=None, ge=-3, le=10)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class WorkoutTemplateSetResponse(BaseModel):
+    id: int
+    workout_template_exercise_id: int
+    set_type: Literal["warmup", "approximation", "working", "drop_set"]
+    position: int
+    target_rep_range: str | None
+    repetitions: int
+    weight_kg: float
+    rir: float | None
+    notes: str | None
+    volume_kg: float

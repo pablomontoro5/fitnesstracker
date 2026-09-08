@@ -26,7 +26,7 @@
   </header>
 
   <main class="container">
-    <a class="back-link" href="/"><- Volver al inicio</a>
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
     <section class="intro-card">
       <div>
         <p class="eyebrow">Entrenamiento de fuerza</p>
@@ -44,15 +44,71 @@
       </div>
     </section>
 
-    <div class="history-link-container">
-      <a class="primary-button history-button"
-        href="/static/workouts/history.html">
-        Ver historial de entrenamientos
-      </a>
-    </div>
+        <div class="history-link-container">
+          <a
+            class="primary-button history-button"
+            href="/static/workouts/history.html"
+          >
+            Ver historial de entrenamientos
+          </a>
+
+          <a
+            class="secondary-button templates-link-button"
+            href="/static/workout-templates/"
+          >
+            Gestionar plantillas
+          </a>
+        </div>
+
     
     <p id="status-message" class="status-message" aria-live="polite"></p>
 
+        <section class="panel templates-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Plantillas</p>
+              <h2>Plantillas rápidas</h2>
+            </div>
+          </div>
+
+          <form id="template-form" class="form-grid">
+            <label>
+              Nombre de la plantilla
+              <input
+                id="template-name"
+                name="name"
+                type="text"
+                maxlength="100"
+                placeholder="Ej.: Torso A"
+                required
+              />
+            </label>
+
+            <label>
+              Notas <span class="optional">opcional</span>
+              <input
+                id="template-notes"
+                name="notes"
+                type="text"
+                maxlength="1000"
+                placeholder="Ej.: Rutina principal de torso."
+              />
+            </label>
+
+            <button class="primary-button full-width" type="submit">
+              Guardar plantilla
+            </button>
+          </form>
+
+          <div class="list-header">
+            <h3>Plantillas disponibles</h3>
+            <span id="template-count" class="counter">0</span>
+          </div>
+
+          <div id="templates-list" class="templates-list empty-state">
+            Cargando plantillas…
+          </div>
+    </section>
     <div class="app-grid">
       <section class="panel sessions-panel">
         <div class="panel-heading">
@@ -389,6 +445,19 @@
       </div>
     </section>
   </main>
+
+    <template id="workout-template">
+    <article class="template-card">
+      <div class="template-main">
+        <strong class="template-name"></strong>
+        <small class="template-notes"></small>
+      </div>
+
+      <button class="secondary-button use-template-button" type="button">
+        Usar hoy
+      </button>
+    </article>
+  </template>
 
   <template id="session-template">
     <article class="session-card">

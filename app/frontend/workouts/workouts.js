@@ -1,4 +1,5 @@
 const state = {
+  templates: [],
   sessions: [],
   selectedSession: null,
   exercises: [],
@@ -9,16 +10,25 @@ const state = {
 
 const elements = {
   statusMessage: document.querySelector("#status-message"),
+
+  templateForm: document.querySelector("#template-form"),
+  templatesList: document.querySelector("#templates-list"),
+  templateCount: document.querySelector("#template-count"),
+  workoutTemplate: document.querySelector("#workout-template"),
+
   sessionForm: document.querySelector("#session-form"),
   sessionDate: document.querySelector("#session-date"),
   sessionsList: document.querySelector("#sessions-list"),
   sessionCount: document.querySelector("#session-count"),
+  sessionTemplate: document.querySelector("#session-template"),
   refreshSessionsButton: document.querySelector("#refresh-sessions-button"),
+
   selectedSessionTitle: document.querySelector("#selected-session-title"),
   sessionEmptyState: document.querySelector("#session-empty-state"),
   sessionDetailContent: document.querySelector("#session-detail-content"),
   deleteSessionButton: document.querySelector("#delete-session-button"),
   repeatSessionButton: document.querySelector("#repeat-session-button"),
+
   exerciseForm: document.querySelector("#exercise-form"),
   exerciseSuggestionMuscleGroup: document.querySelector(
     "#exercise-suggestion-muscle-group",
@@ -27,7 +37,35 @@ const elements = {
   exerciseName: document.querySelector("#exercise-name"),
   exerciseMuscleGroup: document.querySelector("#exercise-muscle-group"),
   exercisesList: document.querySelector("#exercises-list"),
-}
+  exerciseCount: document.querySelector("#exercise-count"),
+  exerciseTemplate: document.querySelector("#exercise-template"),
+
+  selectedExerciseTitle: document.querySelector("#selected-exercise-title"),
+  exerciseEmptyState: document.querySelector("#exercise-empty-state"),
+  exerciseDetailContent: document.querySelector("#exercise-detail-content"),
+  editExerciseButton: document.querySelector("#edit-exercise-button"),
+  deleteExerciseButton: document.querySelector("#delete-exercise-button"),
+  editExerciseForm: document.querySelector("#edit-exercise-form"),
+  cancelEditExerciseButton: document.querySelector(
+    "#cancel-edit-exercise-button",
+  ),
+
+  pendingSetsList: document.querySelector("#pending-sets-list"),
+  pendingSetCount: document.querySelector("#pending-set-count"),
+  addSetRowButton: document.querySelector("#add-set-row-button"),
+  savePendingSetsButton: document.querySelector(
+    "#save-pending-sets-button",
+  ),
+  setsList: document.querySelector("#sets-list"),
+  setCount: document.querySelector("#set-count"),
+
+  progressForm: document.querySelector("#progress-form"),
+  progressExerciseName: document.querySelector(
+    "#progress-exercise-name",
+  ),
+  progressResult: document.querySelector("#progress-result"),
+};
+
 
 const exerciseSuggestions = {
   Pectoral: [
@@ -332,6 +370,101 @@ function renderSessions() {
 
     button.addEventListener("click", () => selectSession(session));
     elements.sessionsList.append(fragment);
+  }
+}
+function renderTemplates() {
+  elements.templateCount.textContent = String(state.templates.length);
+  elements.templatesList.innerHTML = "";
+
+  if (state.templates.length === 0) {
+    setListEmpty(
+      elements.templatesList,
+      "Todavía no hay plantillas guardadas.",
+    );
+    return;
+  }
+
+  elements.templatesList.className = "templates-list";
+
+  for (const workoutTemplate of state.templates) {
+    const fragment = elements.workoutTemplate.content.cloneNode(true);
+
+    fragment.querySelector(".template-name").textContent =
+      workoutTemplate.name;
+    fragment.querySelector(".template-notes").textContent =
+      workoutTemplate.notes || "Sin notas";
+
+    fragment.querySelector(".use-template-button").addEventListener(
+      "click",
+      async () => {
+        await handleUseWorkoutTemplate(workoutTemplate);
+      },
+    );
+
+    elements.templatesList.append(fragment);
+  }
+}
+
+
+async function loadTemplates() {
+  try {
+    state.templates = await request("/workout-templates/");
+    renderTemplates();
+  } catch (error) {
+    showStatus(error.message, "error");
+    setListEmpty(
+      elements.templatesList,
+      "No se pudieron cargar las plantillas.",
+    );
+  }
+}
+
+
+async function handleCreateWorkoutTemplate(event) {
+  event.preventDefault();
+
+  const formData = new FormData(elements.templateForm);
+
+  try {
+    const workoutTemplate = await request("/workout-templates/", {
+      method: "POST",
+      body: JSON.stringify({
+        name: formData.get("name").trim(),
+        notes: emptyToNull(formData.get("notes")),
+      }),
+    });
+
+    elements.templateForm.reset();
+    showStatus(`Plantilla “${workoutTemplate.name}” guardada.`);
+    await loadTemplates();
+  } catch (error) {
+    showStatus(error.message, "error");
+  }
+}
+
+
+async function handleUseWorkoutTemplate(workoutTemplate) {
+  const confirmed = window.confirm(
+    `¿Crear una sesión de hoy desde “${workoutTemplate.name}”?`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const session = await request(
+      `/workout-templates/${workoutTemplate.id}/create-session`,
+      {
+        method: "POST",
+      },
+    );
+
+    showStatus(`Sesión “${session.name}” creada desde plantilla.`);
+    await loadSessions();
+    await selectSession(session);
+  } catch (error) {
+    showStatus(error.message, "error");
   }
 }
 
@@ -961,6 +1094,10 @@ async function handleRepeatSession() {
 }
 
 function configureEventListeners() {
+  elements.templateForm.addEventListener(
+    "submit",
+    handleCreateWorkoutTemplate,
+  );
   elements.sessionForm.addEventListener("submit", handleCreateSession);
   elements.exerciseForm.addEventListener("submit", handleCreateExercise);
   elements.addSetRowButton.addEventListener("click", addPendingSetRow);

@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: planificación de plantillas de entrenamiento."
+  />
+  <title>Plantillas · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/static/workouts/">
+      &larr; Volver a entrenamiento
+    </a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Planificación</p>
+        <h2>Gestiona tus plantillas</h2>
+        <p>
+          Añade ejercicios y series previstas a tus rutinas para poder
+          reutilizarlas al crear un entrenamiento.
+        </p>
+      </div>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+
+    <div class="app-grid">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Paso 1</p>
+            <h2>Plantillas</h2>
+          </div>
+
+          <button
+            id="refresh-templates-button"
+            class="icon-button"
+            type="button"
+            title="Actualizar plantillas"
+            aria-label="Actualizar plantillas"
+          >
+            ↻
+          </button>
+        </div>
+
+        <div class="list-header">
+          <h3>Plantillas guardadas</h3>
+          <span id="template-count" class="counter">0</span>
+        </div>
+
+        <div id="templates-list" class="templates-list empty-state">
+          Cargando plantillas…
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Paso 2</p>
+            <h2 id="selected-template-title">
+              Selecciona una plantilla
+            </h2>
+          </div>
+
+          <button
+            id="delete-template-button"
+            class="danger-button hidden"
+            type="button"
+          >
+            Eliminar plantilla
+          </button>
+        </div>
+
+        <div id="template-empty-state" class="empty-state large-empty-state">
+          Selecciona una plantilla para ver y añadir sus ejercicios.
+        </div>
+
+        <div id="template-detail-content" class="hidden">
+          <form id="template-exercise-form" class="form-grid">
+            <label>
+              Ejercicio
+              <input
+                name="name"
+                type="text"
+                maxlength="120"
+                placeholder="Ej.: Press banca"
+                required
+              />
+            </label>
+
+            <label>
+              Grupo muscular
+              <input
+                name="muscle_group"
+                type="text"
+                maxlength="80"
+                placeholder="Ej.: Pectoral"
+                required
+              />
+            </label>
+
+            <label>
+              Posición
+              <input
+                name="position"
+                type="number"
+                min="1"
+                max="100"
+                value="1"
+                required
+              />
+            </label>
+
+            <label class="full-width">
+              Notas técnicas <span class="optional">opcional</span>
+              <textarea
+                name="technique_notes"
+                maxlength="2000"
+                rows="2"
+                placeholder="Ej.: Mantener hombros atrás y pecho elevado."
+              ></textarea>
+            </label>
+
+            <button class="primary-button full-width" type="submit">
+              Añadir ejercicio
+            </button>
+          </form>
+
+          <div class="list-header">
+            <h3>Ejercicios de la plantilla</h3>
+            <span id="template-exercise-count" class="counter">0</span>
+          </div>
+
+          <div
+            id="template-exercises-list"
+            class="exercise-list empty-state"
+          >
+            No hay ejercicios en esta plantilla.
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Paso 3</p>
+          <h2 id="selected-template-exercise-title">
+            Selecciona un ejercicio
+          </h2>
+        </div>
+
+        <button
+          id="delete-template-exercise-button"
+          class="danger-button hidden"
+          type="button"
+        >
+          Eliminar ejercicio
+        </button>
+      </div>
+
+      <div
+        id="template-exercise-empty-state"
+        class="empty-state large-empty-state"
+      >
+        Selecciona un ejercicio de plantilla para añadir sus series.
+      </div>
+
+      <div
+        id="template-exercise-detail-content"
+        class="hidden sets-layout"
+      >
+        <form id="template-set-form" class="form-grid set-form">
+          <label>
+            Tipo
+            <select name="set_type">
+              <option value="warmup">Calentamiento</option>
+              <option value="approximation">Aproximación</option>
+              <option value="working" selected>Trabajo</option>
+              <option value="drop_set">Drop set</option>
+            </select>
+          </label>
+
+          <label>
+            Posición
+            <input
+              name="position"
+              type="number"
+              min="1"
+              max="100"
+              value="1"
+              required
+            />
+          </label>
+
+          <label>
+            Objetivo <span class="optional">opcional</span>
+            <input
+              name="target_rep_range"
+              type="text"
+              maxlength="30"
+              placeholder="Ej.: 8-12"
+            />
+          </label>
+
+          <label>
+            Repeticiones
+            <input
+              name="repetitions"
+              type="number"
+              min="1"
+              max="1000"
+              required
+            />
+          </label>
+
+          <label>
+            Carga en kg
+            <input
+              name="weight_kg"
+              type="number"
+              min="0"
+              max="1000"
+              step="0.5"
+              required
+            />
+          </label>
+
+          <label>
+            RIR <span class="optional">opcional</span>
+            <input
+              name="rir"
+              type="number"
+              min="-3"
+              max="10"
+              step="0.5"
+              placeholder="—"
+            />
+          </label>
+
+          <label class="full-width">
+            Notas <span class="optional">opcional</span>
+            <textarea
+              name="notes"
+              maxlength="1000"
+              rows="2"
+              placeholder="Ej.: Controlar la bajada."
+            ></textarea>
+          </label>
+
+          <button class="primary-button full-width" type="submit">
+            Añadir serie
+          </button>
+        </form>
+
+        <div>
+          <div class="list-header">
+            <h3>Series previstas</h3>
+            <span id="template-set-count" class="counter">0</span>
+          </div>
+
+          <div id="template-sets-list" class="sets-list empty-state">
+            No hay series en este ejercicio.
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <template id="template-card-template">
+    <article class="template-card">
+      <button class="template-select-button" type="button">
+        <strong class="template-name"></strong>
+        <small class="template-notes"></small>
+      </button>
+    </article>
+  </template>
+
+  <template id="template-exercise-template">
+    <article class="exercise-card">
+      <button class="exercise-select-button" type="button">
+        <span class="exercise-position"></span>
+        <span class="exercise-info">
+          <strong class="exercise-name"></strong>
+          <small class="exercise-muscle-group"></small>
+          <small class="exercise-technique-notes"></small>
+        </span>
+      </button>
+    </article>
+  </template>
+
+  <script
+    src="/static/workout-templates/workout_templates.js"
+    type="module"
+  ></script>
+</body>
+</html>

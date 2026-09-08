@@ -1496,3 +1496,100 @@ a.history-button:hover {
     height: 240px;
   }
 }
+
+.templates-panel {
+  margin-bottom: 1.25rem;
+}
+
+
+.templates-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+
+.template-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.72rem;
+  background: #fff;
+}
+
+
+.template-card:hover {
+  border-color: var(--primary);
+  background: #fbfefc;
+}
+
+
+.template-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+
+.template-name {
+  font-size: 0.95rem;
+}
+
+
+.template-notes {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+@media (max-width: 560px) {
+  .template-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .use-template-button {
+    width: 100%;
+  }
+}
+
+.templates-link-button {
+  min-width: 280px;
+  text-align: center;
+  text-decoration: none;
+}
+
+
+.template-select-button {
+  display: grid;
+  width: 100%;
+  gap: 0.2rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+
+.template-card.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+
+@media (max-width: 560px) {
+  .history-link-container {
+    flex-direction: column;
+  }
+
+  .templates-link-button {
+    width: 100%;
+    min-width: 0;
+  }
+}

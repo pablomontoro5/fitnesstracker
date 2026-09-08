@@ -172,6 +172,54 @@ def initialize_database() -> None:
             """
         )
 
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
 
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_template_exercises (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workout_template_id INTEGER NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                muscle_group TEXT NOT NULL CHECK (length(trim(muscle_group)) > 0),
+                position INTEGER NOT NULL CHECK (position > 0),
+                technique_notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (workout_template_id)
+                    REFERENCES workout_templates(id)
+                    ON DELETE CASCADE,
+                UNIQUE (workout_template_id, position)
+            )
+            """
+        )
 
-    
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workout_template_sets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workout_template_exercise_id INTEGER NOT NULL,
+                set_type TEXT NOT NULL CHECK (
+                    set_type IN ('warmup', 'approximation', 'working', 'drop_set')
+                ),
+                position INTEGER NOT NULL CHECK (position > 0),
+                target_rep_range TEXT,
+                repetitions INTEGER NOT NULL CHECK (repetitions > 0),
+                weight_kg REAL NOT NULL CHECK (weight_kg >= 0),
+                rir REAL CHECK (rir >= -3 AND rir <= 10),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (workout_template_exercise_id)
+                    REFERENCES workout_template_exercises(id)
+                    ON DELETE CASCADE,
+                UNIQUE (workout_template_exercise_id, position)
+            )
+            """
+        )
