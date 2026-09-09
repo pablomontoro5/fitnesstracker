@@ -243,3 +243,84 @@ def test_workout_progress_includes_session_strength_summaries():
     assert session["total_volume_kg"] == 1310
     assert session["max_weight_kg"] == 60
     assert session["max_volume_set_kg"] == 500
+
+def test_list_exercise_names_with_progress_returns_empty_list():
+    with TestClient(app) as client:
+        response = client.get("/workouts/exercise-names")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+def test_list_exercise_names_with_progress_returns_unique_sorted_names():
+    with TestClient(app) as client:
+        first_session_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-01",
+            session_name="Torso A",
+            exercise_name="Remo con barra",
+        )
+        create_set(
+            client,
+            first_session_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=10,
+            weight_kg=50,
+            rir=2,
+        )
+
+        repeated_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-02",
+            session_name="Torso B",
+            exercise_name="Remo con barra",
+        )
+        create_set(
+            client,
+            repeated_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=8,
+            weight_kg=55,
+            rir=1,
+        )
+
+        press_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-03",
+            session_name="Empujes",
+            exercise_name="Press banca con barra",
+        )
+        create_set(
+            client,
+            press_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=10,
+            weight_kg=60,
+            rir=2,
+        )
+
+        warmup_only_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-04",
+            session_name="Pierna",
+            exercise_name="Sentadilla",
+        )
+        create_set(
+            client,
+            warmup_only_exercise_id,
+            set_type="warmup",
+            position=1,
+            repetitions=12,
+            weight_kg=20,
+            rir=None,
+        )
+
+        response = client.get("/workouts/exercise-names")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        "Press banca con barra",
+        "Remo con barra",
+    ]

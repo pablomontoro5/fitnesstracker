@@ -16,6 +16,25 @@ router = APIRouter(
     tags=["workout progress"],
 )
 
+@router.get(
+    "/exercise-names",
+    response_model=list[str],
+)
+def list_exercise_names_with_progress() -> list[str]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT DISTINCT workout_exercises.name
+            FROM workout_exercises
+            INNER JOIN workout_sets
+                ON workout_sets.workout_exercise_id = workout_exercises.id
+            WHERE workout_sets.set_type = 'working'
+            ORDER BY workout_exercises.name COLLATE NOCASE ASC
+            """
+        ).fetchall()
+
+    return [row["name"] for row in rows]
+
 
 @router.get(
     "/progress",
