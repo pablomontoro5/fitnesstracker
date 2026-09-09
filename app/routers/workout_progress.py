@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -24,6 +25,12 @@ def get_workout_progress(
     exercise_name: str = Query(min_length=1, max_length=120),
 ) -> WorkoutProgressResponse:
     normalized_exercise_name = exercise_name.strip()
+
+    if not normalized_exercise_name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="El nombre del ejercicio no puede estar vacío.",
+        )
 
     with get_connection() as connection:
         rows = connection.execute(
@@ -66,7 +73,11 @@ def get_workout_progress(
             "session_id": 0,
             "session_name": "",
             "date": "",
+            "working_sets": 0,
+            "total_repetitions": 0,
             "total_volume_kg": 0.0,
+            "max_weight_kg": 0.0,
+            "max_volume_set_kg": 0.0,
             "sets": [],
         }
     )
@@ -78,6 +89,16 @@ def get_workout_progress(
         session["session_name"] = row["session_name"]
         session["date"] = row["session_date"]
         session["total_volume_kg"] += row["volume_kg"]
+        session["working_sets"] += 1
+        session["total_repetitions"] += row["repetitions"]
+        session["max_weight_kg"] = max(
+            session["max_weight_kg"],
+            row["weight_kg"],
+        )
+        session["max_volume_set_kg"] = max(
+            session["max_volume_set_kg"],
+            row["volume_kg"],
+        )
         session["sets"].append(
             WorkoutProgressSetResponse(
                 id=row["set_id"],
@@ -95,8 +116,15 @@ def get_workout_progress(
             WorkoutProgressSessionResponse(
                 session_id=session["session_id"],
                 session_name=session["session_name"],
-                date=session["date"],
-                total_volume_kg=session["total_volume_kg"],
+                date=date.fromisoformat(session["date"]),
+                working_sets=session["working_sets"],
+                total_repetitions=session["total_repetitions"],
+                total_volume_kg=round(session["total_volume_kg"], 2),
+                max_weight_kg=round(session["max_weight_kg"], 2),
+                max_volume_set_kg=round(
+                    session["max_volume_set_kg"],
+                    2,
+                ),
                 sets=session["sets"],
             )
             for session in sessions.values()

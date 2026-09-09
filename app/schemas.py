@@ -122,7 +122,11 @@ class WorkoutProgressSessionResponse(BaseModel):
     session_id: int
     session_name: str
     date: date
+    working_sets: int
+    total_repetitions: int
     total_volume_kg: float
+    max_weight_kg: float
+    max_volume_set_kg: float
     sets: list[WorkoutProgressSetResponse]
 
 
