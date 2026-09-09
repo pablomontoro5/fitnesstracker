@@ -4,7 +4,6 @@ const elements = {
   endDate: document.querySelector("#end-date"),
   quickActions: document.querySelector(".statistics-quick-actions"),
   statusMessage: document.querySelector("#status-message"),
-  downloadBackupButton: document.querySelector("#download-backup-button"),
 
   stepsTotal: document.querySelector("#steps-total"),
   stepsDetail: document.querySelector("#steps-detail"),
@@ -20,12 +19,38 @@ const elements = {
   stepsChart: document.querySelector("#steps-chart"),
   weightChart: document.querySelector("#weight-chart"),
   runningChart: document.querySelector("#running-chart"),
+  exerciseProgressForm: document.querySelector("#exercise-progress-form"),
+  exerciseProgressName: document.querySelector("#exercise-progress-name"),
+  exerciseNames: document.querySelector("#exercise-names"),
+  exerciseProgressStatus: document.querySelector("#exercise-progress-status"),
+  exerciseProgressContent: document.querySelector(
+    "#exercise-progress-content",
+  ),
+  exerciseProgressSessions: document.querySelector(
+    "#exercise-progress-sessions",
+  ),
+  exerciseProgressLatestVolume: document.querySelector(
+    "#exercise-progress-latest-volume",
+  ),
+  exerciseProgressMaxWeight: document.querySelector(
+    "#exercise-progress-max-weight",
+  ),
+  exerciseProgressMaxSetVolume: document.querySelector(
+    "#exercise-progress-max-set-volume",
+  ),
+  exerciseProgressHistoryBody: document.querySelector(
+    "#exercise-progress-history-body",
+  ),
+  exerciseVolumeChart: document.querySelector("#exercise-volume-chart"),
+  exerciseWeightChart: document.querySelector("#exercise-weight-chart"),
 };
 
 const charts = {
   steps: null,
   weight: null,
   running: null,
+  exerciseVolume: null,
+  exerciseWeight: null,
 };
 
 function formatNumber(value, maximumFractionDigits = 2) {
@@ -362,55 +387,223 @@ async function loadStatistics() {
     showStatus(error.message, "error");
   }
 }
-
-
-function getBackupFilename(contentDisposition) {
-  const match = contentDisposition?.match(
-    /filename="([^"]+)"/i,
-  );
-
-  return match?.[1] || "fitness_tracker_backup.db";
+function showExerciseProgressStatus(message, type = "success") {
+  elements.exerciseProgressStatus.textContent = message;
+  elements.exerciseProgressStatus.className =
+    `status-message ${type}`;
 }
 
+async function requestExerciseNames() {
+  const response = await fetch("/workouts/exercise-names");
+  const body = await response.json().catch(() => null);
 
-async function downloadDatabaseBackup() {
-  const button = elements.downloadBackupButton;
+  if (!response.ok) {
+    const detail = Array.isArray(body?.detail)
+      ? body.detail.map((error) => error.msg).join(". ")
+      : body?.detail;
 
-  button.disabled = true;
-  button.textContent = "Creando copia de seguridad…";
+    throw new Error(
+      detail || "No se pudieron cargar los ejercicios.",
+    );
+  }
+
+  return body;
+}
+
+async function requestExerciseProgress(exerciseName) {
+  const params = new URLSearchParams({
+    exercise_name: exerciseName,
+  });
+  const response = await fetch(`/workouts/progress?${params}`);
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const detail = Array.isArray(body?.detail)
+      ? body.detail.map((error) => error.msg).join(". ")
+      : body?.detail;
+
+    throw new Error(
+      detail || "No se pudo cargar el progreso del ejercicio.",
+    );
+  }
+
+  return body;
+}
+
+function renderExerciseNames(names) {
+  elements.exerciseNames.innerHTML = "";
+
+  for (const name of names) {
+    const option = document.createElement("option");
+    option.value = name;
+    elements.exerciseNames.append(option);
+  }
+}
+
+function renderExerciseProgressSummary(progress) {
+  const sessions = progress.sessions;
+  const latestSession = sessions.at(-1);
+  const maxWeight = Math.max(
+    ...sessions.map((session) => session.max_weight_kg),
+  );
+  const maxSetVolume = Math.max(
+    ...sessions.map((session) => session.max_volume_set_kg),
+  );
+
+  elements.exerciseProgressSessions.textContent =
+    `${sessions.length} sesión(es)`;
+  elements.exerciseProgressLatestVolume.textContent =
+    `${formatNumber(latestSession.total_volume_kg)} kg`;
+  elements.exerciseProgressMaxWeight.textContent =
+    `${formatNumber(maxWeight)} kg`;
+  elements.exerciseProgressMaxSetVolume.textContent =
+    `${formatNumber(maxSetVolume)} kg`;
+}
+
+function renderExerciseProgressCharts(progress) {
+  const sessions = progress.sessions;
+  const labels = sessions.map((session) => formatChartDate(session.date));
+
+  destroyChart("exerciseVolume");
+  charts.exerciseVolume = new Chart(elements.exerciseVolumeChart, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Volumen total",
+          data: sessions.map((session) => session.total_volume_kg),
+          borderColor: "#176b48",
+          backgroundColor: "#176b4822",
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback(value) {
+              return `${formatNumber(value)} kg`;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  destroyChart("exerciseWeight");
+  charts.exerciseWeight = new Chart(elements.exerciseWeightChart, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Carga máxima",
+          data: sessions.map((session) => session.max_weight_kg),
+          borderColor: "#4f46e5",
+          backgroundColor: "#4f46e522",
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          ticks: {
+            callback(value) {
+              return `${formatNumber(value)} kg`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderExerciseProgressHistory(progress) {
+  elements.exerciseProgressHistoryBody.innerHTML = "";
+
+  for (const session of progress.sessions.slice().reverse()) {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${formatDate(session.date)}</td>
+      <td>${session.session_name}</td>
+      <td>${session.working_sets}</td>
+      <td>${session.total_repetitions}</td>
+      <td>${formatNumber(session.total_volume_kg)} kg</td>
+      <td>${formatNumber(session.max_weight_kg)} kg</td>
+    `;
+
+    elements.exerciseProgressHistoryBody.append(row);
+  }
+}
+
+async function loadExerciseNames() {
+  try {
+    const names = await requestExerciseNames();
+    renderExerciseNames(names);
+  } catch (error) {
+    showExerciseProgressStatus(error.message, "error");
+  }
+}
+
+async function handleExerciseProgressSearch(event) {
+  event.preventDefault();
+
+  const exerciseName = elements.exerciseProgressName.value.trim();
+
+  if (!exerciseName) {
+    showExerciseProgressStatus(
+      "Introduce o selecciona un ejercicio.",
+      "error",
+    );
+    return;
+  }
+
+  showExerciseProgressStatus("Cargando progreso…");
+  elements.exerciseProgressContent.classList.add("hidden");
 
   try {
-    const response = await fetch("/backups/database", {
-      method: "POST",
-    });
+    const progress = await requestExerciseProgress(exerciseName);
 
-    if (!response.ok) {
-      throw new Error(
-        "No se pudo crear la copia de seguridad. Inténtalo de nuevo.",
-      );
-    }
+    renderExerciseProgressSummary(progress);
+    renderExerciseProgressCharts(progress);
+    renderExerciseProgressHistory(progress);
 
-    const backupBlob = await response.blob();
-    const downloadUrl = URL.createObjectURL(backupBlob);
-    const downloadLink = document.createElement("a");
-
-    downloadLink.href = downloadUrl;
-    downloadLink.download = getBackupFilename(
-      response.headers.get("content-disposition"),
+    elements.exerciseProgressContent.classList.remove("hidden");
+    showExerciseProgressStatus(
+      `Progreso cargado para “${progress.exercise_name}”.`,
     );
-
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    downloadLink.remove();
-
-    URL.revokeObjectURL(downloadUrl);
-
-    showStatus("Copia de seguridad descargada correctamente.");
   } catch (error) {
-    showStatus(error.message, "error");
-  } finally {
-    button.disabled = false;
-    button.textContent = "Descargar copia de seguridad";
+    destroyChart("exerciseVolume");
+    destroyChart("exerciseWeight");
+    showExerciseProgressStatus(error.message, "error");
   }
 }
 
@@ -434,14 +627,21 @@ function configureEventListeners() {
   elements.downloadBackupButton.addEventListener("click", async () => {
     await downloadDatabaseBackup();
   });
-}
 
+  elements.exerciseProgressForm.addEventListener(
+    "submit",
+    handleExerciseProgressSearch,
+  );
+}
 
 async function initializeApp() {
   setPeriod("this-month");
   configureEventListeners();
-  await loadStatistics();
-}
 
+  await Promise.all([
+    loadStatistics(),
+    loadExerciseNames(),
+  ]);
+}
 
 initializeApp();
