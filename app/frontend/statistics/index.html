@@ -36,13 +36,7 @@
           peso dentro del periodo que elijas.
         </p>
       </div>
-            <button
-              id="download-backup-button"
-              class="secondary-button backup-button"
-              type="button"
-            >
-              Descargar copia de seguridad
-            </button>
+
     </section>
 
     <p id="status-message" class="status-message" aria-live="polite"></p>
@@ -186,6 +180,141 @@
           </div>
         </article>
       </div>
+      <section
+        class="exercise-progress-section"
+        aria-labelledby="exercise-progress-title"
+      >
+        <div class="charts-heading">
+          <div>
+            <p class="eyebrow">Entrenamiento</p>
+            <h2 id="exercise-progress-title">Progreso por ejercicio</h2>
+            <p>
+              Consulta el volumen y la carga máxima de tus series de trabajo en cada
+              sesión.
+            </p>
+          </div>
+        </div>
+
+        <article class="panel exercise-progress-filter">
+          <form id="exercise-progress-form" class="progress-form">
+            <label for="exercise-progress-name">
+              Ejercicio
+              <input
+                id="exercise-progress-name"
+                name="exercise_name"
+                type="text"
+                list="exercise-names"
+                maxlength="120"
+                placeholder="Ej.: Press banca con barra"
+                required
+              />
+            </label>
+
+            <datalist id="exercise-names"></datalist>
+
+            <button class="primary-button" type="submit">
+              Consultar progreso
+            </button>
+          </form>
+        </article>
+
+        <p
+          id="exercise-progress-status"
+          class="status-message"
+          role="status"
+          aria-live="polite"
+        ></p>
+
+        <div
+          id="exercise-progress-content"
+          class="exercise-progress-content hidden"
+        >
+          <section class="exercise-progress-summary">
+            <article class="statistic-card">
+              <p class="eyebrow">Historial</p>
+              <h3>Sesiones</h3>
+              <strong
+                id="exercise-progress-sessions"
+                class="statistic-value"
+              >—</strong>
+            </article>
+
+            <article class="statistic-card">
+              <p class="eyebrow">Última sesión</p>
+              <h3>Volumen</h3>
+              <strong
+                id="exercise-progress-latest-volume"
+                class="statistic-value"
+              >—</strong>
+            </article>
+
+            <article class="statistic-card">
+              <p class="eyebrow">Mejor marca</p>
+              <h3>Carga máxima</h3>
+              <strong
+                id="exercise-progress-max-weight"
+                class="statistic-value"
+              >—</strong>
+            </article>
+
+            <article class="statistic-card">
+              <p class="eyebrow">Mejor serie</p>
+              <h3>Volumen</h3>
+              <strong
+                id="exercise-progress-max-set-volume"
+                class="statistic-value"
+              >—</strong>
+            </article>
+          </section>
+
+          <div class="exercise-progress-charts">
+            <article class="chart-card">
+              <h3>Volumen por sesión</h3>
+              <p class="chart-description">
+                Volumen total de las series de trabajo en cada sesión.
+              </p>
+              <div class="chart-canvas-wrapper">
+                <canvas id="exercise-volume-chart"></canvas>
+              </div>
+            </article>
+
+            <article class="chart-card">
+              <h3>Carga máxima por sesión</h3>
+              <p class="chart-description">
+                Mayor carga utilizada en las series de trabajo de cada sesión.
+              </p>
+              <div class="chart-canvas-wrapper">
+                <canvas id="exercise-weight-chart"></canvas>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel exercise-progress-history">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Detalle</p>
+                <h3>Historial de sesiones</h3>
+              </div>
+            </div>
+
+            <div class="exercise-progress-table-wrapper">
+              <table class="exercise-progress-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Sesión</th>
+                    <th scope="col">Series</th>
+                    <th scope="col">Reps</th>
+                    <th scope="col">Volumen</th>
+                    <th scope="col">Carga máx.</th>
+                  </tr>
+                </thead>
+                <tbody id="exercise-progress-history-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
     </section>
   </main>
 
