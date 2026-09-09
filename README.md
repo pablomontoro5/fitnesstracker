@@ -344,23 +344,40 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 
 ### Fase 2 — Seguimiento avanzado
 
-- [ ] Añadir historial y gráficas más detalladas de peso, volumen y ejercicios.
-- [ ] Añadir objetivos de peso, nutrición y composición corporal.
-- [ ] Ampliar el catálogo de ejercicios con equipamiento, variantes e indicaciones técnicas.
-- [ ] Añadir objetivos configurables de descanso y consistencia.
-- [ ] Mejorar validaciones y mensajes de error entre frontend y backend.
+- [ ] Añadir historial y gráficas detalladas de peso, IMC, volumen, ejercicios, pasos y running.
+- [ ] Detectar marcas personales de carga, repeticiones y volumen.
+- [ ] Añadir objetivos de peso, calorías, proteína, macronutrientes y composición corporal.
+- [ ] Añadir objetivos configurables de descanso, consistencia y rachas.
+- [ ] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos principales/secundarios e indicaciones técnicas.
+- [ ] Mejorar las validaciones, estados de carga y mensajes de error entre frontend y backend.
 
-### Fase 3 — Rutas y experiencia móvil
+### Fase 3 — Cuentas, privacidad y despliegue
 
-- [ ] Importar archivos GPX y visualizar rutas con Leaflet.
-- [ ] Instalar la aplicación como PWA.
+- [ ] Crear cuentas de usuario con registro e inicio de sesión.
+- [ ] Almacenar contraseñas exclusivamente mediante hash seguro.
+- [ ] Proteger la API con tokens de acceso y caducidad.
+- [ ] Asociar todos los datos personales a un `user_id`.
+- [ ] Garantizar que cada usuario solo puede consultar, editar, exportar o restaurar sus propios datos.
+- [ ] Migrar a PostgreSQL para uso multiusuario.
+- [ ] Configurar secretos con variables de entorno y desplegar mediante HTTPS.
+- [ ] Permitir que varias personas usen la aplicación desde sus propios dispositivos con datos privados e independientes.
+
+### Fase 4 — Móvil y experiencia PWA
+
+- [ ] Añadir `manifest.webmanifest`, iconos y configuración de instalación.
+- [ ] Añadir service worker y caché de recursos esenciales.
+- [ ] Permitir instalar la aplicación desde el navegador en móvil y escritorio compatible.
 - [ ] Añadir modo sin conexión básico y sincronización al recuperar conexión.
+- [ ] Importar archivos GPX y visualizar rutas de running con Leaflet.
 
-### Fase 4 — Integraciones y personalización
+### Fase 5 — Asistente personal con IA
 
-- [ ] Integración opcional con Apple Health, Health Connect u otras fuentes equivalentes, previa revisión de permisos y privacidad.
-- [ ] Añadir alertas y recordatorios configurables.
-- [ ] Migrar a PostgreSQL si se necesita despliegue multiusuario o más concurrencia.
+- [ ] Crear un chat personal vinculado a la cuenta autenticada.
+- [ ] Permitir consultas sobre objetivos, pasos, entrenamientos, running, nutrición y evolución corporal.
+- [ ] Conectar la IA a herramientas internas con datos agregados y filtrados por usuario.
+- [ ] Añadir explicaciones de métricas como IMC, RIR, ritmo y volumen.
+- [ ] Mostrar límites claros: el asistente no sustituye a profesionales sanitarios, nutricionistas o entrenadores.
+- [ ] Pedir confirmación explícita antes de que el asistente cree, modifique o elimine registros.
 
 ---
 
