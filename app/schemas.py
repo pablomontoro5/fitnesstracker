@@ -371,3 +371,26 @@ class FitnessGoalProgressResponse(BaseModel):
     current_value: float
     progress_percentage: float
     is_completed: bool
+
+class UserRegister(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    display_name: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=12, max_length=128)
+
+
+class UserLogin(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    display_name: str
+    is_active: bool
+    created_at: str
+
+
+class AccessTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
