@@ -1,8 +1,13 @@
 import os
 
+
 os.environ["FITNESS_TRACKER_TESTING"] = "1"
+os.environ["FITNESS_TRACKER_JWT_SECRET"] = "test-only-secret"
+os.environ["FITNESS_TRACKER_ACCESS_TOKEN_MINUTES"] = "60"
+
 
 import pytest
+
 
 from app.db import get_connection, initialize_database
 

@@ -27,8 +27,25 @@ def get_connection() -> sqlite3.Connection:
 
 
 def initialize_database() -> None:
+
     """Crea las tablas necesarias si todavía no existen."""
     with get_connection() as connection:
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL COLLATE NOCASE UNIQUE
+                    CHECK (length(trim(email)) BETWEEN 3 AND 254),
+                display_name TEXT NOT NULL
+                    CHECK (length(trim(display_name)) BETWEEN 1 AND 80),
+                password_hash TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1
+                    CHECK (is_active IN (0, 1)),
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS daily_logs (

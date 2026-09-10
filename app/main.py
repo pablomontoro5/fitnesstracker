@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db import initialize_database
 from app.routers import (
+    auth,
     backups,
     body_metrics,
     daily_logs,
@@ -58,6 +59,7 @@ app.include_router(exports.router)
 app.include_router(restores.router)
 app.include_router(workout_templates.router)
 app.include_router(goals.router)
+app.include_router(auth.router)
 app.mount(
     "/static",
     StaticFiles(directory=FRONTEND_DIR, html=True),
