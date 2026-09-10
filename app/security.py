@@ -7,12 +7,9 @@ from pwdlib import PasswordHash
 
 
 JWT_SECRET_ENV = "FITNESS_TRACKER_JWT_SECRET"
-JWT_ALGORITHM_ENV = "FITNESS_TRACKER_JWT_ALGORITHM"
+JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES_ENV = "FITNESS_TRACKER_ACCESS_TOKEN_MINUTES"
-
-DEFAULT_JWT_ALGORITHM = "HS256"
 DEFAULT_ACCESS_TOKEN_MINUTES = 60
-TEST_JWT_SECRET = "fitness-tracker-test-secret"
 
 
 password_hash = PasswordHash.recommended()
@@ -21,19 +18,12 @@ password_hash = PasswordHash.recommended()
 def get_jwt_secret() -> str:
     secret = os.environ.get(JWT_SECRET_ENV)
 
-    if secret:
-        return secret
+    if not secret:
+        raise RuntimeError(
+            f"La variable de entorno {JWT_SECRET_ENV} debe estar configurada."
+        )
 
-    if os.environ.get("FITNESS_TRACKER_TESTING") == "1":
-        return TEST_JWT_SECRET
-
-    raise RuntimeError(
-        f"{JWT_SECRET_ENV} debe estar configurada fuera del entorno de pruebas."
-    )
-
-
-def get_jwt_algorithm() -> str:
-    return os.environ.get(JWT_ALGORITHM_ENV, DEFAULT_JWT_ALGORITHM)
+    return secret
 
 
 def get_access_token_minutes() -> int:
@@ -70,19 +60,17 @@ def create_access_token(user_id: int) -> str:
         minutes=get_access_token_minutes()
     )
 
-    payload = {
-        "sub": str(user_id),
-        "exp": expires_at,
-    }
-
     return jwt.encode(
-        payload,
+        {
+            "sub": str(user_id),
+            "exp": expires_at,
+        },
         get_jwt_secret(),
-        algorithm=get_jwt_algorithm(),
+        algorithm=JWT_ALGORITHM,
     )
 
 
-def decode_access_token(token: str) -> int:
+def get_user_id_from_token(token: str) -> int:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token de acceso inválido o caducado.",
@@ -93,7 +81,7 @@ def decode_access_token(token: str) -> int:
         payload = jwt.decode(
             token,
             get_jwt_secret(),
-            algorithms=[get_jwt_algorithm()],
+            algorithms=[JWT_ALGORITHM],
         )
         subject = payload.get("sub")
 
