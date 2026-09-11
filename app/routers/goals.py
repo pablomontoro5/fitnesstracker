@@ -19,6 +19,16 @@ router = APIRouter(
     tags=["goals"],
 )
 
+ACTIVITY_GOAL_TYPES = {
+    "daily_steps",
+    "weekly_workouts",
+    "weekly_running_km",
+}
+
+RECOVERY_GOAL_TYPES = {
+    "daily_sleep_minutes",
+    "weekly_rest_days",
+}
 
 def row_to_fitness_goal(row: sqlite3.Row) -> FitnessGoalResponse:
     return FitnessGoalResponse(
@@ -26,7 +36,6 @@ def row_to_fitness_goal(row: sqlite3.Row) -> FitnessGoalResponse:
         goal_type=row["goal_type"],
         target_value=row["target_value"],
     )
-
 
 def get_current_value(
     connection: sqlite3.Connection,
@@ -59,17 +68,44 @@ def get_current_value(
 
         return float(row["current_value"])
 
-    row = connection.execute(
-        """
-        SELECT COALESCE(SUM(distance_km), 0) AS current_value
-        FROM runs
-        WHERE date BETWEEN ? AND ?
-        """,
-        (week_start.isoformat(), today.isoformat()),
-    ).fetchone()
+    if goal_type == "weekly_running_km":
+        row = connection.execute(
+            """
+            SELECT COALESCE(SUM(distance_km), 0) AS current_value
+            FROM runs
+            WHERE date BETWEEN ? AND ?
+            """,
+            (week_start.isoformat(), today.isoformat()),
+        ).fetchone()
 
-    return float(row["current_value"])
+        return float(row["current_value"])
 
+    if goal_type == "daily_sleep_minutes":
+        row = connection.execute(
+            """
+            SELECT COALESCE(sleep_minutes, 0) AS current_value
+            FROM daily_recovery_logs
+            WHERE date = ?
+            """,
+            (today.isoformat(),),
+        ).fetchone()
+
+        return float(row["current_value"]) if row else 0.0
+
+    if goal_type == "weekly_rest_days":
+        row = connection.execute(
+            """
+            SELECT COUNT(*) AS current_value
+            FROM daily_recovery_logs
+            WHERE date BETWEEN ? AND ?
+                AND is_rest_day = 1
+            """,
+            (week_start.isoformat(), today.isoformat()),
+        ).fetchone()
+
+        return float(row["current_value"])
+
+    raise ValueError(f"Tipo de objetivo no compatible: {goal_type}")
 
 @router.put(
     "/{goal_type}",
@@ -133,6 +169,13 @@ def build_goals_progress(
             """
             SELECT goal_type, target_value
             FROM fitness_goals
+            WHERE goal_type IN (
+                'daily_steps',
+                'weekly_workouts',
+                'weekly_running_km',
+                'daily_sleep_minutes',
+                'weekly_rest_days'
+            )
             ORDER BY goal_type ASC
             """
         ).fetchall()
