@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: registro e historial de peso y composición corporal."
+  />
+  <title>Medidas corporales · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container body-metrics-page">
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Evolución corporal</p>
+        <h2>Medidas corporales</h2>
+        <p>
+          Registra peso, altura, composición corporal y perímetros. Consulta
+          las tendencias en la pantalla de Estadísticas.
+        </p>
+      </div>
+    </section>
+
+    <p
+      id="status-message"
+      class="status-message"
+      role="status"
+      aria-live="polite"
+    ></p>
+
+    <section class="body-metrics-layout">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Nueva medición</p>
+            <h2 id="body-metric-form-title">Registrar medida</h2>
+          </div>
+
+          <span id="body-metric-mode" class="mode-badge">Creación</span>
+        </div>
+
+        <form id="body-metric-form" class="form-grid body-metric-form">
+          <label>
+            Fecha
+            <input id="metric-date" name="date" type="date" required />
+          </label>
+
+          <label>
+            Peso (kg)
+            <input
+              id="weight-kg"
+              name="weight_kg"
+              type="number"
+              min="0.1"
+              max="500"
+              step="0.1"
+              inputmode="decimal"
+              placeholder="Ej.: 76.4"
+              required
+            />
+          </label>
+
+          <label>
+            Altura (cm)
+            <input
+              id="height-cm"
+              name="height_cm"
+              type="number"
+              min="0.1"
+              max="300"
+              step="0.1"
+              inputmode="decimal"
+              placeholder="Ej.: 178"
+              required
+            />
+          </label>
+
+          <label>
+            Grasa corporal (%)
+            <span class="optional">Opcional</span>
+            <input
+              id="body-fat-percentage"
+              name="body_fat_percentage"
+              type="number"
+              min="0.1"
+              max="99.9"
+              step="0.1"
+              inputmode="decimal"
+              placeholder="Ej.: 16.5"
+            />
+          </label>
+
+          <fieldset class="body-metric-fieldset full-width">
+            <legend>Perímetros <span class="optional">Opcional, en cm</span></legend>
+
+            <div class="body-metric-measurements-grid">
+              <label>
+                Cintura
+                <input
+                  id="waist-cm"
+                  name="waist_cm"
+                  type="number"
+                  min="0.1"
+                  max="300"
+                  step="0.1"
+                  inputmode="decimal"
+                  placeholder="Ej.: 81"
+                />
+              </label>
+
+              <label>
+                Cadera
+                <input
+                  id="hip-cm"
+                  name="hip_cm"
+                  type="number"
+                  min="0.1"
+                  max="300"
+                  step="0.1"
+                  inputmode="decimal"
+                  placeholder="Ej.: 96"
+                />
+              </label>
+
+              <label>
+                Pecho
+                <input
+                  id="chest-cm"
+                  name="chest_cm"
+                  type="number"
+                  min="0.1"
+                  max="300"
+                  step="0.1"
+                  inputmode="decimal"
+                  placeholder="Ej.: 102"
+                />
+              </label>
+
+              <label>
+                Brazo
+                <input
+                  id="arm-cm"
+                  name="arm_cm"
+                  type="number"
+                  min="0.1"
+                  max="200"
+                  step="0.1"
+                  inputmode="decimal"
+                  placeholder="Ej.: 37"
+                />
+              </label>
+
+              <label>
+                Muslo
+                <input
+                  id="thigh-cm"
+                  name="thigh_cm"
+                  type="number"
+                  min="0.1"
+                  max="300"
+                  step="0.1"
+                  inputmode="decimal"
+                  placeholder="Ej.: 58"
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="body-metric-preview full-width" aria-live="polite">
+            <div>
+              <span>IMC estimado</span>
+              <strong id="bmi-preview">—</strong>
+            </div>
+
+            <div>
+              <span>Masa grasa estimada</span>
+              <strong id="fat-mass-preview">—</strong>
+            </div>
+
+            <div>
+              <span>Masa libre de grasa</span>
+              <strong id="lean-mass-preview">—</strong>
+            </div>
+          </div>
+
+          <label class="full-width">
+            Notas
+            <textarea
+              id="metric-notes"
+              name="notes"
+              rows="4"
+              maxlength="1000"
+              placeholder="Ej.: Medición matinal en ayunas."
+            ></textarea>
+          </label>
+
+          <div class="form-actions full-width">
+            <button
+              id="cancel-edit-button"
+              class="secondary-button hidden"
+              type="button"
+            >
+              Cancelar edición
+            </button>
+
+            <button id="body-metric-submit-button" class="primary-button" type="submit">
+              Guardar medición
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel body-metrics-history-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Historial</p>
+            <h2>Mediciones registradas</h2>
+          </div>
+
+          <span id="body-metrics-count" class="counter">0</span>
+        </div>
+
+        <div id="body-metrics-list" class="body-metrics-list"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="/static/body-metrics.js" type="module"></script>
+</body>
+</html>
