@@ -19,6 +19,45 @@ class DailyLogResponse(BaseModel):
     steps: int
     notes: str | None
 
+class RecoveryLogCreate(BaseModel):
+    date: date
+    sleep_minutes: int | None = Field(
+        default=None,
+        ge=0,
+        le=1440,
+    )
+    sleep_quality: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+    )
+    is_rest_day: bool = False
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class RecoveryLogUpdate(BaseModel):
+    sleep_minutes: int | None = Field(
+        default=None,
+        ge=0,
+        le=1440,
+    )
+    sleep_quality: int | None = Field(
+        default=None,
+        ge=1,
+        le=5,
+    )
+    is_rest_day: bool = False
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class RecoveryLogResponse(BaseModel):
+    id: int
+    date: date
+    sleep_minutes: int | None
+    sleep_quality: int | None
+    is_rest_day: bool
+    notes: str | None
+
 class BodyMetricCreate(BaseModel):
     date: date
     weight_kg: float = Field(gt=0, le=500)
@@ -448,6 +487,8 @@ GoalType = Literal[
     "daily_protein_g",
     "daily_carbs_g",
     "daily_fat_g",
+    "daily_sleep_minutes",
+    "weekly_rest_days",
 ]
 
 
