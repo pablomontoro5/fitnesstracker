@@ -19,6 +19,56 @@ const elements = {
   stepsChart: document.querySelector("#steps-chart"),
   weightChart: document.querySelector("#weight-chart"),
   runningChart: document.querySelector("#running-chart"),
+  bodyCompositionStatus: document.querySelector(
+    "#body-composition-status",
+  ),
+  bodyCompositionContent: document.querySelector(
+    "#body-composition-content",
+  ),
+  compositionLatestWeight: document.querySelector(
+    "#composition-latest-weight",
+  ),
+  compositionWeightChange: document.querySelector(
+    "#composition-weight-change",
+  ),
+  compositionLatestBmi: document.querySelector(
+    "#composition-latest-bmi",
+  ),
+  compositionBmiChange: document.querySelector(
+    "#composition-bmi-change",
+  ),
+  compositionLatestBodyFat: document.querySelector(
+    "#composition-latest-body-fat",
+  ),
+  compositionBodyFatChange: document.querySelector(
+    "#composition-body-fat-change",
+  ),
+  compositionLatestLeanMass: document.querySelector(
+    "#composition-latest-lean-mass",
+  ),
+  compositionLeanMassChange: document.querySelector(
+    "#composition-lean-mass-change",
+  ),
+  bodyCompositionHistoryBody: document.querySelector(
+    "#body-composition-history-body",
+  ),
+  bodyCompositionWeightChart: document.querySelector(
+    "#body-composition-weight-chart",
+  ),
+  bodyCompositionFatChart: document.querySelector(
+    "#body-composition-fat-chart",
+  ),
+  bodyCompositionMassChart: document.querySelector(
+    "#body-composition-mass-chart",
+  ),
+  bodyCompositionMeasurementsChart: document.querySelector(
+    "#body-composition-measurements-chart",
+  ),
+  bodyFatChartEmpty: document.querySelector("#body-fat-chart-empty"),
+  bodyMassChartEmpty: document.querySelector("#body-mass-chart-empty"),
+  bodyMeasurementsChartEmpty: document.querySelector(
+    "#body-measurements-chart-empty",
+  ),
   exerciseProgressForm: document.querySelector("#exercise-progress-form"),
   exerciseProgressName: document.querySelector("#exercise-progress-name"),
   exerciseNames: document.querySelector("#exercise-names"),
@@ -51,6 +101,10 @@ const charts = {
   running: null,
   exerciseVolume: null,
   exerciseWeight: null,
+  bodyCompositionWeight: null,
+  bodyCompositionFat: null,
+  bodyCompositionMass: null,
+  bodyCompositionMeasurements: null,
 };
 
 function formatNumber(value, maximumFractionDigits = 2) {
@@ -158,6 +212,446 @@ async function requestCharts(startDate, endDate) {
   }
 
   return body;
+}
+
+async function requestBodyCompositionProgress(startDate, endDate) {
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+  });
+
+  const response = await fetch(`/body-metrics/progress?${params}`);
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const detail = Array.isArray(body?.detail)
+      ? body.detail.map((error) => error.msg).join(". ")
+      : body?.detail;
+
+    throw new Error(
+      detail || "No se pudo cargar la evolución corporal.",
+    );
+  }
+
+  return body;
+}
+
+
+function showBodyCompositionStatus(message, type = "success") {
+  elements.bodyCompositionStatus.textContent = message;
+  elements.bodyCompositionStatus.className = `status-message ${type}`;
+}
+
+
+function formatNullableNumber(value, suffix = "", digits = 2) {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+  return `${formatNumber(value, digits)}${suffix}`;
+}
+
+
+function formatChange(value, suffix = "", digits = 2) {
+  if (!Number.isFinite(value)) {
+    return "Sin comparación";
+  }
+
+  if (value === 0) {
+    return "Sin cambio";
+  }
+
+  return `${value > 0 ? "+" : ""}${formatNumber(value, digits)}${suffix}`;
+}
+
+
+function setChartEmptyState(emptyElement, canvas, message, isEmpty) {
+  emptyElement.textContent = message;
+  emptyElement.classList.toggle("hidden", !isEmpty);
+  canvas.parentElement.classList.toggle("hidden", isEmpty);
+}
+
+
+function renderBodyCompositionSummary(progress) {
+  const latestRecord = progress.records.at(-1);
+
+  elements.compositionLatestWeight.textContent =
+    `${formatNumber(latestRecord.weight_kg)} kg`;
+  elements.compositionWeightChange.textContent =
+    `Cambio: ${formatChange(progress.changes.weight_kg, " kg")}`;
+
+  elements.compositionLatestBmi.textContent =
+    formatNumber(latestRecord.bmi);
+  elements.compositionBmiChange.textContent =
+    `Cambio: ${formatChange(progress.changes.bmi)}`;
+
+  elements.compositionLatestBodyFat.textContent =
+    formatNullableNumber(latestRecord.body_fat_percentage, " %");
+  elements.compositionBodyFatChange.textContent =
+    `Cambio: ${formatChange(progress.changes.body_fat_percentage, " %")}`;
+
+  elements.compositionLatestLeanMass.textContent =
+    formatNullableNumber(latestRecord.lean_mass_kg, " kg");
+  elements.compositionLeanMassChange.textContent =
+    `Cambio: ${formatChange(progress.changes.lean_mass_kg, " kg")}`;
+}
+
+
+function renderBodyCompositionWeightChart(records) {
+  destroyChart("bodyCompositionWeight");
+
+  charts.bodyCompositionWeight = new Chart(
+    elements.bodyCompositionWeightChart,
+    {
+      type: "line",
+      data: {
+        labels: records.map((record) => formatChartDate(record.date)),
+        datasets: [
+          {
+            label: "Peso corporal",
+            data: records.map((record) => record.weight_kg),
+            borderColor: "#4f46e5",
+            backgroundColor: "#4f46e522",
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: true,
+            yAxisID: "weight",
+          },
+          {
+            label: "IMC",
+            data: records.map((record) => record.bmi),
+            borderColor: "#176b48",
+            backgroundColor: "#176b4822",
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: false,
+            yAxisID: "bmi",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+          },
+        },
+        scales: {
+          weight: {
+            position: "left",
+            ticks: {
+              callback(value) {
+                return `${formatNumber(value)} kg`;
+              },
+            },
+          },
+          bmi: {
+            position: "right",
+            grid: {
+              drawOnChartArea: false,
+            },
+            ticks: {
+              callback(value) {
+                return formatNumber(value);
+              },
+            },
+          },
+        },
+      },
+    },
+  );
+}
+
+
+function renderBodyCompositionFatChart(records) {
+  const points = records.filter(
+    (record) => Number.isFinite(record.body_fat_percentage),
+  );
+
+  destroyChart("bodyCompositionFat");
+  setChartEmptyState(
+    elements.bodyFatChartEmpty,
+    elements.bodyCompositionFatChart,
+    "Añade porcentaje de grasa corporal en alguna medición para ver esta gráfica.",
+    points.length === 0,
+  );
+
+  if (!points.length) {
+    return;
+  }
+
+  charts.bodyCompositionFat = new Chart(
+    elements.bodyCompositionFatChart,
+    {
+      type: "line",
+      data: {
+        labels: points.map((record) => formatChartDate(record.date)),
+        datasets: [
+          {
+            label: "Grasa corporal",
+            data: points.map((record) => record.body_fat_percentage),
+            borderColor: "#e58c12",
+            backgroundColor: "#e58c1222",
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+          },
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback(value) {
+                return `${formatNumber(value)} %`;
+              },
+            },
+          },
+        },
+      },
+    },
+  );
+}
+
+
+function renderBodyCompositionMassChart(records) {
+  const points = records.filter(
+    (record) =>
+      Number.isFinite(record.fat_mass_kg) &&
+      Number.isFinite(record.lean_mass_kg),
+  );
+
+  destroyChart("bodyCompositionMass");
+  setChartEmptyState(
+    elements.bodyMassChartEmpty,
+    elements.bodyCompositionMassChart,
+    "Añade peso y porcentaje de grasa corporal para calcular estas masas.",
+    points.length === 0,
+  );
+
+  if (!points.length) {
+    return;
+  }
+
+  charts.bodyCompositionMass = new Chart(
+    elements.bodyCompositionMassChart,
+    {
+      type: "line",
+      data: {
+        labels: points.map((record) => formatChartDate(record.date)),
+        datasets: [
+          {
+            label: "Masa grasa",
+            data: points.map((record) => record.fat_mass_kg),
+            borderColor: "#e58c12",
+            backgroundColor: "#e58c1222",
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: false,
+          },
+          {
+            label: "Masa libre de grasa",
+            data: points.map((record) => record.lean_mass_kg),
+            borderColor: "#176b48",
+            backgroundColor: "#176b4822",
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            tension: 0.3,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+          },
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback(value) {
+                return `${formatNumber(value)} kg`;
+              },
+            },
+          },
+        },
+      },
+    },
+  );
+}
+
+
+function renderBodyCompositionMeasurementsChart(records) {
+  const measurementDefinitions = [
+    {
+      key: "waist_cm",
+      label: "Cintura",
+      color: "#176b48",
+    },
+    {
+      key: "hip_cm",
+      label: "Cadera",
+      color: "#4f46e5",
+    },
+    {
+      key: "chest_cm",
+      label: "Pecho",
+      color: "#e58c12",
+    },
+    {
+      key: "arm_cm",
+      label: "Brazo",
+      color: "#9b51e0",
+    },
+    {
+      key: "thigh_cm",
+      label: "Muslo",
+      color: "#b42318",
+    },
+  ];
+
+  const datasets = measurementDefinitions
+    .map((measurement) => {
+      const points = records.filter(
+        (record) => Number.isFinite(record[measurement.key]),
+      );
+
+      if (!points.length) {
+        return null;
+      }
+
+      return {
+        label: measurement.label,
+        data: points.map((record) => ({
+          x: formatChartDate(record.date),
+          y: record[measurement.key],
+        })),
+        borderColor: measurement.color,
+        backgroundColor: `${measurement.color}22`,
+        borderWidth: 3,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.3,
+        fill: false,
+      };
+    })
+    .filter(Boolean);
+
+  destroyChart("bodyCompositionMeasurements");
+  setChartEmptyState(
+    elements.bodyMeasurementsChartEmpty,
+    elements.bodyCompositionMeasurementsChart,
+    "Añade al menos un perímetro corporal para ver esta gráfica.",
+    datasets.length === 0,
+  );
+
+  if (!datasets.length) {
+    return;
+  }
+
+  charts.bodyCompositionMeasurements = new Chart(
+    elements.bodyCompositionMeasurementsChart,
+    {
+      type: "line",
+      data: {
+        datasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: "category",
+          },
+          y: {
+            ticks: {
+              callback(value) {
+                return `${formatNumber(value)} cm`;
+              },
+            },
+          },
+        },
+      },
+    },
+  );
+}
+
+
+function renderBodyCompositionHistory(records) {
+  elements.bodyCompositionHistoryBody.innerHTML = "";
+
+  for (const record of records.slice().reverse()) {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${formatDate(record.date)}</td>
+      <td>${formatNullableNumber(record.weight_kg, " kg")}</td>
+      <td>${formatNullableNumber(record.bmi)}</td>
+      <td>${formatNullableNumber(record.body_fat_percentage, " %")}</td>
+      <td>${formatNullableNumber(record.fat_mass_kg, " kg")}</td>
+      <td>${formatNullableNumber(record.lean_mass_kg, " kg")}</td>
+      <td>${formatNullableNumber(record.waist_cm, " cm")}</td>
+      <td>${formatNullableNumber(record.hip_cm, " cm")}</td>
+      <td>${formatNullableNumber(record.chest_cm, " cm")}</td>
+      <td>${formatNullableNumber(record.arm_cm, " cm")}</td>
+      <td>${formatNullableNumber(record.thigh_cm, " cm")}</td>
+    `;
+
+    elements.bodyCompositionHistoryBody.append(row);
+  }
+}
+
+
+function renderBodyCompositionProgress(progress) {
+  if (!progress.records.length) {
+    elements.bodyCompositionContent.classList.add("hidden");
+    showBodyCompositionStatus(
+      "No hay mediciones corporales en el periodo seleccionado.",
+      "error",
+    );
+    return;
+  }
+
+  renderBodyCompositionSummary(progress);
+  renderBodyCompositionWeightChart(progress.records);
+  renderBodyCompositionFatChart(progress.records);
+  renderBodyCompositionMassChart(progress.records);
+  renderBodyCompositionMeasurementsChart(progress.records);
+  renderBodyCompositionHistory(progress.records);
+
+  elements.bodyCompositionContent.classList.remove("hidden");
+  showBodyCompositionStatus(
+    `${progress.records.length} medición(es) corporal(es) cargada(s).`,
+  );
+}
+
+
+function clearBodyCompositionProgress() {
+  destroyChart("bodyCompositionWeight");
+  destroyChart("bodyCompositionFat");
+  destroyChart("bodyCompositionMass");
+  destroyChart("bodyCompositionMeasurements");
+  elements.bodyCompositionContent.classList.add("hidden");
 }
 
 function setLoadingState() {
@@ -374,17 +868,26 @@ async function loadStatistics() {
   }
 
   setLoadingState();
+  showBodyCompositionStatus("Cargando evolución corporal…");
+  clearBodyCompositionProgress();
 
   try {
-    const [summary, chartData] = await Promise.all([
+    const [summary, chartData, bodyCompositionProgress] = await Promise.all([
       requestStatistics(startDate, endDate),
       requestCharts(startDate, endDate),
+      requestBodyCompositionProgress(startDate, endDate),
     ]);
 
     renderStatistics(summary);
     renderCharts(chartData);
+    renderBodyCompositionProgress(bodyCompositionProgress);
   } catch (error) {
+    clearBodyCompositionProgress();
     showStatus(error.message, "error");
+    showBodyCompositionStatus(
+      "No se pudo cargar la evolución corporal.",
+      "error",
+    );
   }
 }
 function showExerciseProgressStatus(message, type = "success") {
