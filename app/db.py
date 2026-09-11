@@ -66,11 +66,43 @@ def initialize_database() -> None:
                 weight_kg REAL NOT NULL CHECK (weight_kg > 0),
                 height_cm REAL NOT NULL CHECK (height_cm > 0),
                 bmi REAL NOT NULL CHECK (bmi > 0),
+                body_fat_percentage REAL
+                    CHECK (body_fat_percentage > 0 AND body_fat_percentage < 100),
+                waist_cm REAL CHECK (waist_cm > 0 AND waist_cm <= 300),
+                hip_cm REAL CHECK (hip_cm > 0 AND hip_cm <= 300),
+                chest_cm REAL CHECK (chest_cm > 0 AND chest_cm <= 300),
+                arm_cm REAL CHECK (arm_cm > 0 AND arm_cm <= 200),
+                thigh_cm REAL CHECK (thigh_cm > 0 AND thigh_cm <= 300),
                 notes TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
+
+        body_metric_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(body_metrics)"
+            ).fetchall()
+        }
+
+        body_metric_composition_columns = {
+            "body_fat_percentage": (
+                "REAL CHECK (body_fat_percentage > 0 AND body_fat_percentage < 100)"
+            ),
+            "waist_cm": "REAL CHECK (waist_cm > 0 AND waist_cm <= 300)",
+            "hip_cm": "REAL CHECK (hip_cm > 0 AND hip_cm <= 300)",
+            "chest_cm": "REAL CHECK (chest_cm > 0 AND chest_cm <= 300)",
+            "arm_cm": "REAL CHECK (arm_cm > 0 AND arm_cm <= 200)",
+            "thigh_cm": "REAL CHECK (thigh_cm > 0 AND thigh_cm <= 300)",
+        }
+
+        for column_name, column_definition in body_metric_composition_columns.items():
+            if column_name not in body_metric_columns:
+                connection.execute(
+                    f"ALTER TABLE body_metrics "
+                    f"ADD COLUMN {column_name} {column_definition}"
+                )
 
         connection.execute(
             """
