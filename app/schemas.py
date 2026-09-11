@@ -444,6 +444,10 @@ GoalType = Literal[
     "daily_steps",
     "weekly_workouts",
     "weekly_running_km",
+    "daily_calories",
+    "daily_protein_g",
+    "daily_carbs_g",
+    "daily_fat_g",
 ]
 
 
@@ -463,6 +467,21 @@ class FitnessGoalProgressResponse(BaseModel):
     current_value: float
     progress_percentage: float
     is_completed: bool
+
+class NutritionGoalProgressItem(BaseModel):
+    current_value: float
+    target_value: float | None
+    remaining_value: float | None
+    progress_percentage: float | None
+    is_completed: bool
+
+
+class NutritionGoalsProgressResponse(BaseModel):
+    date: date
+    calories: NutritionGoalProgressItem
+    protein_g: NutritionGoalProgressItem
+    carbs_g: NutritionGoalProgressItem
+    fat_g: NutritionGoalProgressItem
 
 class UserRegister(BaseModel):
     email: str = Field(min_length=3, max_length=254)
