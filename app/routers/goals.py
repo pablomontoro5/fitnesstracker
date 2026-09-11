@@ -283,12 +283,16 @@ def build_nutrition_goals_progress(
 def get_goals_progress() -> list[FitnessGoalProgressResponse]:
     return build_goals_progress(today=date.today())
 
+
 @router.get(
-    "/nutrition/progress",
+    "/nutrition-progress",
     response_model=NutritionGoalsProgressResponse,
 )
-def get_nutrition_goals_progress(target_date: date) -> NutritionGoalsProgressResponse:
-    return build_nutrition_goals_progress(target_date=target_date)
+def get_nutrition_goals_progress(
+    target_date: date,
+) -> NutritionGoalsProgressResponse:
+    return build_nutrition_goals_progress(target_date)
+
 
 @router.delete(
     "/{goal_type}",
