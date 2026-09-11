@@ -2177,3 +2177,102 @@ a.history-button:hover {
     flex: 1;
   }
 }
+
+.personal-records-panel {
+  margin-bottom: 2rem;
+}
+
+
+.personal-records-description {
+  max-width: 760px;
+  margin: -0.35rem 0 1.15rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+
+.personal-records-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+
+.personal-records-exercise {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface-muted);
+}
+
+
+.personal-records-exercise-heading {
+  margin-bottom: 0.85rem;
+}
+
+
+.personal-records-exercise-heading h3 {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+
+.personal-records-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+
+.personal-record-card {
+  display: grid;
+  gap: 0.42rem;
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+}
+
+
+.personal-record-card .eyebrow {
+  margin-bottom: 0;
+  font-size: 0.65rem;
+}
+
+
+.personal-record-value {
+  color: var(--primary);
+  font-size: 1.08rem;
+  letter-spacing: -0.03em;
+}
+
+
+.personal-record-detail {
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+
+@media (max-width: 1100px) {
+  .personal-records-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 700px) {
+  .personal-records-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 500px) {
+  .personal-records-grid {
+    grid-template-columns: 1fr;
+  }
+}

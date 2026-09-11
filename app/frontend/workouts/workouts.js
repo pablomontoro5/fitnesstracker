@@ -64,6 +64,16 @@ const elements = {
     "#progress-exercise-name",
   ),
   progressResult: document.querySelector("#progress-result"),
+    personalRecordsForm: document.querySelector("#personal-records-form"),
+  personalRecordsExerciseName: document.querySelector(
+    "#personal-records-exercise-name",
+  ),
+  personalRecordsExerciseNames: document.querySelector(
+    "#personal-records-exercise-names",
+  ),
+  personalRecordsResult: document.querySelector(
+    "#personal-records-result",
+  ),
 };
 
 
@@ -1064,6 +1074,113 @@ async function handleProgressSearch(event) {
   }
 }
 
+function personalRecordDetail(record) {
+  if (record.metric === "max_session_volume_kg") {
+    return `${formatDate(record.date)} · ${escapeHtml(record.session_name)}`;
+  }
+
+  return (
+    `${formatDate(record.date)} · ${escapeHtml(record.session_name)} · ` +
+    `${record.repetitions} reps × ${formatNumber(record.weight_kg)} kg`
+  );
+}
+
+
+function renderPersonalRecords(exercises) {
+  elements.personalRecordsResult.innerHTML = "";
+
+  if (!exercises.length) {
+    elements.personalRecordsResult.className = "empty-state large-empty-state";
+    elements.personalRecordsResult.textContent =
+      "Todavía no hay series de trabajo para calcular marcas personales.";
+    return;
+  }
+
+  elements.personalRecordsResult.className = "personal-records-list";
+
+  for (const exercise of exercises) {
+    const exerciseCard = document.createElement("article");
+    exerciseCard.className = "personal-records-exercise";
+
+    const records = exercise.records
+      .map(
+        (record) => `
+          <article class="personal-record-card">
+            <p class="eyebrow">${escapeHtml(record.label)}</p>
+            <strong class="personal-record-value">
+              ${formatNumber(record.value)} ${escapeHtml(record.unit)}
+            </strong>
+            <p class="personal-record-detail">
+              ${personalRecordDetail(record)}
+            </p>
+          </article>
+        `,
+      )
+      .join("");
+
+    exerciseCard.innerHTML = `
+      <div class="personal-records-exercise-heading">
+        <h3>${escapeHtml(exercise.exercise_name)}</h3>
+      </div>
+      <div class="personal-records-grid">
+        ${records}
+      </div>
+    `;
+
+    elements.personalRecordsResult.append(exerciseCard);
+  }
+}
+
+
+async function loadPersonalRecordExerciseNames() {
+  try {
+    const names = await request("/workouts/exercise-names");
+
+    elements.personalRecordsExerciseNames.innerHTML = "";
+
+    for (const name of names) {
+      const option = document.createElement("option");
+      option.value = name;
+      elements.personalRecordsExerciseNames.append(option);
+    }
+  } catch (error) {
+    showStatus(error.message, "error");
+  }
+}
+
+
+async function handlePersonalRecordsSearch(event) {
+  event.preventDefault();
+
+  const exerciseName =
+    elements.personalRecordsExerciseName.value.trim();
+
+  const query = exerciseName
+    ? `?exercise_name=${encodeURIComponent(exerciseName)}`
+    : "";
+
+  elements.personalRecordsResult.className =
+    "empty-state large-empty-state";
+  elements.personalRecordsResult.textContent =
+    "Calculando marcas personales…";
+
+  try {
+    const exercises = await request(`/workouts/personal-records${query}`);
+    renderPersonalRecords(exercises);
+
+    if (exerciseName) {
+      showStatus(`Marcas personales cargadas para “${exerciseName}”.`);
+    } else {
+      showStatus("Marcas personales cargadas.");
+    }
+  } catch (error) {
+    elements.personalRecordsResult.className =
+      "empty-state large-empty-state";
+    elements.personalRecordsResult.textContent = error.message;
+    showStatus(error.message, "error");
+  }
+}
+
 async function handleRepeatSession() {
   if (!state.selectedSession) {
     return;
@@ -1106,6 +1223,10 @@ function configureEventListeners() {
     handleSavePendingSets,
   );
   elements.progressForm.addEventListener("submit", handleProgressSearch);
+  elements.personalRecordsForm.addEventListener(
+    "submit",
+    handlePersonalRecordsSearch,
+  );
   elements.refreshSessionsButton.addEventListener("click", loadSessions);
   elements.deleteSessionButton.addEventListener("click", handleDeleteSession);
   elements.deleteExerciseButton.addEventListener(
@@ -1142,7 +1263,10 @@ async function initializeApp() {
   resetExerciseSuggestions();
   configureEventListeners();
 
-  await loadSessions();
+  await Promise.all([
+    loadSessions(),
+    loadPersonalRecordExerciseNames(),
+  ]);
 }
 
 initializeApp();

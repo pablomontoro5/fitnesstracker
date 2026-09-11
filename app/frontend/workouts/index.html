@@ -444,6 +444,46 @@
         sesión.
       </div>
     </section>
+    <section class="panel personal-records-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Paso 5</p>
+          <h2>Marcas personales</h2>
+        </div>
+      </div>
+
+      <p class="personal-records-description">
+        Consulta tus mejores marcas usando solo series de trabajo. El 1RM es una
+        estimación calculada con carga y repeticiones, no una carga registrada.
+      </p>
+
+      <form id="personal-records-form" class="progress-form">
+        <label>
+          Ejercicio
+          <input
+            id="personal-records-exercise-name"
+            type="text"
+            maxlength="120"
+            list="personal-records-exercise-names"
+            placeholder="Déjalo vacío para ver todos los ejercicios"
+          />
+        </label>
+
+        <datalist id="personal-records-exercise-names"></datalist>
+
+        <button class="primary-button" type="submit">
+          Consultar marcas
+        </button>
+      </form>
+
+      <div
+        id="personal-records-result"
+        class="empty-state large-empty-state"
+        aria-live="polite"
+      >
+        Consulta un ejercicio o deja el campo vacío para ver todas tus marcas.
+      </div>
+    </section>
   </main>
 
     <template id="workout-template">
