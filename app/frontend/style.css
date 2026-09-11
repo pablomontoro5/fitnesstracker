@@ -1899,3 +1899,99 @@ a.history-button:hover {
     width: 100%;
   }
 }
+
+.body-composition-section {
+  margin: 2.5rem 0;
+}
+
+
+.body-composition-content {
+  display: grid;
+  gap: 1.25rem;
+}
+
+
+.body-composition-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+
+.body-composition-summary .statistic-card {
+  min-height: 160px;
+}
+
+
+.body-composition-summary h3 {
+  margin-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+
+.body-composition-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+
+.body-composition-history {
+  margin-bottom: 0;
+}
+
+
+.body-composition-table-wrapper {
+  overflow-x: auto;
+}
+
+
+.body-composition-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+}
+
+
+.body-composition-table th,
+.body-composition-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+
+.body-composition-table th {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+
+.body-composition-table td {
+  font-size: 0.88rem;
+}
+
+
+.body-composition-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+
+@media (max-width: 1000px) {
+  .body-composition-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 700px) {
+  .body-composition-summary,
+  .body-composition-charts {
+    grid-template-columns: 1fr;
+  }
+}
