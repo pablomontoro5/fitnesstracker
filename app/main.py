@@ -16,6 +16,7 @@ from app.routers import (
     nutrition_days,
     nutrition_foods,
     nutrition_meals,
+    recovery,
     restores,
     runs,
     statistics,
@@ -59,6 +60,7 @@ app.include_router(exports.router)
 app.include_router(restores.router)
 app.include_router(workout_templates.router)
 app.include_router(goals.router)
+app.include_router(recovery.router)
 app.include_router(auth.router)
 app.mount(
     "/static",
