@@ -2276,3 +2276,84 @@ a.history-button:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.nutrition-goal-progress-section {
+  margin: 0 0 1.25rem;
+}
+
+
+.nutrition-goal-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+
+.nutrition-goal-progress-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+  box-shadow: 0 7px 24px rgba(20, 48, 34, 0.04);
+}
+
+
+.nutrition-goal-progress-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+
+.nutrition-goal-progress-heading span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+
+.nutrition-goal-progress-heading strong {
+  color: var(--primary);
+  font-size: 1.05rem;
+}
+
+
+.nutrition-goal-progress-card p {
+  min-height: 2.5rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+
+.nutrition-goal-progress-card.completed .goal-progress-bar {
+  background: var(--working);
+}
+
+
+.nutrition-goal-progress-card.exceeded .goal-progress-bar {
+  background: var(--approximation);
+}
+
+
+.nutrition-goals-section {
+  margin-top: 2rem;
+}
+
+
+@media (max-width: 1000px) {
+  .nutrition-goal-progress-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 560px) {
+  .nutrition-goal-progress-grid {
+    grid-template-columns: 1fr;
+  }
+}

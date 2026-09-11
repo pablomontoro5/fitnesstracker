@@ -17,6 +17,30 @@ const GOAL_CONFIG = {
     targetPrefix: "Objetivo semanal: ",
     decimalPlaces: 1,
   },
+  daily_calories: {
+    currentSuffix: " kcal",
+    targetSuffix: " kcal",
+    targetPrefix: "Objetivo diario: ",
+    decimalPlaces: 0,
+  },
+  daily_protein_g: {
+    currentSuffix: " g",
+    targetSuffix: " g",
+    targetPrefix: "Objetivo diario: ",
+    decimalPlaces: 1,
+  },
+  daily_carbs_g: {
+    currentSuffix: " g",
+    targetSuffix: " g",
+    targetPrefix: "Objetivo diario: ",
+    decimalPlaces: 1,
+  },
+  daily_fat_g: {
+    currentSuffix: " g",
+    targetSuffix: " g",
+    targetPrefix: "Objetivo diario: ",
+    decimalPlaces: 1,
+  },
 };
 
 const statusMessage = document.querySelector("#goals-status");
@@ -99,10 +123,9 @@ function renderGoal(goalType, goal, progress) {
   );
   progressTrack.setAttribute("aria-valuenow", String(percentage));
   progressBar.style.width = `${percentage}%`;
-  progressText.textContent = `${formatValue(
-    percentage,
-    1
-  )}% completado`;
+  progressText.textContent = progress
+    ? `${formatValue(percentage, 1)}% completado`
+    : "Consulta el progreso en la pantalla de Nutrición.";
   completedMessage.classList.toggle("hidden", !isCompleted);
   deleteButton.classList.remove("hidden");
   card.classList.toggle("completed", isCompleted);

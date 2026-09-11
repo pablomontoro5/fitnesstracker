@@ -25,6 +25,82 @@ def get_connection() -> sqlite3.Connection:
 
     return connection
 
+def migrate_fitness_goals_table(
+    connection: sqlite3.Connection,
+) -> None:
+    required_goal_types = {
+        "daily_steps",
+        "weekly_workouts",
+        "weekly_running_km",
+        "daily_calories",
+        "daily_protein_g",
+        "daily_carbs_g",
+        "daily_fat_g",
+    }
+
+    table_sql_row = connection.execute(
+        """
+        SELECT sql
+        FROM sqlite_master
+        WHERE type = 'table'
+            AND name = 'fitness_goals'
+        """
+    ).fetchone()
+
+    if table_sql_row is None:
+        return
+
+    table_sql = table_sql_row["sql"] or ""
+
+    if all(goal_type in table_sql for goal_type in required_goal_types):
+        return
+
+    connection.execute(
+        """
+        CREATE TABLE fitness_goals_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            goal_type TEXT NOT NULL UNIQUE CHECK (
+                goal_type IN (
+                    'daily_steps',
+                    'weekly_workouts',
+                    'weekly_running_km',
+                    'daily_calories',
+                    'daily_protein_g',
+                    'daily_carbs_g',
+                    'daily_fat_g'
+                )
+            ),
+            target_value REAL NOT NULL CHECK (target_value > 0),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO fitness_goals_new (
+            id,
+            goal_type,
+            target_value,
+            created_at,
+            updated_at
+        )
+        SELECT
+            id,
+            goal_type,
+            target_value,
+            created_at,
+            updated_at
+        FROM fitness_goals
+        """
+    )
+
+    connection.execute("DROP TABLE fitness_goals")
+    connection.execute(
+        "ALTER TABLE fitness_goals_new RENAME TO fitness_goals"
+    )
+    
 
 def initialize_database() -> None:
 
@@ -281,7 +357,11 @@ def initialize_database() -> None:
                     goal_type IN (
                         'daily_steps',
                         'weekly_workouts',
-                        'weekly_running_km'
+                        'weekly_running_km',
+                        'daily_calories',
+                        'daily_protein_g',
+                        'daily_carbs_g',
+                        'daily_fat_g'
                     )
                 ),
                 target_value REAL NOT NULL CHECK (target_value > 0),
@@ -290,3 +370,5 @@ def initialize_database() -> None:
             )
             """
         )
+
+        migrate_fitness_goals_table(connection)

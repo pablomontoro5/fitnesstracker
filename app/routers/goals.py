@@ -9,6 +9,8 @@ from app.schemas import (
     FitnessGoalResponse,
     FitnessGoalUpsert,
     GoalType,
+    NutritionGoalProgressItem,
+    NutritionGoalsProgressResponse,
 )
 
 
@@ -157,6 +159,122 @@ def build_goals_progress(
             )
 
     return progress_items
+NUTRITION_GOAL_TYPES = {
+    "calories": "daily_calories",
+    "protein_g": "daily_protein_g",
+    "carbs_g": "daily_carbs_g",
+    "fat_g": "daily_fat_g",
+}
+
+
+def get_nutrition_totals(
+    connection: sqlite3.Connection,
+    target_date: date,
+) -> dict[str, float]:
+    row = connection.execute(
+        """
+        SELECT
+            COALESCE(SUM(nutrition_foods.calories), 0) AS calories,
+            COALESCE(SUM(nutrition_foods.protein_g), 0) AS protein_g,
+            COALESCE(SUM(nutrition_foods.carbs_g), 0) AS carbs_g,
+            COALESCE(SUM(nutrition_foods.fat_g), 0) AS fat_g
+        FROM nutrition_days
+        LEFT JOIN nutrition_meals
+            ON nutrition_meals.nutrition_day_id = nutrition_days.id
+        LEFT JOIN nutrition_foods
+            ON nutrition_foods.nutrition_meal_id = nutrition_meals.id
+        WHERE nutrition_days.date = ?
+        """,
+        (target_date.isoformat(),),
+    ).fetchone()
+
+    return {
+        "calories": float(row["calories"]),
+        "protein_g": float(row["protein_g"]),
+        "carbs_g": float(row["carbs_g"]),
+        "fat_g": float(row["fat_g"]),
+    }
+
+
+def build_nutrition_goal_progress_item(
+    current_value: float,
+    target_value: float | None,
+) -> NutritionGoalProgressItem:
+    if target_value is None:
+        return NutritionGoalProgressItem(
+            current_value=round(current_value, 2),
+            target_value=None,
+            remaining_value=None,
+            progress_percentage=None,
+            is_completed=False,
+        )
+
+    remaining_value = round(target_value - current_value, 2)
+    progress_percentage = round(
+        (current_value / target_value) * 100,
+        1,
+    )
+
+    return NutritionGoalProgressItem(
+        current_value=round(current_value, 2),
+        target_value=round(target_value, 2),
+        remaining_value=remaining_value,
+        progress_percentage=progress_percentage,
+        is_completed=current_value >= target_value,
+    )
+
+
+def build_nutrition_goals_progress(
+    target_date: date,
+) -> NutritionGoalsProgressResponse:
+    with get_connection() as connection:
+        totals = get_nutrition_totals(connection, target_date)
+
+        rows = connection.execute(
+            """
+            SELECT goal_type, target_value
+            FROM fitness_goals
+            WHERE goal_type IN (
+                'daily_calories',
+                'daily_protein_g',
+                'daily_carbs_g',
+                'daily_fat_g'
+            )
+            """
+        ).fetchall()
+
+    goals_by_type = {
+        row["goal_type"]: float(row["target_value"])
+        for row in rows
+    }
+
+    return NutritionGoalsProgressResponse(
+        date=target_date,
+        calories=build_nutrition_goal_progress_item(
+            current_value=totals["calories"],
+            target_value=goals_by_type.get(
+                NUTRITION_GOAL_TYPES["calories"]
+            ),
+        ),
+        protein_g=build_nutrition_goal_progress_item(
+            current_value=totals["protein_g"],
+            target_value=goals_by_type.get(
+                NUTRITION_GOAL_TYPES["protein_g"]
+            ),
+        ),
+        carbs_g=build_nutrition_goal_progress_item(
+            current_value=totals["carbs_g"],
+            target_value=goals_by_type.get(
+                NUTRITION_GOAL_TYPES["carbs_g"]
+            ),
+        ),
+        fat_g=build_nutrition_goal_progress_item(
+            current_value=totals["fat_g"],
+            target_value=goals_by_type.get(
+                NUTRITION_GOAL_TYPES["fat_g"]
+            ),
+        ),
+    )
 
 @router.get(
     "/progress",
@@ -164,6 +282,18 @@ def build_goals_progress(
 )
 def get_goals_progress() -> list[FitnessGoalProgressResponse]:
     return build_goals_progress(today=date.today())
+
+
+@router.get(
+    "/nutrition-progress",
+    response_model=NutritionGoalsProgressResponse,
+)
+def get_nutrition_goals_progress(
+    target_date: date,
+) -> NutritionGoalsProgressResponse:
+    return build_nutrition_goals_progress(target_date)
+
+
 @router.delete(
     "/{goal_type}",
     response_model=None,
