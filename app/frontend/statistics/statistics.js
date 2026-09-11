@@ -1127,10 +1127,6 @@ function configureEventListeners() {
     await loadStatistics();
   });
 
-  elements.downloadBackupButton.addEventListener("click", async () => {
-    await downloadDatabaseBackup();
-  });
-
   elements.exerciseProgressForm.addEventListener(
     "submit",
     handleExerciseProgressSearch,
