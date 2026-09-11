@@ -324,3 +324,248 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
         "Press banca con barra",
         "Remo con barra",
     ]
+
+def test_personal_records_returns_all_metrics_for_working_sets():
+    with TestClient(app) as client:
+        exercise_name = "Press banca marcas personales"
+
+        first_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-01",
+            session_name="Empujes A",
+            exercise_name=exercise_name,
+        )
+        create_set(
+            client,
+            first_exercise_id,
+            set_type="warmup",
+            position=1,
+            repetitions=15,
+            weight_kg=20,
+            rir=None,
+        )
+        create_set(
+            client,
+            first_exercise_id,
+            set_type="working",
+            position=2,
+            repetitions=10,
+            weight_kg=60,
+            rir=2,
+        )
+        create_set(
+            client,
+            first_exercise_id,
+            set_type="working",
+            position=3,
+            repetitions=8,
+            weight_kg=70,
+            rir=1,
+        )
+
+        second_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-08",
+            session_name="Empujes B",
+            exercise_name=exercise_name,
+        )
+        create_set(
+            client,
+            second_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=12,
+            weight_kg=55,
+            rir=1,
+        )
+        create_set(
+            client,
+            second_exercise_id,
+            set_type="working",
+            position=2,
+            repetitions=5,
+            weight_kg=80,
+            rir=0,
+        )
+        create_set(
+            client,
+            second_exercise_id,
+            set_type="drop_set",
+            position=3,
+            repetitions=20,
+            weight_kg=30,
+            rir=0,
+        )
+
+        response = client.get(
+            "/workouts/personal-records",
+            params={"exercise_name": exercise_name},
+        )
+
+    assert response.status_code == 200
+
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["exercise_name"] == exercise_name
+
+    records = {
+        record["metric"]: record
+        for record in body[0]["records"]
+    }
+
+    assert records["max_weight_kg"]["value"] == 80
+    assert records["max_weight_kg"]["date"] == "2026-09-08"
+    assert records["max_weight_kg"]["repetitions"] == 5
+    assert records["max_weight_kg"]["volume_kg"] == 400
+
+    assert records["max_repetitions"]["value"] == 12
+    assert records["max_repetitions"]["weight_kg"] == 55
+
+    assert records["max_set_volume_kg"]["value"] == 660
+    assert records["max_set_volume_kg"]["repetitions"] == 12
+    assert records["max_set_volume_kg"]["weight_kg"] == 55
+
+    assert records["estimated_one_rep_max_kg"]["value"] == 93.33
+    assert records["estimated_one_rep_max_kg"]["weight_kg"] == 80
+    assert records["estimated_one_rep_max_kg"]["repetitions"] == 5
+
+    assert records["max_session_volume_kg"]["value"] == 1160
+    assert records["max_session_volume_kg"]["date"] == "2026-09-01"
+    assert records["max_session_volume_kg"]["set_id"] is None
+    assert records["max_session_volume_kg"]["repetitions"] is None
+    assert records["max_session_volume_kg"]["weight_kg"] is None
+    assert records["max_session_volume_kg"]["volume_kg"] == 1160
+
+
+def test_personal_records_returns_empty_list_without_working_sets():
+    with TestClient(app) as client:
+        response = client.get("/workouts/personal-records")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_personal_records_filters_by_exercise_name():
+    with TestClient(app) as client:
+        press_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-10",
+            session_name="Empujes",
+            exercise_name="Press de prueba",
+        )
+        create_set(
+            client,
+            press_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=8,
+            weight_kg=70,
+            rir=2,
+        )
+
+        row_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-10",
+            session_name="Tracción",
+            exercise_name="Remo de prueba",
+        )
+        create_set(
+            client,
+            row_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=10,
+            weight_kg=60,
+            rir=2,
+        )
+
+        response = client.get(
+            "/workouts/personal-records",
+            params={"exercise_name": "Press de prueba"},
+        )
+
+    assert response.status_code == 200
+    assert [record["exercise_name"] for record in response.json()] == [
+        "Press de prueba",
+    ]
+
+
+def test_personal_records_returns_404_for_unknown_exercise():
+    with TestClient(app) as client:
+        response = client.get(
+            "/workouts/personal-records",
+            params={"exercise_name": "Ejercicio inexistente"},
+        )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == (
+        "No existen series de trabajo para ese ejercicio."
+    )
+
+
+def test_personal_records_rejects_blank_exercise_name():
+    with TestClient(app) as client:
+        response = client.get(
+            "/workouts/personal-records",
+            params={"exercise_name": "   "},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "El nombre del ejercicio no puede estar vacío."
+    )
+
+
+def test_personal_records_uses_oldest_set_when_values_tie():
+    with TestClient(app) as client:
+        exercise_name = "Remo empate"
+
+        first_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-01",
+            session_name="Tracción A",
+            exercise_name=exercise_name,
+        )
+        create_set(
+            client,
+            first_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=10,
+            weight_kg=60,
+            rir=2,
+        )
+
+        second_exercise_id = create_exercise(
+            client,
+            session_date="2026-09-08",
+            session_name="Tracción B",
+            exercise_name=exercise_name,
+        )
+        create_set(
+            client,
+            second_exercise_id,
+            set_type="working",
+            position=1,
+            repetitions=10,
+            weight_kg=60,
+            rir=2,
+        )
+
+        response = client.get(
+            "/workouts/personal-records",
+            params={"exercise_name": exercise_name},
+        )
+
+    assert response.status_code == 200
+
+    records = {
+        record["metric"]: record
+        for record in response.json()[0]["records"]
+    }
+
+    assert records["max_weight_kg"]["date"] == "2026-09-01"
+    assert records["max_repetitions"]["date"] == "2026-09-01"
+    assert records["max_set_volume_kg"]["date"] == "2026-09-01"
+    assert records["estimated_one_rep_max_kg"]["date"] == "2026-09-01"
+    assert records["max_session_volume_kg"]["date"] == "2026-09-01"
