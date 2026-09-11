@@ -32,8 +32,8 @@
         <p class="eyebrow">Progreso personal</p>
         <h2>Define metas y sigue tu avance</h2>
         <p>
-          Configura objetivos de pasos, entrenamientos y running. El progreso
-          se actualiza con los registros que ya tienes guardados.
+          Configura objetivos de actividad y nutrición. El progreso se actualiza
+          con los registros que ya tienes guardados.
         </p>
       </div>
     </section>
@@ -240,6 +240,280 @@
           </div>
         </form>
       </article>
+    </section>
+    <section class="nutrition-goals-section" aria-labelledby="nutrition-goals-title">
+      <div class="charts-heading">
+        <div>
+          <p class="eyebrow">Nutrición</p>
+          <h2 id="nutrition-goals-title">Objetivos diarios de nutrición</h2>
+          <p>
+            Configura tus metas de calorías y macronutrientes. El progreso se
+            consulta desde la pantalla de Nutrición para el día seleccionado.
+          </p>
+        </div>
+      </div>
+
+      <section class="goals-grid" aria-label="Objetivos de nutrición">
+        <article class="panel goal-card" data-goal-type="daily_calories">
+          <div class="goal-card-heading">
+            <div>
+              <p class="eyebrow">Cada día</p>
+              <h2>Calorías</h2>
+            </div>
+            <span class="goal-icon" aria-hidden="true">🔥</span>
+          </div>
+
+          <p class="goal-description">
+            Define las calorías que quieres consumir durante el día.
+          </p>
+
+          <div class="goal-progress-summary">
+            <strong data-current-value>Sin objetivo</strong>
+            <span data-target-label></span>
+          </div>
+
+          <div
+            class="goal-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="goal-progress-bar" data-progress-bar></span>
+          </div>
+
+          <p class="goal-progress-text" data-progress-text>
+            Configura un objetivo para empezar.
+          </p>
+
+          <p class="goal-completed-message hidden" data-completed-message>
+            ✓ Objetivo cumplido
+          </p>
+
+          <form class="goal-form" data-goal-form>
+            <label>
+              Objetivo de calorías
+              <input
+                data-target-input
+                type="number"
+                min="1"
+                max="1000000"
+                step="1"
+                placeholder="Ej.: 2400"
+                required
+              />
+            </label>
+
+            <div class="goal-actions">
+              <button class="primary-button" type="submit" data-save-button>
+                Guardar objetivo
+              </button>
+              <button
+                class="danger-button hidden"
+                type="button"
+                data-delete-button
+              >
+                Eliminar
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel goal-card" data-goal-type="daily_protein_g">
+          <div class="goal-card-heading">
+            <div>
+              <p class="eyebrow">Cada día</p>
+              <h2>Proteína</h2>
+            </div>
+            <span class="goal-icon" aria-hidden="true">🥩</span>
+          </div>
+
+          <p class="goal-description">
+            Define los gramos de proteína que quieres alcanzar cada día.
+          </p>
+
+          <div class="goal-progress-summary">
+            <strong data-current-value>Sin objetivo</strong>
+            <span data-target-label></span>
+          </div>
+
+          <div
+            class="goal-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="goal-progress-bar" data-progress-bar></span>
+          </div>
+
+          <p class="goal-progress-text" data-progress-text>
+            Configura un objetivo para empezar.
+          </p>
+
+          <p class="goal-completed-message hidden" data-completed-message>
+            ✓ Objetivo cumplido
+          </p>
+
+          <form class="goal-form" data-goal-form>
+            <label>
+              Objetivo de proteína
+              <input
+                data-target-input
+                type="number"
+                min="0.1"
+                max="1000000"
+                step="0.1"
+                placeholder="Ej.: 150"
+                required
+              />
+            </label>
+
+            <div class="goal-actions">
+              <button class="primary-button" type="submit" data-save-button>
+                Guardar objetivo
+              </button>
+              <button
+                class="danger-button hidden"
+                type="button"
+                data-delete-button
+              >
+                Eliminar
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel goal-card" data-goal-type="daily_carbs_g">
+          <div class="goal-card-heading">
+            <div>
+              <p class="eyebrow">Cada día</p>
+              <h2>Carbohidratos</h2>
+            </div>
+            <span class="goal-icon" aria-hidden="true">🍚</span>
+          </div>
+
+          <p class="goal-description">
+            Define los gramos de carbohidratos que quieres consumir cada día.
+          </p>
+
+          <div class="goal-progress-summary">
+            <strong data-current-value>Sin objetivo</strong>
+            <span data-target-label></span>
+          </div>
+
+          <div
+            class="goal-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="goal-progress-bar" data-progress-bar></span>
+          </div>
+
+          <p class="goal-progress-text" data-progress-text>
+            Configura un objetivo para empezar.
+          </p>
+
+          <p class="goal-completed-message hidden" data-completed-message>
+            ✓ Objetivo cumplido
+          </p>
+
+          <form class="goal-form" data-goal-form>
+            <label>
+              Objetivo de carbohidratos
+              <input
+                data-target-input
+                type="number"
+                min="0.1"
+                max="1000000"
+                step="0.1"
+                placeholder="Ej.: 250"
+                required
+              />
+            </label>
+
+            <div class="goal-actions">
+              <button class="primary-button" type="submit" data-save-button>
+                Guardar objetivo
+              </button>
+              <button
+                class="danger-button hidden"
+                type="button"
+                data-delete-button
+              >
+                Eliminar
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel goal-card" data-goal-type="daily_fat_g">
+          <div class="goal-card-heading">
+            <div>
+              <p class="eyebrow">Cada día</p>
+              <h2>Grasas</h2>
+            </div>
+            <span class="goal-icon" aria-hidden="true">🥑</span>
+          </div>
+
+          <p class="goal-description">
+            Define los gramos de grasas que quieres consumir cada día.
+          </p>
+
+          <div class="goal-progress-summary">
+            <strong data-current-value>Sin objetivo</strong>
+            <span data-target-label></span>
+          </div>
+
+          <div
+            class="goal-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="goal-progress-bar" data-progress-bar></span>
+          </div>
+
+          <p class="goal-progress-text" data-progress-text>
+            Configura un objetivo para empezar.
+          </p>
+
+          <p class="goal-completed-message hidden" data-completed-message>
+            ✓ Objetivo cumplido
+          </p>
+
+          <form class="goal-form" data-goal-form>
+            <label>
+              Objetivo de grasas
+              <input
+                data-target-input
+                type="number"
+                min="0.1"
+                max="1000000"
+                step="0.1"
+                placeholder="Ej.: 70"
+                required
+              />
+            </label>
+
+            <div class="goal-actions">
+              <button class="primary-button" type="submit" data-save-button>
+                Guardar objetivo
+              </button>
+              <button
+                class="danger-button hidden"
+                type="button"
+                data-delete-button
+              >
+                Eliminar
+              </button>
+            </div>
+          </form>
+        </article>
+      </section>
     </section>
   </main>
 
