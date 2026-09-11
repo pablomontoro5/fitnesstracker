@@ -21,9 +21,20 @@ class DailyLogResponse(BaseModel):
 
 class BodyMetricCreate(BaseModel):
     date: date
-    weight_kg: float = Field(gt=0,le=500)
-    height_cm: float = Field(gt=0,le=300)
+    weight_kg: float = Field(gt=0, le=500)
+    height_cm: float = Field(gt=0, le=300)
+    body_fat_percentage: float | None = Field(
+        default=None,
+        gt=0,
+        lt=100,
+    )
+    waist_cm: float | None = Field(default=None, gt=0, le=300)
+    hip_cm: float | None = Field(default=None, gt=0, le=300)
+    chest_cm: float | None = Field(default=None, gt=0, le=300)
+    arm_cm: float | None = Field(default=None, gt=0, le=200)
+    thigh_cm: float | None = Field(default=None, gt=0, le=300)
     notes: str | None = Field(default=None, max_length=1000)
+
 
 class BodyMetricResponse(BaseModel):
     id: int
@@ -31,14 +42,67 @@ class BodyMetricResponse(BaseModel):
     weight_kg: float
     height_cm: float
     bmi: float
+    body_fat_percentage: float | None
+    fat_mass_kg: float | None
+    lean_mass_kg: float | None
+    waist_cm: float | None
+    hip_cm: float | None
+    chest_cm: float | None
+    arm_cm: float | None
+    thigh_cm: float | None
     notes: str | None
+
 
 class BodyMetricUpdate(BaseModel):
     date: date
     weight_kg: float = Field(gt=0, le=500)
     height_cm: float = Field(gt=0, le=300)
+    body_fat_percentage: float | None = Field(
+        default=None,
+        gt=0,
+        lt=100,
+    )
+    waist_cm: float | None = Field(default=None, gt=0, le=300)
+    hip_cm: float | None = Field(default=None, gt=0, le=300)
+    chest_cm: float | None = Field(default=None, gt=0, le=300)
+    arm_cm: float | None = Field(default=None, gt=0, le=200)
+    thigh_cm: float | None = Field(default=None, gt=0, le=300)
     notes: str | None = Field(default=None, max_length=1000)
 
+
+class BodyCompositionProgressRecord(BaseModel):
+    date: date
+    weight_kg: float
+    bmi: float
+    body_fat_percentage: float | None
+    fat_mass_kg: float | None
+    lean_mass_kg: float | None
+    waist_cm: float | None
+    hip_cm: float | None
+    chest_cm: float | None
+    arm_cm: float | None
+    thigh_cm: float | None
+
+
+class BodyCompositionChanges(BaseModel):
+    weight_kg: float | None
+    bmi: float | None
+    body_fat_percentage: float | None
+    fat_mass_kg: float | None
+    lean_mass_kg: float | None
+    waist_cm: float | None
+    hip_cm: float | None
+    chest_cm: float | None
+    arm_cm: float | None
+    thigh_cm: float | None
+
+
+class BodyCompositionProgressResponse(BaseModel):
+    start_date: date
+    end_date: date
+    records: list[BodyCompositionProgressRecord]
+    changes: BodyCompositionChanges
+    
 class WorkoutSessionCreate(BaseModel):
     date: date
     name: str = Field(min_length=1, max_length=100)
