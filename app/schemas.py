@@ -198,6 +198,34 @@ class WorkoutProgressResponse(BaseModel):
     exercise_name: str
     sessions: list[WorkoutProgressSessionResponse]
 
+PersonalRecordMetric = Literal[
+    "max_weight_kg",
+    "max_repetitions",
+    "max_set_volume_kg",
+    "estimated_one_rep_max_kg",
+    "max_session_volume_kg",
+]
+
+
+class WorkoutPersonalRecord(BaseModel):
+    metric: PersonalRecordMetric
+    label: str
+    value: float
+    unit: str
+    date: date
+    session_id: int
+    session_name: str
+    set_id: int | None
+    repetitions: int | None
+    weight_kg: float | None
+    volume_kg: float | None
+
+
+class WorkoutPersonalRecordsExerciseResponse(BaseModel):
+    exercise_name: str
+    records: list[WorkoutPersonalRecord]
+
+
 class RunCreate(BaseModel):
     date: date
     distance_km: float = Field(gt=0, le=1000)
