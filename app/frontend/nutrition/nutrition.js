@@ -6,6 +6,24 @@ const state = {
   foods: [],
 };
 
+const nutritionGoalConfig = {
+  calories: {
+    suffix: " kcal",
+    decimals: 0,
+  },
+  protein_g: {
+    suffix: " g",
+    decimals: 1,
+  },
+  carbs_g: {
+    suffix: " g",
+    decimals: 1,
+  },
+  fat_g: {
+    suffix: " g",
+    decimals: 1,
+  },
+};
 
 const elements = {
   statusMessage: document.querySelector("#status-message"),
@@ -27,6 +45,10 @@ const elements = {
   totalProtein: document.querySelector("#total-protein"),
   totalCarbs: document.querySelector("#total-carbs"),
   totalFat: document.querySelector("#total-fat"),
+
+  nutritionGoalCards: [
+    ...document.querySelectorAll("[data-nutrition-goal]"),
+  ],
 
   nutritionMealForm: document.querySelector("#nutrition-meal-form"),
   nutritionMealName: document.querySelector("#nutrition-meal-name"),
@@ -159,6 +181,92 @@ function renderTotals() {
     `${formatNumber(totals.fat_g)} g`;
 }
 
+function getNutritionGoalCard(goalKey) {
+  return elements.nutritionGoalCards.find(
+    (card) => card.dataset.nutritionGoal === goalKey,
+  );
+}
+
+
+function renderNutritionGoalProgress(progress) {
+  for (const [goalKey, config] of Object.entries(nutritionGoalConfig)) {
+    const card = getNutritionGoalCard(goalKey);
+    const item = progress[goalKey];
+    const currentElement = card.querySelector("[data-nutrition-current]");
+    const progressTrack = card.querySelector("[role='progressbar']");
+    const progressBar = card.querySelector(
+      "[data-nutrition-progress-bar]",
+    );
+    const progressText = card.querySelector(
+      "[data-nutrition-progress-text]",
+    );
+
+    currentElement.textContent =
+      `${formatNumber(item.current_value, config.decimals)}${config.suffix}`;
+
+    if (item.target_value === null) {
+      progressTrack.setAttribute("aria-valuenow", "0");
+      progressBar.style.width = "0%";
+      progressText.textContent =
+        "Configura un objetivo en la pantalla de Objetivos.";
+      card.classList.remove("completed", "exceeded");
+      continue;
+    }
+
+    const displayPercentage = Math.min(
+      item.progress_percentage,
+      100,
+    );
+
+    progressTrack.setAttribute(
+      "aria-valuenow",
+      String(item.progress_percentage),
+    );
+    progressBar.style.width = `${displayPercentage}%`;
+
+    const targetText =
+      `${formatNumber(item.current_value, config.decimals)}${config.suffix} ` +
+      `de ${formatNumber(item.target_value, config.decimals)}${config.suffix}`;
+
+    if (item.is_completed) {
+      const exceededValue = Math.abs(item.remaining_value);
+
+      progressText.textContent = exceededValue === 0
+        ? `Objetivo alcanzado · ${targetText}`
+        : `Objetivo superado por ${formatNumber(
+            exceededValue,
+            config.decimals,
+          )}${config.suffix} · ${targetText}`;
+    } else {
+      progressText.textContent =
+        `Faltan ${formatNumber(
+          item.remaining_value,
+          config.decimals,
+        )}${config.suffix} · ${targetText}`;
+    }
+
+    card.classList.toggle("completed", item.is_completed);
+    card.classList.toggle(
+      "exceeded",
+      item.is_completed && item.remaining_value < 0,
+    );
+  }
+}
+
+
+async function loadNutritionGoalProgress(targetDate) {
+  try {
+    const progress = await request(
+      `/goals/nutrition-progress?target_date=${encodeURIComponent(
+        targetDate,
+      )}`,
+    );
+
+    renderNutritionGoalProgress(progress);
+  } catch (error) {
+    showStatus(error.message, "error");
+  }
+}
 
 function resetSelectedMeal() {
   state.selectedMeal = null;
@@ -330,6 +438,10 @@ async function loadNutritionMeals(dayId) {
 async function loadNutritionFoods(mealId) {
   state.foods = await request(`/nutrition-meals/${mealId}/foods/`);
   renderFoods();
+
+  if (state.selectedDay) {
+    await loadNutritionGoalProgress(state.selectedDay.date);
+  }
 }
 
 
@@ -342,7 +454,10 @@ async function selectNutritionDay(nutritionDay) {
   resetSelectedMeal();
 
   try {
-    await loadNutritionMeals(nutritionDay.id);
+    await Promise.all([
+      loadNutritionMeals(nutritionDay.id),
+      loadNutritionGoalProgress(nutritionDay.date),
+    ]);
     renderNutritionDays();
   } catch (error) {
     showStatus(error.message, "error");
