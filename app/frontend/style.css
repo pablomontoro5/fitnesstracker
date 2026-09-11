@@ -1899,3 +1899,281 @@ a.history-button:hover {
     width: 100%;
   }
 }
+
+.body-composition-section {
+  margin: 2.5rem 0;
+}
+
+
+.body-composition-content {
+  display: grid;
+  gap: 1.25rem;
+}
+
+
+.body-composition-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+
+.body-composition-summary .statistic-card {
+  min-height: 160px;
+}
+
+
+.body-composition-summary h3 {
+  margin-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+
+.body-composition-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+
+.body-composition-history {
+  margin-bottom: 0;
+}
+
+
+.body-composition-table-wrapper {
+  overflow-x: auto;
+}
+
+
+.body-composition-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+}
+
+
+.body-composition-table th,
+.body-composition-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+
+.body-composition-table th {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+
+.body-composition-table td {
+  font-size: 0.88rem;
+}
+
+
+.body-composition-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+
+@media (max-width: 1000px) {
+  .body-composition-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+@media (max-width: 700px) {
+  .body-composition-summary,
+  .body-composition-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.body-metrics-page {
+  padding-bottom: 2rem;
+}
+
+
+.body-metrics-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  align-items: start;
+  gap: 1.25rem;
+  margin: 1.25rem 0 2rem;
+}
+
+
+.body-metric-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+
+.body-metric-fieldset {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+
+.body-metric-fieldset legend {
+  padding: 0 0.25rem;
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+
+.body-metric-measurements-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+
+.body-metric-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+
+.body-metric-preview > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.85rem;
+  border-radius: 0.7rem;
+  background: var(--primary-soft);
+}
+
+
+.body-metric-preview span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+
+.body-metric-preview strong {
+  color: var(--primary);
+  font-size: 1.1rem;
+}
+
+
+.body-metrics-history-panel {
+  margin-bottom: 0;
+}
+
+
+.body-metrics-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+
+.body-metric-card {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+
+.body-metric-card:hover {
+  border-color: var(--primary);
+  background: #fbfefc;
+}
+
+
+.body-metric-card-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+}
+
+
+.body-metric-date,
+.body-metric-bmi,
+.body-metric-composition,
+.body-metric-measurements,
+.body-metric-notes {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+
+.body-metric-card-main strong {
+  color: var(--primary);
+  font-size: 1.15rem;
+}
+
+
+.body-metric-notes {
+  overflow: hidden;
+  max-width: 420px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.body-metric-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.55rem;
+}
+
+
+@media (max-width: 1000px) {
+  .body-metrics-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 700px) {
+  .body-metric-measurements-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+
+  .body-metric-preview {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 560px) {
+  .body-metric-form,
+  .body-metric-measurements-grid {
+    grid-template-columns: 1fr;
+  }
+
+
+  .body-metric-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+
+  .body-metric-actions {
+    width: 100%;
+  }
+
+
+  .body-metric-actions .secondary-button,
+  .body-metric-actions .danger-button {
+    flex: 1;
+  }
+}

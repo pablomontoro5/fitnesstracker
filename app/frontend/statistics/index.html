@@ -180,6 +180,148 @@
           </div>
         </article>
       </div>
+
+      <section
+        class="body-composition-section"
+        aria-labelledby="body-composition-title"
+      >
+        <div class="charts-heading">
+          <div>
+            <p class="eyebrow">Composición corporal</p>
+            <h2 id="body-composition-title">Evolución corporal</h2>
+            <p>
+              Consulta cambios de peso, IMC, porcentaje de grasa y perímetros
+              durante el periodo seleccionado.
+            </p>
+          </div>
+        </div>
+
+        <p
+          id="body-composition-status"
+          class="status-message"
+          role="status"
+          aria-live="polite"
+        ></p>
+
+        <div
+          id="body-composition-content"
+          class="body-composition-content hidden"
+        >
+          <section class="body-composition-summary">
+            <article class="statistic-card">
+              <p class="eyebrow">Última medición</p>
+              <h3>Peso</h3>
+              <strong id="composition-latest-weight" class="statistic-value">—</strong>
+              <p id="composition-weight-change" class="statistic-detail">—</p>
+            </article>
+
+            <article class="statistic-card">
+              <p class="eyebrow">Índice corporal</p>
+              <h3>IMC</h3>
+              <strong id="composition-latest-bmi" class="statistic-value">—</strong>
+              <p id="composition-bmi-change" class="statistic-detail">—</p>
+            </article>
+
+            <article class="statistic-card">
+              <p class="eyebrow">Composición</p>
+              <h3>Grasa corporal</h3>
+              <strong id="composition-latest-body-fat" class="statistic-value">—</strong>
+              <p id="composition-body-fat-change" class="statistic-detail">—</p>
+            </article>
+
+            <article class="statistic-card">
+              <p class="eyebrow">Composición</p>
+              <h3>Masa libre de grasa</h3>
+              <strong id="composition-latest-lean-mass" class="statistic-value">—</strong>
+              <p id="composition-lean-mass-change" class="statistic-detail">—</p>
+            </article>
+          </section>
+
+          <div class="body-composition-charts">
+            <article class="chart-card">
+              <h3>IMC y peso</h3>
+              <p class="chart-description">
+                Tendencia de peso corporal e IMC durante el periodo.
+              </p>
+              <div class="chart-canvas-wrapper">
+                <canvas id="body-composition-weight-chart"></canvas>
+              </div>
+            </article>
+
+            <article class="chart-card">
+              <h3>Grasa corporal</h3>
+              <p class="chart-description">
+                Porcentaje de grasa corporal registrado en cada medición.
+              </p>
+              <div
+                id="body-fat-chart-empty"
+                class="empty-state large-empty-state hidden"
+              ></div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="body-composition-fat-chart"></canvas>
+              </div>
+            </article>
+
+            <article class="chart-card">
+              <h3>Masa grasa y masa libre de grasa</h3>
+              <p class="chart-description">
+                Valores derivados del peso y porcentaje de grasa corporal.
+              </p>
+              <div
+                id="body-mass-chart-empty"
+                class="empty-state large-empty-state hidden"
+              ></div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="body-composition-mass-chart"></canvas>
+              </div>
+            </article>
+
+            <article class="chart-card">
+              <h3>Perímetros corporales</h3>
+              <p class="chart-description">
+                Cintura, cadera, pecho, brazo y muslo cuando existen mediciones.
+              </p>
+              <div
+                id="body-measurements-chart-empty"
+                class="empty-state large-empty-state hidden"
+              ></div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="body-composition-measurements-chart"></canvas>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel body-composition-history">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Detalle</p>
+                <h3>Historial de mediciones</h3>
+              </div>
+            </div>
+
+            <div class="body-composition-table-wrapper">
+              <table class="body-composition-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Peso</th>
+                    <th scope="col">IMC</th>
+                    <th scope="col">Grasa</th>
+                    <th scope="col">Masa grasa</th>
+                    <th scope="col">Masa libre</th>
+                    <th scope="col">Cintura</th>
+                    <th scope="col">Cadera</th>
+                    <th scope="col">Pecho</th>
+                    <th scope="col">Brazo</th>
+                    <th scope="col">Muslo</th>
+                  </tr>
+                </thead>
+                <tbody id="body-composition-history-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
       <section
         class="exercise-progress-section"
         aria-labelledby="exercise-progress-title"
