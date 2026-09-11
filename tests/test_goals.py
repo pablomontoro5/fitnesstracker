@@ -525,3 +525,158 @@ def test_nutrition_goal_progress_rejects_invalid_date():
         )
 
     assert response.status_code == 422
+
+def create_recovery_log(
+    client: TestClient,
+    *,
+    log_date: str,
+    sleep_minutes: int | None = None,
+    sleep_quality: int | None = None,
+    is_rest_day: bool = False,
+    notes: str | None = None,
+) -> dict:
+    response = client.post(
+        "/recovery-logs/",
+        json={
+            "date": log_date,
+            "sleep_minutes": sleep_minutes,
+            "sleep_quality": sleep_quality,
+            "is_rest_day": is_rest_day,
+            "notes": notes,
+        },
+    )
+
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_goals_progress_includes_sleep_and_rest_day_goals():
+    today = date(2026, 9, 9)
+
+    with TestClient(app) as client:
+        client.put(
+            "/goals/daily_sleep_minutes",
+            json={
+                "target_value": 480,
+            },
+        )
+        client.put(
+            "/goals/weekly_rest_days",
+            json={
+                "target_value": 3,
+            },
+        )
+
+        create_recovery_log(
+            client,
+            log_date="2026-09-09",
+            sleep_minutes=450,
+            sleep_quality=4,
+            is_rest_day=False,
+        )
+        create_recovery_log(
+            client,
+            log_date="2026-09-08",
+            sleep_minutes=490,
+            sleep_quality=5,
+            is_rest_day=True,
+        )
+        create_recovery_log(
+            client,
+            log_date="2026-09-07",
+            sleep_minutes=470,
+            sleep_quality=3,
+            is_rest_day=True,
+        )
+        create_recovery_log(
+            client,
+            log_date="2026-09-06",
+            sleep_minutes=510,
+            sleep_quality=4,
+            is_rest_day=True,
+        )
+
+    progress_by_type = {
+        progress.goal_type: progress
+        for progress in build_goals_progress(today=today)
+    }
+
+    sleep_progress = progress_by_type["daily_sleep_minutes"]
+    rest_days_progress = progress_by_type["weekly_rest_days"]
+
+    assert sleep_progress.current_value == 450
+    assert sleep_progress.target_value == 480
+    assert sleep_progress.progress_percentage == 93.8
+    assert sleep_progress.is_completed is False
+
+    assert rest_days_progress.current_value == 2
+    assert rest_days_progress.target_value == 3
+    assert rest_days_progress.progress_percentage == 66.7
+    assert rest_days_progress.is_completed is False
+
+
+def test_weekly_rest_days_excludes_logs_before_current_week():
+    today = date(2026, 9, 9)
+
+    with TestClient(app) as client:
+        client.put(
+            "/goals/weekly_rest_days",
+            json={
+                "target_value": 2,
+            },
+        )
+
+        create_recovery_log(
+            client,
+            log_date="2026-09-07",
+            is_rest_day=True,
+        )
+        create_recovery_log(
+            client,
+            log_date="2026-09-06",
+            is_rest_day=True,
+        )
+
+    progress_items = build_goals_progress(today=today)
+    progress_by_type = {
+        progress.goal_type: progress
+        for progress in progress_items
+    }
+
+    rest_days_progress = progress_by_type["weekly_rest_days"]
+
+    assert rest_days_progress.current_value == 1
+    assert rest_days_progress.target_value == 2
+    assert rest_days_progress.progress_percentage == 50
+    assert rest_days_progress.is_completed is False
+
+
+def test_goals_progress_excludes_nutrition_goal_types():
+    today = date(2026, 9, 9)
+
+    with TestClient(app) as client:
+        client.put(
+            "/goals/daily_steps",
+            json={
+                "target_value": 8000,
+            },
+        )
+        client.put(
+            "/goals/daily_calories",
+            json={
+                "target_value": 2400,
+            },
+        )
+        client.put(
+            "/goals/daily_protein_g",
+            json={
+                "target_value": 150,
+            },
+        )
+
+    progress_goal_types = {
+        progress.goal_type
+        for progress in build_goals_progress(today=today)
+    }
+
+    assert progress_goal_types == {"daily_steps"}
