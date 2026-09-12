@@ -14,6 +14,22 @@ DATABASE_FILENAME = (
 
 DATABASE_PATH = DATA_DIR / DATABASE_FILENAME
 
+FITNESS_GOAL_TYPES = (
+    "daily_steps",
+    "weekly_workouts",
+    "weekly_running_km",
+    "daily_calories",
+    "daily_protein_g",
+    "daily_carbs_g",
+    "daily_fat_g",
+    "daily_sleep_minutes",
+    "weekly_rest_days",
+)
+
+FITNESS_GOAL_TYPES_SQL = ", ".join(
+    f"'{goal_type}'"
+    for goal_type in FITNESS_GOAL_TYPES
+)
 
 def get_connection() -> sqlite3.Connection:
     """Devuelve una conexión configurada con la base de datos SQLite."""
@@ -28,16 +44,6 @@ def get_connection() -> sqlite3.Connection:
 def migrate_fitness_goals_table(
     connection: sqlite3.Connection,
 ) -> None:
-    required_goal_types = {
-        "daily_steps",
-        "weekly_workouts",
-        "weekly_running_km",
-        "daily_calories",
-        "daily_protein_g",
-        "daily_carbs_g",
-        "daily_fat_g",
-    }
-
     table_sql_row = connection.execute(
         """
         SELECT sql
@@ -52,23 +58,15 @@ def migrate_fitness_goals_table(
 
     table_sql = table_sql_row["sql"] or ""
 
-    if all(goal_type in table_sql for goal_type in required_goal_types):
+    if all(goal_type in table_sql for goal_type in FITNESS_GOAL_TYPES):
         return
 
     connection.execute(
-        """
+        f"""
         CREATE TABLE fitness_goals_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             goal_type TEXT NOT NULL UNIQUE CHECK (
-                goal_type IN (
-                    'daily_steps',
-                    'weekly_workouts',
-                    'weekly_running_km',
-                    'daily_calories',
-                    'daily_protein_g',
-                    'daily_carbs_g',
-                    'daily_fat_g'
-                )
+                goal_type IN ({FITNESS_GOAL_TYPES_SQL})
             ),
             target_value REAL NOT NULL CHECK (target_value > 0),
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -100,8 +98,6 @@ def migrate_fitness_goals_table(
     connection.execute(
         "ALTER TABLE fitness_goals_new RENAME TO fitness_goals"
     )
-    
-
 def initialize_database() -> None:
 
     """Crea las tablas necesarias si todavía no existen."""
@@ -128,6 +124,23 @@ def initialize_database() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL UNIQUE,
                 steps INTEGER NOT NULL DEFAULT 0 CHECK (steps >= 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_recovery_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL UNIQUE,
+                sleep_minutes INTEGER
+                    CHECK (sleep_minutes >= 0 AND sleep_minutes <= 1440),
+                sleep_quality INTEGER
+                    CHECK (sleep_quality >= 1 AND sleep_quality <= 5),
+                is_rest_day INTEGER NOT NULL DEFAULT 0
+                    CHECK (is_rest_day IN (0, 1)),
                 notes TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
@@ -350,19 +363,11 @@ def initialize_database() -> None:
         )
 
         connection.execute(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS fitness_goals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 goal_type TEXT NOT NULL UNIQUE CHECK (
-                    goal_type IN (
-                        'daily_steps',
-                        'weekly_workouts',
-                        'weekly_running_km',
-                        'daily_calories',
-                        'daily_protein_g',
-                        'daily_carbs_g',
-                        'daily_fat_g'
-                    )
+                    goal_type IN ({FITNESS_GOAL_TYPES_SQL})
                 ),
                 target_value REAL NOT NULL CHECK (target_value > 0),
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

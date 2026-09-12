@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: registro e historial de descanso y recuperación."
+  />
+  <title>Descanso y recuperación · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container recovery-page">
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Recuperación</p>
+        <h2>Descanso y sueño</h2>
+        <p>
+          Registra cuánto dormiste, cómo valoras tu descanso y si fue un día
+          de recuperación. Estas métricas son un seguimiento personal, no una
+          evaluación médica.
+        </p>
+      </div>
+    </section>
+
+    <p
+      id="recovery-status"
+      class="status-message"
+      role="status"
+      aria-live="polite"
+    ></p>
+
+    <section class="recovery-layout">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Registro diario</p>
+            <h2 id="recovery-form-title">Registrar recuperación</h2>
+          </div>
+
+          <span id="recovery-mode" class="mode-badge">Nuevo registro</span>
+        </div>
+
+        <form id="recovery-form" class="form-grid recovery-form">
+          <label>
+            Fecha
+            <input
+              id="recovery-date"
+              name="date"
+              type="date"
+              required
+            />
+          </label>
+
+          <label>
+            Sueño en horas
+            <span class="optional">Opcional</span>
+            <input
+              id="sleep-hours"
+              name="sleep_hours"
+              type="number"
+              min="0"
+              max="24"
+              step="0.25"
+              inputmode="decimal"
+              placeholder="Ej.: 7.5"
+            />
+          </label>
+
+          <label>
+            Calidad del sueño
+            <span class="optional">1 muy mala · 5 excelente</span>
+            <select id="sleep-quality" name="sleep_quality">
+              <option value="">No registrada</option>
+              <option value="1">1 · Muy mala</option>
+              <option value="2">2 · Mala</option>
+              <option value="3">3 · Normal</option>
+              <option value="4">4 · Buena</option>
+              <option value="5">5 · Excelente</option>
+            </select>
+          </label>
+
+          <label class="recovery-rest-day-control">
+            <span>Día de descanso</span>
+            <span class="recovery-checkbox-row">
+              <input
+                id="is-rest-day"
+                name="is_rest_day"
+                type="checkbox"
+              />
+              <span>Marcar como día de descanso o recuperación</span>
+            </span>
+          </label>
+
+          <div class="recovery-preview full-width" aria-live="polite">
+            <div>
+              <span>Sueño registrado</span>
+              <strong id="sleep-preview">Sin dato</strong>
+            </div>
+
+            <div>
+              <span>Estado del día</span>
+              <strong id="rest-day-preview">Día activo</strong>
+            </div>
+          </div>
+
+          <label class="full-width">
+            Notas
+            <span class="optional">Opcional</span>
+            <textarea
+              id="recovery-notes"
+              name="notes"
+              rows="4"
+              maxlength="1000"
+              placeholder="Ej.: Descansé del gimnasio y hice movilidad suave."
+            ></textarea>
+          </label>
+
+          <div class="form-actions full-width">
+            <button
+              id="cancel-recovery-edit-button"
+              class="secondary-button hidden"
+              type="button"
+            >
+              Cancelar edición
+            </button>
+
+            <button
+              id="save-recovery-button"
+              class="primary-button"
+              type="submit"
+            >
+              Guardar recuperación
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel recovery-history-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Historial</p>
+            <h2>Recuperación registrada</h2>
+          </div>
+
+          <span id="recovery-count" class="counter">0</span>
+        </div>
+
+        <div id="recovery-list" class="recovery-list">
+          <div class="empty-state large-empty-state">
+            Cargando registros de recuperación…
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script src="/static/recovery.js" type="module"></script>
+</body>
+</html>

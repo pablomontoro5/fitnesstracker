@@ -41,6 +41,20 @@ const GOAL_CONFIG = {
     targetPrefix: "Objetivo diario: ",
     decimalPlaces: 1,
   },
+
+  daily_sleep_minutes: {
+    currentSuffix: "",
+    targetSuffix: "",
+    targetPrefix: "Objetivo diario: ",
+    decimalPlaces: 0,
+    valueType: "sleep",
+  },
+  weekly_rest_days: {
+    currentSuffix: " días",
+    targetSuffix: " días",
+    targetPrefix: "Objetivo semanal: ",
+    decimalPlaces: 0,
+  },
 };
 
 const statusMessage = document.querySelector("#goals-status");
@@ -61,6 +75,45 @@ function formatValue(value, decimalPlaces) {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimalPlaces,
   }).format(value);
+}
+
+function formatSleepMinutes(value) {
+  const totalMinutes = Math.round(value);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes} min`;
+  }
+
+  if (minutes === 0) {
+    return `${hours} h`;
+  }
+
+  return `${hours} h ${minutes} min`;
+}
+
+
+function minutesToHoursInputValue(minutes) {
+  return (minutes / 60).toFixed(2).replace(/\.?0+$/, "");
+}
+
+
+function getDisplayValue(value, config) {
+  if (config.valueType === "sleep") {
+    return formatSleepMinutes(value);
+  }
+
+  return `${formatValue(value, config.decimalPlaces)}${config.currentSuffix}`;
+}
+
+
+function getTargetLabelValue(value, config) {
+  if (config.valueType === "sleep") {
+    return formatSleepMinutes(value);
+  }
+
+  return `${formatValue(value, config.decimalPlaces)}${config.targetSuffix}`;
 }
 
 async function readErrorMessage(response) {
@@ -107,20 +160,18 @@ function renderGoal(goalType, goal, progress) {
   const current = progress?.current_value ?? 0;
   const percentage = progress?.progress_percentage ?? 0;
   const isCompleted = progress?.is_completed ?? false;
-  const currentFormatted = formatValue(
-    current,
-    config.decimalPlaces
-  );
-  const targetFormatted = formatValue(
+  const currentFormatted = getDisplayValue(current, config);
+  const targetFormatted = getTargetLabelValue(
     goal.target_value,
-    config.decimalPlaces
+    config,
   );
 
-  input.value = goal.target_value;
-  currentValue.textContent = `${currentFormatted}${config.currentSuffix}`;
-  targetLabel.textContent = (
-    `${config.targetPrefix}${targetFormatted}${config.targetSuffix}`
-  );
+  input.value = config.valueType === "sleep"
+    ? minutesToHoursInputValue(goal.target_value)
+    : goal.target_value;
+
+  currentValue.textContent = currentFormatted;
+  targetLabel.textContent = `${config.targetPrefix}${targetFormatted}`;
   progressTrack.setAttribute("aria-valuenow", String(percentage));
   progressBar.style.width = `${percentage}%`;
   progressText.textContent = progress
@@ -178,13 +229,38 @@ async function saveGoal(event) {
   const goalType = card.dataset.goalType;
   const input = card.querySelector("[data-target-input]");
   const saveButton = card.querySelector("[data-save-button]");
-  const targetValue = Number(input.value);
+  const inputValue = Number(input.value);
+  const config = GOAL_CONFIG[goalType];
+  const targetValue = config.valueType === "sleep"
+    ? Math.round(inputValue * 60)
+    : inputValue;
 
-  if (!Number.isFinite(targetValue) || targetValue <= 0) {
-    showStatus("Introduce un objetivo mayor que cero.", "error");
-    input.focus();
-    return;
-  }
+    if (!Number.isFinite(inputValue) || inputValue <= 0) {
+      showStatus("Introduce un objetivo mayor que cero.", "error");
+      input.focus();
+      return;
+    }
+
+    if (goalType === "daily_sleep_minutes" && inputValue > 24) {
+      showStatus(
+        "El objetivo de sueño no puede superar 24 horas.",
+        "error",
+      );
+      input.focus();
+      return;
+    }
+
+    if (
+      goalType === "weekly_rest_days" &&
+      (!Number.isInteger(inputValue) || inputValue > 7)
+    ) {
+      showStatus(
+        "El objetivo de días de descanso debe ser un número entero entre 1 y 7.",
+        "error",
+      );
+      input.focus();
+      return;
+    }
 
   saveButton.disabled = true;
 

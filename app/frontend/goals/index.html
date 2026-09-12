@@ -32,8 +32,8 @@
         <p class="eyebrow">Progreso personal</p>
         <h2>Define metas y sigue tu avance</h2>
         <p>
-          Configura objetivos de actividad y nutrición. El progreso se actualiza
-          con los registros que ya tienes guardados.
+          Configura objetivos de actividad, nutrición y recuperación. El progreso
+          se actualiza con los registros que ya tienes guardados.
         </p>
       </div>
     </section>
@@ -240,6 +240,161 @@
           </div>
         </form>
       </article>
+    </section>
+
+    <section
+      class="recovery-goals-section"
+      aria-labelledby="recovery-goals-title"
+    >
+      <div class="charts-heading">
+        <div>
+          <p class="eyebrow">Recuperación</p>
+          <h2 id="recovery-goals-title">Objetivos de descanso</h2>
+          <p>
+            Define objetivos personales de sueño y de días de descanso. El
+            progreso se actualiza con tus registros de recuperación.
+          </p>
+        </div>
+      </div>
+
+      <section class="goals-grid" aria-label="Objetivos de recuperación">
+        <article
+          class="panel goal-card"
+          data-goal-type="daily_sleep_minutes"
+        >
+          <div class="goal-card-heading">
+            <div>
+              <p class="eyebrow">Cada día</p>
+              <h2>Sueño</h2>
+            </div>
+            <span class="goal-icon" aria-hidden="true">🌙</span>
+          </div>
+
+          <p class="goal-description">
+            Define las horas de sueño que quieres registrar durante el día.
+          </p>
+
+          <div class="goal-progress-summary">
+            <strong data-current-value>Sin objetivo</strong>
+            <span data-target-label></span>
+          </div>
+
+          <div
+            class="goal-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="goal-progress-bar" data-progress-bar></span>
+          </div>
+
+          <p class="goal-progress-text" data-progress-text>
+            Configura un objetivo para empezar.
+          </p>
+
+          <p class="goal-completed-message hidden" data-completed-message>
+            ✓ Objetivo completado
+          </p>
+
+          <form class="goal-form" data-goal-form>
+            <label>
+              Objetivo de sueño en horas
+              <input
+                data-target-input
+                type="number"
+                min="0.25"
+                max="24"
+                step="0.25"
+                placeholder="Ej.: 8"
+                required
+              />
+            </label>
+
+            <div class="goal-actions">
+              <button class="primary-button" type="submit" data-save-button>
+                Guardar objetivo
+              </button>
+              <button
+                class="danger-button hidden"
+                type="button"
+                data-delete-button
+              >
+                Eliminar
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <article
+          class="panel goal-card"
+          data-goal-type="weekly_rest_days"
+        >
+          <div class="goal-card-heading">
+            <div>
+              <p class="eyebrow">Esta semana</p>
+              <h2>Días de descanso</h2>
+            </div>
+            <span class="goal-icon" aria-hidden="true">🛌</span>
+          </div>
+
+          <p class="goal-description">
+            Define cuántos días de descanso o recuperación quieres registrar
+            durante la semana.
+          </p>
+
+          <div class="goal-progress-summary">
+            <strong data-current-value>Sin objetivo</strong>
+            <span data-target-label></span>
+          </div>
+
+          <div
+            class="goal-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span class="goal-progress-bar" data-progress-bar></span>
+          </div>
+
+          <p class="goal-progress-text" data-progress-text>
+            Configura un objetivo para empezar.
+          </p>
+
+          <p class="goal-completed-message hidden" data-completed-message>
+            ✓ Objetivo completado
+          </p>
+
+          <form class="goal-form" data-goal-form>
+            <label>
+              Objetivo de días de descanso
+              <input
+                data-target-input
+                type="number"
+                min="1"
+                max="7"
+                step="1"
+                placeholder="Ej.: 2"
+                required
+              />
+            </label>
+
+            <div class="goal-actions">
+              <button class="primary-button" type="submit" data-save-button>
+                Guardar objetivo
+              </button>
+              <button
+                class="danger-button hidden"
+                type="button"
+                data-delete-button
+              >
+                Eliminar
+              </button>
+            </div>
+          </form>
+        </article>
+      </section>
     </section>
     <section class="nutrition-goals-section" aria-labelledby="nutrition-goals-title">
       <div class="charts-heading">
