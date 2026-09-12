@@ -2357,3 +2357,194 @@ a.history-button:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.recovery-page {
+  padding-bottom: 2rem;
+}
+
+
+.recovery-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  align-items: start;
+  gap: 1.25rem;
+  margin: 1.25rem 0 2rem;
+}
+
+
+.recovery-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+
+.recovery-rest-day-control {
+  align-content: start;
+}
+
+
+.recovery-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.55rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #cbd8d0;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+
+.recovery-checkbox-row input {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+
+.recovery-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+
+.recovery-preview > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.85rem;
+  border-radius: 0.7rem;
+  background: var(--primary-soft);
+}
+
+
+.recovery-preview span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+
+.recovery-preview strong {
+  color: var(--primary);
+  font-size: 1.1rem;
+}
+
+
+.recovery-history-panel {
+  margin-bottom: 0;
+}
+
+
+.recovery-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+
+.recovery-card {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+
+.recovery-card:hover {
+  border-color: var(--primary);
+  background: #fbfefc;
+}
+
+
+.recovery-card.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+
+.recovery-card-main {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+}
+
+
+.recovery-date,
+.recovery-meta,
+.recovery-notes {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+
+.recovery-card-main strong {
+  color: var(--primary);
+  font-size: 1.15rem;
+}
+
+
+.recovery-notes {
+  overflow: hidden;
+  max-width: 420px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.recovery-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.55rem;
+}
+
+
+.recovery-goals-section {
+  margin: 2rem 0;
+}
+
+
+@media (max-width: 1000px) {
+  .recovery-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 700px) {
+  .recovery-preview {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 560px) {
+  .recovery-form {
+    grid-template-columns: 1fr;
+  }
+
+
+  .recovery-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+
+  .recovery-actions {
+    width: 100%;
+  }
+
+
+  .recovery-actions .secondary-button,
+  .recovery-actions .danger-button {
+    flex: 1;
+  }
+}
