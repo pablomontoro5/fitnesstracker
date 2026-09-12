@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Fitness Tracker API",
-    description="API para registrar actividad, gimnasio, running, nutrición y métricas corporales.",
+    description="API para registrar actividad, gimnasio, running, nutrición, recuperación y métricas corporales.",
     version="0.1.0",
     lifespan=lifespan,
 )
