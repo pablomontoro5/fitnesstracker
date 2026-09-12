@@ -115,6 +115,34 @@ def create_or_update_goal(
     goal_type: GoalType,
     goal: FitnessGoalUpsert,
 ) -> FitnessGoalResponse:
+
+    if (
+        goal_type == "daily_sleep_minutes"
+        and goal.target_value > 1440
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "El objetivo diario de sueño no puede superar "
+                "1440 minutos."
+            ),
+        )
+
+    if (
+        goal_type == "weekly_rest_days"
+        and (
+            not goal.target_value.is_integer()
+            or goal.target_value > 7
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "El objetivo semanal de descanso debe ser un "
+                "número entero entre 1 y 7."
+            ),
+        )
+    
     with get_connection() as connection:
         connection.execute(
             """

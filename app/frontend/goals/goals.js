@@ -235,32 +235,32 @@ async function saveGoal(event) {
     ? Math.round(inputValue * 60)
     : inputValue;
 
-    if (!Number.isFinite(inputValue) || inputValue <= 0) {
-      showStatus("Introduce un objetivo mayor que cero.", "error");
-      input.focus();
-      return;
-    }
+  if (!Number.isFinite(inputValue) || inputValue <= 0) {
+    showStatus("Introduce un objetivo mayor que cero.", "error");
+    input.focus();
+    return;
+  }
 
-    if (goalType === "daily_sleep_minutes" && inputValue > 24) {
-      showStatus(
-        "El objetivo de sueño no puede superar 24 horas.",
-        "error",
-      );
-      input.focus();
-      return;
-    }
+  if (goalType === "daily_sleep_minutes" && inputValue > 24) {
+    showStatus(
+      "El objetivo de sueño no puede superar 24 horas.",
+      "error",
+    );
+    input.focus();
+    return;
+  }
 
-    if (
-      goalType === "weekly_rest_days" &&
-      (!Number.isInteger(inputValue) || inputValue > 7)
-    ) {
-      showStatus(
-        "El objetivo de días de descanso debe ser un número entero entre 1 y 7.",
-        "error",
-      );
-      input.focus();
-      return;
-    }
+  if (
+    goalType === "weekly_rest_days" &&
+    (!Number.isInteger(inputValue) || inputValue > 7)
+  ) {
+    showStatus(
+      "El objetivo de días de descanso debe ser un número entero entre 1 y 7.",
+      "error",
+    );
+    input.focus();
+    return;
+  }
 
   saveButton.disabled = true;
 
