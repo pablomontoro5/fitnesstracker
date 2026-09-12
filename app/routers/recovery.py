@@ -73,10 +73,15 @@ def create_recovery_log(
                 (cursor.lastrowid,),
             ).fetchone()
     except sqlite3.IntegrityError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un registro de recuperación para esta fecha.",
-        ) from error
+        if "daily_recovery_logs.date" in str(error):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Ya existe un registro de recuperación para esta fecha."
+                ),
+            ) from error
+
+        raise
 
     return row_to_recovery_log(row)
 
