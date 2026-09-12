@@ -680,3 +680,51 @@ def test_goals_progress_excludes_nutrition_goal_types():
     }
 
     assert progress_goal_types == {"daily_steps"}
+
+def test_sleep_goal_cannot_exceed_one_day():
+    with TestClient(app) as client:
+        response = client.put(
+            "/goals/daily_sleep_minutes",
+            json={"target_value": 1441},
+        )
+
+    assert response.status_code == 422
+
+
+def test_weekly_rest_day_goal_must_be_integer_up_to_seven():
+    with TestClient(app) as client:
+        decimal_response = client.put(
+            "/goals/weekly_rest_days",
+            json={"target_value": 2.5},
+        )
+        excessive_response = client.put(
+            "/goals/weekly_rest_days",
+            json={"target_value": 8},
+        )
+
+    assert decimal_response.status_code == 422
+    assert excessive_response.status_code == 422
+
+def test_sleep_goal_cannot_exceed_one_day():
+    with TestClient(app) as client:
+        response = client.put(
+            "/goals/daily_sleep_minutes",
+            json={"target_value": 1441},
+        )
+
+    assert response.status_code == 422
+
+
+def test_weekly_rest_day_goal_must_be_integer_and_at_most_seven():
+    with TestClient(app) as client:
+        decimal_response = client.put(
+            "/goals/weekly_rest_days",
+            json={"target_value": 2.5},
+        )
+        excessive_response = client.put(
+            "/goals/weekly_rest_days",
+            json={"target_value": 8},
+        )
+
+    assert decimal_response.status_code == 422
+    assert excessive_response.status_code == 422
