@@ -44,66 +44,10 @@ def get_connection() -> sqlite3.Connection:
 def migrate_fitness_goals_table(
     connection: sqlite3.Connection,
 ) -> None:
-    table_sql_row = connection.execute(
-        """
-        SELECT sql
-        FROM sqlite_master
-        WHERE type = 'table'
-            AND name = 'fitness_goals'
-        """
-    ).fetchone()
-
-    if table_sql_row is None:
-        return
-
-    table_sql = table_sql_row["sql"] or ""
-
-    if all(goal_type in table_sql for goal_type in FITNESS_GOAL_TYPES):
-        return
-
-    connection.execute(
-        f"""
-        CREATE TABLE fitness_goals_new (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            goal_type TEXT NOT NULL UNIQUE CHECK (
-                goal_type IN ({FITNESS_GOAL_TYPES_SQL})
-            ),
-            target_value REAL NOT NULL CHECK (target_value > 0),
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-
-    connection.execute(
-        """
-        INSERT INTO fitness_goals_new (
-            id,
-            goal_type,
-            target_value,
-            created_at,
-            updated_at
-        )
-        SELECT
-            id,
-            goal_type,
-            target_value,
-            created_at,
-            updated_at
-        FROM fitness_goals
-        """
-    )
-
-    connection.execute("DROP TABLE fitness_goals")
-    connection.execute(
-        "ALTER TABLE fitness_goals_new RENAME TO fitness_goals"
-    )
-
-def migrate_daily_logs_table(connection: sqlite3.Connection) -> None:
     columns = {
         row["name"]
         for row in connection.execute(
-            "PRAGMA table_info(daily_logs)"
+            "PRAGMA table_info(fitness_goals)"
         ).fetchall()
     }
 
@@ -119,10 +63,83 @@ def migrate_daily_logs_table(connection: sqlite3.Connection) -> None:
         """
     ).fetchone()
 
+    legacy_goals_count = connection.execute(
+        "SELECT COUNT(*) AS count FROM fitness_goals"
+    ).fetchone()["count"]
+
+    if first_user_row is None and legacy_goals_count > 0:
+        raise RuntimeError(
+            "No se pueden migrar objetivos sin un usuario propietario."
+        )
+
     if first_user_row is None:
         return
 
     legacy_user_id = first_user_row["id"]
+
+    connection.execute(
+        f"""
+        CREATE TABLE fitness_goals_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            goal_type TEXT NOT NULL CHECK (
+                goal_type IN ({FITNESS_GOAL_TYPES_SQL})
+            ),
+            target_value REAL NOT NULL CHECK (target_value > 0),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+            UNIQUE (user_id, goal_type)
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO fitness_goals_new (
+            id,
+            user_id,
+            goal_type,
+            target_value,
+            created_at,
+            updated_at
+        )
+        SELECT
+            id,
+            ?,
+            goal_type,
+            target_value,
+            created_at,
+            updated_at
+        FROM fitness_goals
+        """,
+        (legacy_user_id,),
+    )
+
+    connection.execute("DROP TABLE fitness_goals")
+    connection.execute(
+        "ALTER TABLE fitness_goals_new RENAME TO fitness_goals"
+    )
+def migrate_daily_logs_table(connection: sqlite3.Connection) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(daily_logs)"
+        ).fetchall()
+    }
+
+    if "user_id" in columns:
+        return
+    first_user_row = connection.execute(
+        """
+        SELECT id
+        FROM users
+        ORDER BY id ASC
+        LIMIT 1
+        """
+    ).fetchone()
 
     legacy_logs_count = connection.execute(
         "SELECT COUNT(*) AS count FROM daily_logs"
@@ -135,6 +152,9 @@ def migrate_daily_logs_table(connection: sqlite3.Connection) -> None:
 
     if first_user_row is None:
         return
+
+    legacy_user_id = first_user_row["id"]
+
 
     connection.execute(
         """
@@ -180,6 +200,101 @@ def migrate_daily_logs_table(connection: sqlite3.Connection) -> None:
         "ALTER TABLE daily_logs_new RENAME TO daily_logs"
     )
 
+def migrate_daily_recovery_logs_table(
+    connection: sqlite3.Connection,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(daily_recovery_logs)"
+        ).fetchall()
+    }
+
+    if "user_id" in columns:
+        return
+
+    first_user_row = connection.execute(
+        """
+        SELECT id
+        FROM users
+        ORDER BY id ASC
+        LIMIT 1
+        """
+    ).fetchone()
+
+    legacy_logs_count = connection.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM daily_recovery_logs
+        """
+    ).fetchone()["count"]
+
+    if first_user_row is None and legacy_logs_count > 0:
+        raise RuntimeError(
+            "No se pueden migrar registros de recuperación sin "
+            "un usuario propietario."
+        )
+
+    if first_user_row is None:
+        return
+
+    legacy_user_id = first_user_row["id"]
+
+    connection.execute(
+        """
+        CREATE TABLE daily_recovery_logs_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            sleep_minutes INTEGER
+                CHECK (sleep_minutes >= 0 AND sleep_minutes <= 1440),
+            sleep_quality INTEGER
+                CHECK (sleep_quality >= 1 AND sleep_quality <= 5),
+            is_rest_day INTEGER NOT NULL DEFAULT 0
+                CHECK (is_rest_day IN (0, 1)),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+            UNIQUE (user_id, date)
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO daily_recovery_logs_new (
+            id,
+            user_id,
+            date,
+            sleep_minutes,
+            sleep_quality,
+            is_rest_day,
+            notes,
+            created_at
+        )
+        SELECT
+            id,
+            ?,
+            date,
+            sleep_minutes,
+            sleep_quality,
+            is_rest_day,
+            notes,
+            created_at
+        FROM daily_recovery_logs
+        """,
+        (legacy_user_id,),
+    )
+
+    connection.execute("DROP TABLE daily_recovery_logs")
+    connection.execute(
+        "ALTER TABLE daily_recovery_logs_new "
+        "RENAME TO daily_recovery_logs"
+    )
+
+
 def initialize_database() -> None:
 
     """Crea las tablas necesarias si todavía no existen."""
@@ -221,7 +336,8 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS daily_recovery_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
                 sleep_minutes INTEGER
                     CHECK (sleep_minutes >= 0 AND sleep_minutes <= 1440),
                 sleep_quality INTEGER
@@ -229,7 +345,11 @@ def initialize_database() -> None:
                 is_rest_day INTEGER NOT NULL DEFAULT 0
                     CHECK (is_rest_day IN (0, 1)),
                 notes TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+                UNIQUE (user_id, date)
             )
             """
         )
@@ -453,15 +573,20 @@ def initialize_database() -> None:
             f"""
             CREATE TABLE IF NOT EXISTS fitness_goals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                goal_type TEXT NOT NULL UNIQUE CHECK (
+                user_id INTEGER NOT NULL,
+                goal_type TEXT NOT NULL CHECK (
                     goal_type IN ({FITNESS_GOAL_TYPES_SQL})
                 ),
                 target_value REAL NOT NULL CHECK (target_value > 0),
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+                UNIQUE (user_id, goal_type)
             )
             """
         )
-
         migrate_fitness_goals_table(connection)
         migrate_daily_logs_table(connection)
+        migrate_daily_recovery_logs_table(connection)
