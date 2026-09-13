@@ -1,10 +1,12 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.db import get_connection
 from app.schemas import (
     ActivityChartsResponse,
+    ActivityConsistencyResponse,
+    ConsistencyMetricResponse,
     StatisticsRunningChartPoint,
     StatisticsStepsChartPoint,
     StatisticsWeightChartPoint,
@@ -258,4 +260,180 @@ def get_activity_charts(
             )
             for row in running_rows
         ],
+    )
+
+def get_consecutive_streaks(
+    *,
+    start_date: date,
+    end_date: date,
+    completed_dates: set[date],
+) -> tuple[int, int]:
+    best_streak = 0
+    current_run = 0
+    day = start_date
+
+    while day <= end_date:
+        if day in completed_dates:
+            current_run += 1
+            best_streak = max(best_streak, current_run)
+        else:
+            current_run = 0
+
+        day += timedelta(days=1)
+
+    current_streak = 0
+    day = end_date
+
+    while day >= start_date and day in completed_dates:
+        current_streak += 1
+        day -= timedelta(days=1)
+
+    return current_streak, best_streak
+
+
+def build_consistency_metric(
+    *,
+    start_date: date,
+    end_date: date,
+    period_days: int,
+    goal_target: float | None,
+    logged_dates: set[date],
+    completed_dates: set[date],
+) -> ConsistencyMetricResponse:
+    if goal_target is None:
+        return ConsistencyMetricResponse(
+            goal_target=None,
+            days_logged=len(logged_dates),
+            goal_days_met=None,
+            consistency_percentage=None,
+            current_streak=None,
+            best_streak=None,
+        )
+
+    current_streak, best_streak = get_consecutive_streaks(
+        start_date=start_date,
+        end_date=end_date,
+        completed_dates=completed_dates,
+    )
+
+    return ConsistencyMetricResponse(
+        goal_target=goal_target,
+        days_logged=len(logged_dates),
+        goal_days_met=len(completed_dates),
+        consistency_percentage=round(
+            (len(completed_dates) / period_days) * 100,
+            1,
+        ),
+        current_streak=current_streak,
+        best_streak=best_streak,
+    )
+
+
+@router.get(
+    "/consistency",
+    response_model=ActivityConsistencyResponse,
+)
+def get_activity_consistency(
+    start_date: date = Query(
+        description="Fecha inicial del periodo, incluida.",
+    ),
+    end_date: date = Query(
+        description="Fecha final del periodo, incluida.",
+    ),
+) -> ActivityConsistencyResponse:
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="start_date no puede ser posterior a end_date.",
+        )
+
+    start_date_value = start_date.isoformat()
+    end_date_value = end_date.isoformat()
+    period_days = (end_date - start_date).days + 1
+
+    with get_connection() as connection:
+        goal_rows = connection.execute(
+            """
+            SELECT goal_type, target_value
+            FROM fitness_goals
+            WHERE goal_type IN (
+                'daily_steps',
+                'daily_sleep_minutes'
+            )
+            """
+        ).fetchall()
+
+        step_rows = connection.execute(
+            """
+            SELECT date, steps
+            FROM daily_logs
+            WHERE date BETWEEN ? AND ?
+            """,
+            (start_date_value, end_date_value),
+        ).fetchall()
+
+        sleep_rows = connection.execute(
+            """
+            SELECT date, sleep_minutes
+            FROM daily_recovery_logs
+            WHERE date BETWEEN ? AND ?
+                AND sleep_minutes IS NOT NULL
+            """,
+            (start_date_value, end_date_value),
+        ).fetchall()
+
+    goals_by_type = {
+        row["goal_type"]: float(row["target_value"])
+        for row in goal_rows
+    }
+
+    steps_goal_target = goals_by_type.get("daily_steps")
+    sleep_goal_target = goals_by_type.get("daily_sleep_minutes")
+
+    steps_logged_dates = {
+        date.fromisoformat(row["date"])
+        for row in step_rows
+    }
+    steps_completed_dates = {
+        date.fromisoformat(row["date"])
+        for row in step_rows
+        if (
+            steps_goal_target is not None
+            and row["steps"] >= steps_goal_target
+        )
+    }
+
+    sleep_logged_dates = {
+        date.fromisoformat(row["date"])
+        for row in sleep_rows
+    }
+    sleep_completed_dates = {
+        date.fromisoformat(row["date"])
+        for row in sleep_rows
+        if (
+            sleep_goal_target is not None
+            and row["sleep_minutes"] >= sleep_goal_target
+        )
+    }
+
+    return ActivityConsistencyResponse(
+        start_date=start_date,
+        end_date=end_date,
+        period_days=period_days,
+        steps=build_consistency_metric(
+            start_date=start_date,
+            end_date=end_date,
+            period_days=period_days,
+            goal_target=steps_goal_target,
+            logged_dates=steps_logged_dates,
+            completed_dates=steps_completed_dates,
+        ),
+        sleep=build_consistency_metric(
+            start_date=start_date,
+            end_date=end_date,
+            period_days=period_days,
+            goal_target=sleep_goal_target,
+            logged_dates=sleep_logged_dates,
+            completed_dates=sleep_completed_dates,
+        ),
     )
