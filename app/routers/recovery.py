@@ -1,13 +1,15 @@
 import sqlite3
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db import get_connection
+from app.dependencies import get_current_user
 from app.schemas import (
     RecoveryLogCreate,
     RecoveryLogResponse,
     RecoveryLogUpdate,
+    UserResponse,
 )
 
 
@@ -35,21 +37,24 @@ def row_to_recovery_log(row: sqlite3.Row) -> RecoveryLogResponse:
 )
 def create_recovery_log(
     recovery_log: RecoveryLogCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> RecoveryLogResponse:
     try:
         with get_connection() as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO daily_recovery_logs (
+                    user_id,
                     date,
                     sleep_minutes,
                     sleep_quality,
                     is_rest_day,
                     notes
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    current_user.id,
                     recovery_log.date.isoformat(),
                     recovery_log.sleep_minutes,
                     recovery_log.sleep_quality,
@@ -68,12 +73,14 @@ def create_recovery_log(
                     is_rest_day,
                     notes
                 FROM daily_recovery_logs
-                WHERE id = ?
+                WHERE id = ? AND user_id = ?
                 """,
-                (cursor.lastrowid,),
+                (cursor.lastrowid, current_user.id),
             ).fetchone()
     except sqlite3.IntegrityError as error:
-        if "daily_recovery_logs.date" in str(error):
+        if "daily_recovery_logs.user_id, daily_recovery_logs.date" in str(
+            error
+        ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
@@ -90,7 +97,9 @@ def create_recovery_log(
     "/",
     response_model=list[RecoveryLogResponse],
 )
-def list_recovery_logs() -> list[RecoveryLogResponse]:
+def list_recovery_logs(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[RecoveryLogResponse]:
     with get_connection() as connection:
         rows = connection.execute(
             """
@@ -102,8 +111,10 @@ def list_recovery_logs() -> list[RecoveryLogResponse]:
                 is_rest_day,
                 notes
             FROM daily_recovery_logs
+            WHERE user_id = ?
             ORDER BY date DESC
-            """
+            """,
+            (current_user.id,),
         ).fetchall()
 
     return [row_to_recovery_log(row) for row in rows]
@@ -113,7 +124,10 @@ def list_recovery_logs() -> list[RecoveryLogResponse]:
     "/{log_date}",
     response_model=RecoveryLogResponse,
 )
-def get_recovery_log(log_date: date) -> RecoveryLogResponse:
+def get_recovery_log(
+    log_date: date,
+    current_user: UserResponse = Depends(get_current_user),
+) -> RecoveryLogResponse:
     with get_connection() as connection:
         row = connection.execute(
             """
@@ -125,9 +139,9 @@ def get_recovery_log(log_date: date) -> RecoveryLogResponse:
                 is_rest_day,
                 notes
             FROM daily_recovery_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (log_date.isoformat(),),
+            (log_date.isoformat(), current_user.id),
         ).fetchone()
 
     if row is None:
@@ -146,6 +160,7 @@ def get_recovery_log(log_date: date) -> RecoveryLogResponse:
 def update_recovery_log(
     log_date: date,
     recovery_log: RecoveryLogUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> RecoveryLogResponse:
     with get_connection() as connection:
         cursor = connection.execute(
@@ -156,7 +171,7 @@ def update_recovery_log(
                 sleep_quality = ?,
                 is_rest_day = ?,
                 notes = ?
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
             (
                 recovery_log.sleep_minutes,
@@ -164,13 +179,16 @@ def update_recovery_log(
                 int(recovery_log.is_rest_day),
                 recovery_log.notes,
                 log_date.isoformat(),
+                current_user.id,
             ),
         )
 
         if cursor.rowcount == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No existe un registro de recuperación para esta fecha.",
+                detail=(
+                    "No existe un registro de recuperación para esta fecha."
+                ),
             )
 
         row = connection.execute(
@@ -183,9 +201,9 @@ def update_recovery_log(
                 is_rest_day,
                 notes
             FROM daily_recovery_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (log_date.isoformat(),),
+            (log_date.isoformat(), current_user.id),
         ).fetchone()
 
     return row_to_recovery_log(row)
@@ -195,14 +213,17 @@ def update_recovery_log(
     "/{log_date}",
     response_model=None,
 )
-def delete_recovery_log(log_date: date) -> Response:
+def delete_recovery_log(
+    log_date: date,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM daily_recovery_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (log_date.isoformat(),),
+            (log_date.isoformat(), current_user.id),
         )
 
     if cursor.rowcount == 0:

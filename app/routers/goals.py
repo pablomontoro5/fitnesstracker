@@ -1,9 +1,10 @@
 import sqlite3
 from datetime import date, timedelta
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db import get_connection
+from app.dependencies import get_current_user
 from app.schemas import (
     FitnessGoalProgressResponse,
     FitnessGoalResponse,
@@ -11,6 +12,7 @@ from app.schemas import (
     GoalType,
     NutritionGoalProgressItem,
     NutritionGoalsProgressResponse,
+    UserResponse,
 )
 
 
@@ -19,16 +21,6 @@ router = APIRouter(
     tags=["goals"],
 )
 
-ACTIVITY_GOAL_TYPES = {
-    "daily_steps",
-    "weekly_workouts",
-    "weekly_running_km",
-}
-
-RECOVERY_GOAL_TYPES = {
-    "daily_sleep_minutes",
-    "weekly_rest_days",
-}
 
 def row_to_fitness_goal(row: sqlite3.Row) -> FitnessGoalResponse:
     return FitnessGoalResponse(
@@ -37,10 +29,12 @@ def row_to_fitness_goal(row: sqlite3.Row) -> FitnessGoalResponse:
         target_value=row["target_value"],
     )
 
+
 def get_current_value(
     connection: sqlite3.Connection,
     goal_type: GoalType,
     today: date,
+    user_id: int,
 ) -> float:
     week_start = today - timedelta(days=today.weekday())
 
@@ -49,9 +43,9 @@ def get_current_value(
             """
             SELECT COALESCE(steps, 0) AS current_value
             FROM daily_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (today.isoformat(),),
+            (today.isoformat(), user_id),
         ).fetchone()
 
         return float(row["current_value"]) if row else 0.0
@@ -85,9 +79,9 @@ def get_current_value(
             """
             SELECT COALESCE(sleep_minutes, 0) AS current_value
             FROM daily_recovery_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (today.isoformat(),),
+            (today.isoformat(), user_id),
         ).fetchone()
 
         return float(row["current_value"]) if row else 0.0
@@ -98,30 +92,31 @@ def get_current_value(
             SELECT COUNT(*) AS current_value
             FROM daily_recovery_logs
             WHERE date BETWEEN ? AND ?
+                AND user_id = ?
                 AND is_rest_day = 1
             """,
-            (week_start.isoformat(), today.isoformat()),
+            (
+                week_start.isoformat(),
+                today.isoformat(),
+                user_id,
+            ),
         ).fetchone()
 
         return float(row["current_value"])
 
     raise ValueError(f"Tipo de objetivo no compatible: {goal_type}")
 
-@router.put(
-    "/{goal_type}",
-    response_model=FitnessGoalResponse,
-)
-def create_or_update_goal(
-    goal_type: GoalType,
-    goal: FitnessGoalUpsert,
-) -> FitnessGoalResponse:
 
+def validate_goal_target(
+    goal_type: GoalType,
+    target_value: float,
+) -> None:
     if (
         goal_type == "daily_sleep_minutes"
-        and goal.target_value > 1440
+        and target_value > 1440
     ):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "El objetivo diario de sueño no puede superar "
                 "1440 minutos."
@@ -131,41 +126,58 @@ def create_or_update_goal(
     if (
         goal_type == "weekly_rest_days"
         and (
-            not goal.target_value.is_integer()
-            or goal.target_value > 7
+            not target_value.is_integer()
+            or target_value > 7
         )
     ):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "El objetivo semanal de descanso debe ser un "
                 "número entero entre 1 y 7."
             ),
         )
-    
+
+
+@router.put(
+    "/{goal_type}",
+    response_model=FitnessGoalResponse,
+)
+def create_or_update_goal(
+    goal_type: GoalType,
+    goal: FitnessGoalUpsert,
+    current_user: UserResponse = Depends(get_current_user),
+) -> FitnessGoalResponse:
+    validate_goal_target(goal_type, goal.target_value)
+
     with get_connection() as connection:
         connection.execute(
             """
             INSERT INTO fitness_goals (
+                user_id,
                 goal_type,
                 target_value,
                 updated_at
             )
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(goal_type) DO UPDATE SET
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id, goal_type) DO UPDATE SET
                 target_value = excluded.target_value,
                 updated_at = CURRENT_TIMESTAMP
             """,
-            (goal_type, goal.target_value),
+            (
+                current_user.id,
+                goal_type,
+                goal.target_value,
+            ),
         )
 
         row = connection.execute(
             """
             SELECT id, goal_type, target_value
             FROM fitness_goals
-            WHERE goal_type = ?
+            WHERE user_id = ? AND goal_type = ?
             """,
-            (goal_type,),
+            (current_user.id, goal_type),
         ).fetchone()
 
     return row_to_fitness_goal(row)
@@ -175,20 +187,26 @@ def create_or_update_goal(
     "/",
     response_model=list[FitnessGoalResponse],
 )
-def list_goals() -> list[FitnessGoalResponse]:
+def list_goals(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[FitnessGoalResponse]:
     with get_connection() as connection:
         rows = connection.execute(
             """
             SELECT id, goal_type, target_value
             FROM fitness_goals
+            WHERE user_id = ?
             ORDER BY goal_type ASC
-            """
+            """,
+            (current_user.id,),
         ).fetchall()
 
     return [row_to_fitness_goal(row) for row in rows]
 
+
 def build_goals_progress(
     today: date,
+    user_id: int,
 ) -> list[FitnessGoalProgressResponse]:
     progress_items: list[FitnessGoalProgressResponse] = []
 
@@ -197,15 +215,17 @@ def build_goals_progress(
             """
             SELECT goal_type, target_value
             FROM fitness_goals
-            WHERE goal_type IN (
-                'daily_steps',
-                'weekly_workouts',
-                'weekly_running_km',
-                'daily_sleep_minutes',
-                'weekly_rest_days'
-            )
+            WHERE user_id = ?
+                AND goal_type IN (
+                    'daily_steps',
+                    'weekly_workouts',
+                    'weekly_running_km',
+                    'daily_sleep_minutes',
+                    'weekly_rest_days'
+                )
             ORDER BY goal_type ASC
-            """
+            """,
+            (user_id,),
         ).fetchall()
 
         for row in rows:
@@ -213,6 +233,7 @@ def build_goals_progress(
                 connection=connection,
                 goal_type=row["goal_type"],
                 today=today,
+                user_id=user_id,
             )
             target_value = float(row["target_value"])
 
@@ -230,6 +251,8 @@ def build_goals_progress(
             )
 
     return progress_items
+
+
 NUTRITION_GOAL_TYPES = {
     "calories": "daily_calories",
     "protein_g": "daily_protein_g",
@@ -297,6 +320,7 @@ def build_nutrition_goal_progress_item(
 
 def build_nutrition_goals_progress(
     target_date: date,
+    user_id: int,
 ) -> NutritionGoalsProgressResponse:
     with get_connection() as connection:
         totals = get_nutrition_totals(connection, target_date)
@@ -305,13 +329,15 @@ def build_nutrition_goals_progress(
             """
             SELECT goal_type, target_value
             FROM fitness_goals
-            WHERE goal_type IN (
-                'daily_calories',
-                'daily_protein_g',
-                'daily_carbs_g',
-                'daily_fat_g'
-            )
-            """
+            WHERE user_id = ?
+                AND goal_type IN (
+                    'daily_calories',
+                    'daily_protein_g',
+                    'daily_carbs_g',
+                    'daily_fat_g'
+                )
+            """,
+            (user_id,),
         ).fetchall()
 
     goals_by_type = {
@@ -347,12 +373,18 @@ def build_nutrition_goals_progress(
         ),
     )
 
+
 @router.get(
     "/progress",
     response_model=list[FitnessGoalProgressResponse],
 )
-def get_goals_progress() -> list[FitnessGoalProgressResponse]:
-    return build_goals_progress(today=date.today())
+def get_goals_progress(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[FitnessGoalProgressResponse]:
+    return build_goals_progress(
+        today=date.today(),
+        user_id=current_user.id,
+    )
 
 
 @router.get(
@@ -361,22 +393,29 @@ def get_goals_progress() -> list[FitnessGoalProgressResponse]:
 )
 def get_nutrition_goals_progress(
     target_date: date,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> NutritionGoalsProgressResponse:
-    return build_nutrition_goals_progress(target_date)
+    return build_nutrition_goals_progress(
+        target_date=target_date,
+        user_id=current_user.id,
+    )
 
 
 @router.delete(
     "/{goal_type}",
     response_model=None,
 )
-def delete_goal(goal_type: GoalType) -> Response:
+def delete_goal(
+    goal_type: GoalType,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM fitness_goals
-            WHERE goal_type = ?
+            WHERE user_id = ? AND goal_type = ?
             """,
-            (goal_type,),
+            (current_user.id, goal_type),
         )
 
     if cursor.rowcount == 0:
