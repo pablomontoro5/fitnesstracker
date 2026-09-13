@@ -5,6 +5,42 @@ const elements = {
   quickActions: document.querySelector(".statistics-quick-actions"),
   statusMessage: document.querySelector("#status-message"),
 
+  consistencyStatus: document.querySelector("#consistency-status"),
+  consistencyContent: document.querySelector("#consistency-content"),
+  stepsConsistencyBadge: document.querySelector(
+    "#steps-consistency-badge",
+  ),
+  stepsConsistencyPercentage: document.querySelector(
+    "#steps-consistency-percentage",
+  ),
+  stepsConsistencyDetail: document.querySelector(
+    "#steps-consistency-detail",
+  ),
+  stepsConsistencyBar: document.querySelector(
+    "#steps-consistency-bar",
+  ),
+  stepsConsistencyTrack: document.querySelector(
+    '[aria-label="Consistencia de pasos"]',
+  ),
+  stepsCurrentStreak: document.querySelector("#steps-current-streak"),
+  stepsBestStreak: document.querySelector("#steps-best-streak"),
+  sleepConsistencyBadge: document.querySelector(
+    "#sleep-consistency-badge",
+  ),
+  sleepConsistencyPercentage: document.querySelector(
+    "#sleep-consistency-percentage",
+  ),
+  sleepConsistencyDetail: document.querySelector(
+    "#sleep-consistency-detail",
+  ),
+  sleepConsistencyBar: document.querySelector(
+    "#sleep-consistency-bar",
+  ),
+  sleepConsistencyTrack: document.querySelector(
+    '[aria-label="Consistencia de sueño"]',
+  ),
+  sleepCurrentStreak: document.querySelector("#sleep-current-streak"),
+  sleepBestStreak: document.querySelector("#sleep-best-streak"),
   stepsTotal: document.querySelector("#steps-total"),
   stepsDetail: document.querySelector("#steps-detail"),
 
@@ -209,6 +245,27 @@ async function requestCharts(startDate, endDate) {
       : body?.detail;
 
     throw new Error(detail || "No se pudieron cargar las gráficas.");
+  }
+
+  return body;
+}
+async function requestConsistency(startDate, endDate) {
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+  });
+
+  const response = await fetch(`/statistics/consistency?${params}`);
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const detail = Array.isArray(body?.detail)
+      ? body.detail.map((error) => error.msg).join(". ")
+      : body?.detail;
+
+    throw new Error(
+      detail || "No se pudo cargar la consistencia.",
+    );
   }
 
   return body;
@@ -668,6 +725,116 @@ function setLoadingState() {
   elements.bodyDetail.textContent = "Cargando datos…";
 }
 
+function formatSleepMinutes(minutes) {
+  if (!Number.isFinite(minutes)) {
+    return "—";
+  }
+
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${remainingMinutes} min`;
+  }
+
+  if (remainingMinutes === 0) {
+    return `${hours} h`;
+  }
+
+  return `${hours} h ${remainingMinutes} min`;
+}
+
+
+function showConsistencyStatus(message, type = "success") {
+  elements.consistencyStatus.textContent = message;
+  elements.consistencyStatus.className = `status-message ${type}`;
+}
+
+
+function renderConsistencyMetric({
+  metric,
+  badge,
+  percentage,
+  detail,
+  bar,
+  track,
+  currentStreak,
+  bestStreak,
+  goalLabel,
+  formatGoal,
+}) {
+  if (metric.goal_target === null) {
+    badge.textContent = "Sin objetivo";
+    percentage.textContent = "—";
+    detail.textContent =
+    `${metric.goal_days_met} día(s) cumplieron la meta · ` +
+    `${metric.days_logged} día(s) con registro`;
+    bar.style.width = "0%";
+    track.setAttribute("aria-valuenow", "0");
+    currentStreak.textContent = "—";
+    bestStreak.textContent = "—";
+    return;
+  }
+
+  const consistencyPercentage = metric.consistency_percentage;
+  const percentageValue = Math.min(
+    Math.max(consistencyPercentage, 0),
+    100,
+  );
+
+  badge.textContent = `Meta: ${formatGoal(metric.goal_target)}`;
+  percentage.textContent = `${formatNumber(consistencyPercentage, 1)}%`;
+  detail.textContent =
+    `${metric.goal_days_met}/${metric.days_logged ? metric.days_logged : 0} ` +
+    `día(s) cumplido(s) · ${metric.days_logged} día(s) con registro`;
+  bar.style.width = `${percentageValue}%`;
+  track.setAttribute("aria-valuenow", String(percentageValue));
+  currentStreak.textContent = `${metric.current_streak} día(s)`;
+  bestStreak.textContent = `${metric.best_streak} día(s)`;
+}
+
+
+function renderConsistency(consistency) {
+  renderConsistencyMetric({
+    metric: consistency.steps,
+    badge: elements.stepsConsistencyBadge,
+    percentage: elements.stepsConsistencyPercentage,
+    detail: elements.stepsConsistencyDetail,
+    bar: elements.stepsConsistencyBar,
+    track: elements.stepsConsistencyTrack,
+    currentStreak: elements.stepsCurrentStreak,
+    bestStreak: elements.stepsBestStreak,
+    goalLabel: "pasos",
+    formatGoal: (goalTarget) =>
+      `${formatNumber(goalTarget, 0)} pasos`,
+  });
+
+  renderConsistencyMetric({
+    metric: consistency.sleep,
+    badge: elements.sleepConsistencyBadge,
+    percentage: elements.sleepConsistencyPercentage,
+    detail: elements.sleepConsistencyDetail,
+    bar: elements.sleepConsistencyBar,
+    track: elements.sleepConsistencyTrack,
+    currentStreak: elements.sleepCurrentStreak,
+    bestStreak: elements.sleepBestStreak,
+    goalLabel: "sueño",
+    formatGoal: formatSleepMinutes,
+  });
+
+  elements.consistencyContent.classList.remove("hidden");
+  showConsistencyStatus(
+    `Consistencia calculada para ${consistency.period_days} día(s).`,
+  );
+}
+
+
+function clearConsistency() {
+  elements.consistencyContent.classList.add("hidden");
+  showConsistencyStatus("");
+}
+
 
 function renderStatistics(summary) {
   elements.stepsTotal.textContent =
@@ -870,22 +1037,35 @@ async function loadStatistics() {
   setLoadingState();
   showBodyCompositionStatus("Cargando evolución corporal…");
   clearBodyCompositionProgress();
+  showConsistencyStatus("Cargando consistencia…");
 
   try {
-    const [summary, chartData, bodyCompositionProgress] = await Promise.all([
+    const [
+      summary,
+      chartData,
+      bodyCompositionProgress,
+      consistency,
+    ] = await Promise.all([
       requestStatistics(startDate, endDate),
       requestCharts(startDate, endDate),
       requestBodyCompositionProgress(startDate, endDate),
+      requestConsistency(startDate, endDate),
     ]);
 
     renderStatistics(summary);
     renderCharts(chartData);
     renderBodyCompositionProgress(bodyCompositionProgress);
+    renderConsistency(consistency);
   } catch (error) {
     clearBodyCompositionProgress();
+    clearConsistency();
     showStatus(error.message, "error");
     showBodyCompositionStatus(
       "No se pudo cargar la evolución corporal.",
+      "error",
+    );
+    showConsistencyStatus(
+      "No se pudo cargar la consistencia y las rachas.",
       "error",
     );
   }

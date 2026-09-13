@@ -1,11 +1,12 @@
 from fastapi.testclient import TestClient
-
+from datetime import date
 from app.main import app
 
 import pytest
 
 from app.db import get_connection
 
+from app.routers.statistics import get_consecutive_streaks
 
 @pytest.fixture(autouse=True)
 def clear_statistics_test_data():
@@ -14,6 +15,19 @@ def clear_statistics_test_data():
             """
             DELETE FROM daily_logs
             WHERE date IN ('2026-09-30', '2026-10-01', '2026-11-01')
+            """
+        )
+        connection.execute(
+            """
+            DELETE FROM daily_recovery_logs
+            WHERE date IN (
+                '2026-09-28',
+                '2026-09-29',
+                '2026-09-30',
+                '2026-10-01',
+                '2026-10-02',
+                '2026-11-01'
+            )
             """
         )
 
@@ -56,6 +70,40 @@ def create_daily_log(
     assert response.status_code == 201
     return response.json()
 
+def create_recovery_log(
+    client: TestClient,
+    *,
+    date: str,
+    sleep_minutes: int | None,
+) -> dict:
+    response = client.post(
+        "/recovery-logs/",
+        json={
+            "date": date,
+            "sleep_minutes": sleep_minutes,
+            "sleep_quality": None,
+            "is_rest_day": False,
+            "notes": None,
+        },
+    )
+
+    assert response.status_code == 201
+    return response.json()
+
+
+def create_goal(
+    client: TestClient,
+    *,
+    goal_type: str,
+    target_value: float,
+) -> dict:
+    response = client.put(
+        f"/goals/{goal_type}",
+        json={"target_value": target_value},
+    )
+
+    assert response.status_code == 200
+    return response.json()
 
 def create_workout_session(
     client: TestClient,
@@ -534,3 +582,163 @@ def test_statistics_charts_rejects_inverted_date_range():
     assert response.json()["detail"] == (
         "start_date no puede ser posterior a end_date."
     )
+
+def test_get_consecutive_streaks_calculates_current_and_best_streaks():
+    current_streak, best_streak = get_consecutive_streaks(
+        start_date=date(2026, 9, 1),
+        end_date=date(2026, 9, 7),
+        completed_dates={
+            date(2026, 9, 1),
+            date(2026, 9, 2),
+            date(2026, 9, 4),
+            date(2026, 9, 5),
+            date(2026, 9, 6),
+            date(2026, 9, 7),
+        },
+    )
+
+    assert current_streak == 4
+    assert best_streak == 4
+def test_statistics_consistency_returns_steps_sleep_and_streaks():
+    with TestClient(app) as client:
+        create_goal(
+            client,
+            goal_type="daily_steps",
+            target_value=8000,
+        )
+        create_goal(
+            client,
+            goal_type="daily_sleep_minutes",
+            target_value=480,
+        )
+
+        create_daily_log(client, date="2026-09-01", steps=8000)
+        create_daily_log(client, date="2026-09-02", steps=9000)
+        create_daily_log(client, date="2026-09-03", steps=7000)
+        create_daily_log(client, date="2026-09-04", steps=8500)
+        create_daily_log(client, date="2026-09-05", steps=8000)
+        create_daily_log(client, date="2026-09-06", steps=8100)
+        create_daily_log(client, date="2026-09-07", steps=8300)
+
+        create_recovery_log(
+            client,
+            date="2026-09-01",
+            sleep_minutes=480,
+        )
+        create_recovery_log(
+            client,
+            date="2026-09-02",
+            sleep_minutes=420,
+        )
+        create_recovery_log(
+            client,
+            date="2026-09-03",
+            sleep_minutes=500,
+        )
+        create_recovery_log(
+            client,
+            date="2026-09-04",
+            sleep_minutes=None,
+        )
+        create_recovery_log(
+            client,
+            date="2026-09-05",
+            sleep_minutes=490,
+        )
+        create_recovery_log(
+            client,
+            date="2026-09-06",
+            sleep_minutes=480,
+        )
+        create_recovery_log(
+            client,
+            date="2026-09-07",
+            sleep_minutes=510,
+        )
+
+        response = client.get(
+            "/statistics/consistency",
+            params={
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-07",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-07",
+        "period_days": 7,
+        "steps": {
+            "goal_target": 8000,
+            "days_logged": 7,
+            "goal_days_met": 6,
+            "consistency_percentage": 85.7,
+            "current_streak": 4,
+            "best_streak": 4,
+        },
+        "sleep": {
+            "goal_target": 480,
+            "days_logged": 6,
+            "goal_days_met": 5,
+            "consistency_percentage": 71.4,
+            "current_streak": 3,
+            "best_streak": 3,
+        },
+    }
+
+def test_statistics_consistency_returns_null_goal_metrics_without_goals():
+    with TestClient(app) as client:
+        create_daily_log(client, date="2026-09-01", steps=10000)
+        create_recovery_log(
+            client,
+            date="2026-09-01",
+            sleep_minutes=480,
+        )
+
+        response = client.get(
+            "/statistics/consistency",
+            params={
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-03",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-03",
+        "period_days": 3,
+        "steps": {
+            "goal_target": None,
+            "days_logged": 1,
+            "goal_days_met": None,
+            "consistency_percentage": None,
+            "current_streak": None,
+            "best_streak": None,
+        },
+        "sleep": {
+            "goal_target": None,
+            "days_logged": 1,
+            "goal_days_met": None,
+            "consistency_percentage": None,
+            "current_streak": None,
+            "best_streak": None,
+        },
+    }
+
+def test_statistics_consistency_rejects_inverted_date_range():
+    with TestClient(app) as client:
+        response = client.get(
+            "/statistics/consistency",
+            params={
+                "start_date": "2026-09-02",
+                "end_date": "2026-09-01",
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "start_date no puede ser posterior a end_date."
+    )
+
