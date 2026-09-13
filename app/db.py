@@ -98,6 +98,88 @@ def migrate_fitness_goals_table(
     connection.execute(
         "ALTER TABLE fitness_goals_new RENAME TO fitness_goals"
     )
+
+def migrate_daily_logs_table(connection: sqlite3.Connection) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(daily_logs)"
+        ).fetchall()
+    }
+
+    if "user_id" in columns:
+        return
+
+    first_user_row = connection.execute(
+        """
+        SELECT id
+        FROM users
+        ORDER BY id ASC
+        LIMIT 1
+        """
+    ).fetchone()
+
+    if first_user_row is None:
+        return
+
+    legacy_user_id = first_user_row["id"]
+
+    legacy_logs_count = connection.execute(
+        "SELECT COUNT(*) AS count FROM daily_logs"
+    ).fetchone()["count"]
+
+    if first_user_row is None and legacy_logs_count > 0:
+        raise RuntimeError(
+            "No se pueden migrar registros diarios sin un usuario propietario."
+        )
+
+    if first_user_row is None:
+        return
+
+    connection.execute(
+        """
+        CREATE TABLE daily_logs_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            steps INTEGER NOT NULL DEFAULT 0 CHECK (steps >= 0),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+            UNIQUE (user_id, date)
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO daily_logs_new (
+            id,
+            user_id,
+            date,
+            steps,
+            notes,
+            created_at
+        )
+        SELECT
+            id,
+            ?,
+            date,
+            steps,
+            notes,
+            created_at
+        FROM daily_logs
+        """,
+        (legacy_user_id,),
+    )
+
+    connection.execute("DROP TABLE daily_logs")
+    connection.execute(
+        "ALTER TABLE daily_logs_new RENAME TO daily_logs"
+    )
+
 def initialize_database() -> None:
 
     """Crea las tablas necesarias si todavía no existen."""
@@ -122,10 +204,15 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS daily_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
                 steps INTEGER NOT NULL DEFAULT 0 CHECK (steps >= 0),
                 notes TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+                UNIQUE (user_id, date)
             )
             """
         )
@@ -377,3 +464,4 @@ def initialize_database() -> None:
         )
 
         migrate_fitness_goals_table(connection)
+        migrate_daily_logs_table(connection)

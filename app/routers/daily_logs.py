@@ -1,10 +1,17 @@
 import sqlite3
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+
+from app.dependencies import get_current_user
+from app.schemas import (
+    DailyLogCreate,
+    DailyLogResponse,
+    DailyLogUpdate,
+    UserResponse,
+)
 
 from app.db import get_connection
-from app.schemas import DailyLogCreate, DailyLogResponse, DailyLogUpdate
 
 router = APIRouter(
     prefix="/daily-logs",
@@ -26,15 +33,19 @@ def row_to_daily_log(row: sqlite3.Row) -> DailyLogResponse:
     response_model=DailyLogResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_daily_log(daily_log: DailyLogCreate) -> DailyLogResponse:
+def create_daily_log(
+    daily_log: DailyLogCreate,
+    current_user: UserResponse = Depends(get_current_user),
+) -> DailyLogResponse:
     try:
         with get_connection() as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO daily_logs (date, steps, notes)
-                VALUES (?, ?, ?)
+                INSERT INTO daily_logs (user_id, date, steps, notes)
+                VALUES (?, ?, ?, ?)
                 """,
                 (
+                    current_user.id,
                     daily_log.date.isoformat(),
                     daily_log.steps,
                     daily_log.notes,
@@ -59,29 +70,36 @@ def create_daily_log(daily_log: DailyLogCreate) -> DailyLogResponse:
 
 
 @router.get("/", response_model=list[DailyLogResponse])
-def list_daily_logs() -> list[DailyLogResponse]:
+def list_daily_logs(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[DailyLogResponse]:
     with get_connection() as connection:
         rows = connection.execute(
             """
             SELECT id, date, steps, notes
             FROM daily_logs
+            WHERE user_id = ?
             ORDER BY date DESC
-            """
+            """,
+            (current_user.id,),
         ).fetchall()
 
     return [row_to_daily_log(row) for row in rows]
 
-
 @router.get("/{log_date}", response_model=DailyLogResponse)
-def get_daily_log(log_date: date) -> DailyLogResponse:
+def get_daily_log(
+    log_date: date,
+    current_user: UserResponse = Depends(get_current_user),
+) -> DailyLogResponse:
+
     with get_connection() as connection:
         row = connection.execute(
             """
             SELECT id, date, steps, notes
             FROM daily_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (log_date.isoformat(),),
+            (log_date.isoformat(), current_user.id),
         ).fetchone()
 
     if row is None:
@@ -97,18 +115,20 @@ def get_daily_log(log_date: date) -> DailyLogResponse:
 def update_daily_log(
     log_date: date,
     daily_log: DailyLogUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> DailyLogResponse:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             UPDATE daily_logs
             SET steps = ?, notes = ?
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
             (
                 daily_log.steps,
                 daily_log.notes,
                 log_date.isoformat(),
+                current_user.id,
             ),
         )
 
@@ -122,9 +142,9 @@ def update_daily_log(
             """
             SELECT id, date, steps, notes
             FROM daily_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (log_date.isoformat(),),
+            (log_date.isoformat(), current_user.id),
         ).fetchone()
 
     return row_to_daily_log(row)
@@ -134,14 +154,17 @@ def update_daily_log(
     "/{log_date}",
     response_model=None,
 )
-def delete_daily_log(log_date: date) -> Response:
+def delete_daily_log(
+    log_date: date,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM daily_logs
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (log_date.isoformat(),),
+            (log_date.isoformat(), current_user.id),
         )
 
     if cursor.rowcount == 0:
