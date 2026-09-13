@@ -138,6 +138,114 @@
       </article>
     </section>
 
+      <section
+        class="consistency-section"
+        aria-labelledby="consistency-title"
+      >
+        <div class="charts-heading">
+          <div>
+            <p class="eyebrow">Hábitos</p>
+            <h2 id="consistency-title">Consistencia y rachas</h2>
+            <p>
+              Comprueba cuántos días alcanzaste tus objetivos diarios de pasos
+              y sueño dentro del periodo seleccionado.
+            </p>
+          </div>
+        </div>
+
+        <p
+          id="consistency-status"
+          class="status-message"
+          role="status"
+          aria-live="polite"
+        ></p>
+
+        <div id="consistency-content" class="consistency-grid hidden">
+          <article class="consistency-card">
+            <div class="consistency-card-heading">
+              <div>
+                <p class="eyebrow">Actividad</p>
+                <h3>Pasos diarios</h3>
+              </div>
+              <span id="steps-consistency-badge" class="mode-badge">—</span>
+            </div>
+
+            <strong
+              id="steps-consistency-percentage"
+              class="statistic-value"
+            >—</strong>
+
+            <p id="steps-consistency-detail" class="statistic-detail">—</p>
+
+            <div
+              class="goal-progress-track"
+              role="progressbar"
+              aria-label="Consistencia de pasos"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <span
+                id="steps-consistency-bar"
+                class="goal-progress-bar"
+              ></span>
+            </div>
+
+            <div class="consistency-streaks">
+              <p>
+                Racha actual
+                <strong id="steps-current-streak">—</strong>
+              </p>
+              <p>
+                Mejor racha
+                <strong id="steps-best-streak">—</strong>
+              </p>
+            </div>
+          </article>
+
+          <article class="consistency-card">
+            <div class="consistency-card-heading">
+              <div>
+                <p class="eyebrow">Recuperación</p>
+                <h3>Sueño diario</h3>
+              </div>
+              <span id="sleep-consistency-badge" class="mode-badge">—</span>
+            </div>
+
+            <strong
+              id="sleep-consistency-percentage"
+              class="statistic-value"
+            >—</strong>
+
+            <p id="sleep-consistency-detail" class="statistic-detail">—</p>
+
+            <div
+              class="goal-progress-track"
+              role="progressbar"
+              aria-label="Consistencia de sueño"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <span
+                id="sleep-consistency-bar"
+                class="goal-progress-bar"
+              ></span>
+            </div>
+
+            <div class="consistency-streaks">
+              <p>
+                Racha actual
+                <strong id="sleep-current-streak">—</strong>
+              </p>
+              <p>
+                Mejor racha
+                <strong id="sleep-best-streak">—</strong>
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
   <section class="charts-section" aria-labelledby="charts-title">
       <div class="charts-heading">
         <div>
