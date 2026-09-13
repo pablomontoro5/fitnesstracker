@@ -329,6 +329,22 @@ class ActivityStatisticsResponse(BaseModel):
     running: StatisticsRunningResponse
     body_metrics: StatisticsBodyMetricsResponse
 
+class ConsistencyMetricResponse(BaseModel):
+    goal_target: float | None
+    days_logged: int
+    goal_days_met: int | None
+    consistency_percentage: float | None
+    current_streak: int | None
+    best_streak: int | None
+
+
+class ActivityConsistencyResponse(BaseModel):
+    start_date: date
+    end_date: date
+    period_days: int
+    steps: ConsistencyMetricResponse
+    sleep: ConsistencyMetricResponse
+    
 class NutritionDayCreate(BaseModel):
     date: date
     notes: str | None = Field(default=None, max_length=1000)
