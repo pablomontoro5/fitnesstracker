@@ -5,20 +5,48 @@ from fastapi.testclient import TestClient
 from app.db import DATABASE_PATH
 from app.main import app
 
+def create_test_user_id(connection) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO users (
+            email,
+            display_name,
+            password_hash
+        )
+        VALUES (?, ?, ?)
+        """,
+        (
+            "owner@example.com",
+            "Owner",
+            "test-password-hash",
+        ),
+    )
+
+    return cursor.lastrowid
 
 def create_database_backup_bytes() -> bytes:
     with sqlite3.connect(DATABASE_PATH) as connection:
+        user_id = create_test_user_id(connection)
+
         connection.execute(
             """
-            INSERT INTO daily_logs (date, steps, notes)
-            VALUES (?, ?, ?)
+            INSERT INTO daily_logs (
+                user_id,
+                date,
+                steps,
+                notes
+            )
+            VALUES (?, ?, ?, ?)
             """,
-            ("2026-09-08", 8500, "Base para restaurar."),
+            (
+                user_id,
+                "2026-09-08",
+                8500,
+                "Base para restaurar.",
+            ),
         )
 
     return DATABASE_PATH.read_bytes()
-
-
 def test_restore_database_returns_safety_backup_filename(
     tmp_path,
     monkeypatch,

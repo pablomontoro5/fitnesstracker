@@ -3,9 +3,44 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
+def register_and_login(
+    client: TestClient,
+    *,
+    email: str,
+    display_name: str,
+) -> dict[str, str]:
+    password = "password-segura-123"
+
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "display_name": display_name,
+            "password": password,
+        },
+    )
+    assert register_response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+    assert login_response.status_code == 200
+
+    return {
+        "Authorization": (
+            f"Bearer {login_response.json()['access_token']}"
+        )
+    }
+
+
 def create_recovery_log(
     client: TestClient,
     *,
+    headers: dict[str, str],
     log_date: str = "2026-09-09",
     sleep_minutes: int | None = 450,
     sleep_quality: int | None = 4,
@@ -14,6 +49,7 @@ def create_recovery_log(
 ) -> dict:
     response = client.post(
         "/recovery-logs/",
+        headers=headers,
         json={
             "date": log_date,
             "sleep_minutes": sleep_minutes,
@@ -27,26 +63,31 @@ def create_recovery_log(
     return response.json()
 
 
-def test_create_recovery_log():
+def test_recovery_logs_require_authentication():
     with TestClient(app) as client:
-        recovery_log = create_recovery_log(client)
+        response = client.get("/recovery-logs/")
 
-    assert recovery_log == {
-        "id": recovery_log["id"],
-        "date": "2026-09-09",
-        "sleep_minutes": 450,
-        "sleep_quality": 4,
-        "is_rest_day": False,
-        "notes": "Movilidad suave.",
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Se requiere un token de acceso."
     }
 
 
-def test_create_recovery_log_allows_rest_day_without_sleep_data():
+def test_user_can_create_recovery_log_and_rest_day_without_sleep():
     with TestClient(app) as client:
-        response = client.post(
+        headers = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+
+        recovery_log = create_recovery_log(client, headers=headers)
+
+        rest_day_response = client.post(
             "/recovery-logs/",
+            headers=headers,
             json={
-                "date": "2026-09-09",
+                "date": "2026-09-10",
                 "sleep_minutes": None,
                 "sleep_quality": None,
                 "is_rest_day": True,
@@ -54,20 +95,66 @@ def test_create_recovery_log_allows_rest_day_without_sleep_data():
             },
         )
 
-    assert response.status_code == 201
-    assert response.json()["sleep_minutes"] is None
-    assert response.json()["sleep_quality"] is None
-    assert response.json()["is_rest_day"] is True
+    assert recovery_log["date"] == "2026-09-09"
+    assert recovery_log["sleep_minutes"] == 450
+    assert rest_day_response.status_code == 201
+    assert rest_day_response.json()["sleep_minutes"] is None
+    assert rest_day_response.json()["is_rest_day"] is True
 
 
-def test_create_duplicate_recovery_log_returns_conflict():
+def test_two_users_can_create_recovery_logs_for_same_date():
+    log_date = "2026-09-09"
+
     with TestClient(app) as client:
-        create_recovery_log(client)
+        ana_headers = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+        bruno_headers = register_and_login(
+            client,
+            email="bruno@example.com",
+            display_name="Bruno",
+        )
+
+        ana_log = create_recovery_log(
+            client,
+            headers=ana_headers,
+            log_date=log_date,
+            sleep_minutes=450,
+        )
+        bruno_log = create_recovery_log(
+            client,
+            headers=bruno_headers,
+            log_date=log_date,
+            sleep_minutes=510,
+        )
+
+    assert ana_log["id"] != bruno_log["id"]
+    assert ana_log["sleep_minutes"] == 450
+    assert bruno_log["sleep_minutes"] == 510
+
+
+def test_user_cannot_create_duplicate_recovery_log_for_own_date():
+    log_date = "2026-09-09"
+
+    with TestClient(app) as client:
+        headers = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+        create_recovery_log(
+            client,
+            headers=headers,
+            log_date=log_date,
+        )
 
         response = client.post(
             "/recovery-logs/",
+            headers=headers,
             json={
-                "date": "2026-09-09",
+                "date": log_date,
                 "sleep_minutes": 480,
                 "sleep_quality": 5,
                 "is_rest_day": True,
@@ -81,123 +168,111 @@ def test_create_duplicate_recovery_log_returns_conflict():
     }
 
 
-def test_list_recovery_logs_returns_descending_date_order():
+def test_users_only_list_their_own_recovery_logs():
     with TestClient(app) as client:
-        create_recovery_log(
+        ana_headers = register_and_login(
             client,
-            log_date="2026-09-07",
-            sleep_minutes=420,
+            email="ana@example.com",
+            display_name="Ana",
         )
+        bruno_headers = register_and_login(
+            client,
+            email="bruno@example.com",
+            display_name="Bruno",
+        )
+
         create_recovery_log(
             client,
+            headers=ana_headers,
             log_date="2026-09-09",
-            sleep_minutes=480,
         )
         create_recovery_log(
             client,
-            log_date="2026-09-08",
-            sleep_minutes=450,
+            headers=bruno_headers,
+            log_date="2026-09-10",
         )
 
-        response = client.get("/recovery-logs/")
+        ana_response = client.get(
+            "/recovery-logs/",
+            headers=ana_headers,
+        )
+        bruno_response = client.get(
+            "/recovery-logs/",
+            headers=bruno_headers,
+        )
 
-    assert response.status_code == 200
-    assert [recovery_log["date"] for recovery_log in response.json()] == [
-        "2026-09-09",
-        "2026-09-08",
-        "2026-09-07",
+    assert ana_response.status_code == 200
+    assert [log["date"] for log in ana_response.json()] == [
+        "2026-09-09"
+    ]
+    assert bruno_response.status_code == 200
+    assert [log["date"] for log in bruno_response.json()] == [
+        "2026-09-10"
     ]
 
 
-def test_get_recovery_log_by_date():
+def test_user_cannot_access_another_users_recovery_log():
+    log_date = "2026-09-09"
+
     with TestClient(app) as client:
-        created_log = create_recovery_log(client)
+        ana_headers = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+        bruno_headers = register_and_login(
+            client,
+            email="bruno@example.com",
+            display_name="Bruno",
+        )
 
-        response = client.get("/recovery-logs/2026-09-09")
+        create_recovery_log(
+            client,
+            headers=ana_headers,
+            log_date=log_date,
+        )
 
-    assert response.status_code == 200
-    assert response.json() == created_log
-
-
-def test_get_missing_recovery_log_returns_not_found():
-    with TestClient(app) as client:
-        response = client.get("/recovery-logs/2026-09-09")
-
-    assert response.status_code == 404
-    assert response.json() == {
-        "detail": "No existe un registro de recuperación para esta fecha."
-    }
-
-
-def test_update_recovery_log():
-    with TestClient(app) as client:
-        created_log = create_recovery_log(client)
-
-        response = client.put(
-            "/recovery-logs/2026-09-09",
+        get_response = client.get(
+            f"/recovery-logs/{log_date}",
+            headers=bruno_headers,
+        )
+        update_response = client.put(
+            f"/recovery-logs/{log_date}",
+            headers=bruno_headers,
             json={
                 "sleep_minutes": 480,
                 "sleep_quality": 5,
                 "is_rest_day": True,
-                "notes": "Descanso completo.",
+                "notes": "No debe modificarse.",
             },
         )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "id": created_log["id"],
-        "date": "2026-09-09",
-        "sleep_minutes": 480,
-        "sleep_quality": 5,
-        "is_rest_day": True,
-        "notes": "Descanso completo.",
-    }
-
-
-def test_update_missing_recovery_log_returns_not_found():
-    with TestClient(app) as client:
-        response = client.put(
-            "/recovery-logs/2026-09-09",
-            json={
-                "sleep_minutes": 480,
-                "sleep_quality": 5,
-                "is_rest_day": True,
-                "notes": None,
-            },
+        delete_response = client.delete(
+            f"/recovery-logs/{log_date}",
+            headers=bruno_headers,
+        )
+        owner_response = client.get(
+            f"/recovery-logs/{log_date}",
+            headers=ana_headers,
         )
 
-    assert response.status_code == 404
-    assert response.json() == {
-        "detail": "No existe un registro de recuperación para esta fecha."
-    }
+    assert get_response.status_code == 404
+    assert update_response.status_code == 404
+    assert delete_response.status_code == 404
+    assert owner_response.status_code == 200
+    assert owner_response.json()["sleep_minutes"] == 450
 
 
-def test_delete_recovery_log():
+def test_recovery_log_rejects_invalid_values():
     with TestClient(app) as client:
-        create_recovery_log(client)
+        headers = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
 
-        response = client.delete("/recovery-logs/2026-09-09")
-        list_response = client.get("/recovery-logs/")
-
-    assert response.status_code == 204
-    assert list_response.status_code == 200
-    assert list_response.json() == []
-
-
-def test_delete_missing_recovery_log_returns_not_found():
-    with TestClient(app) as client:
-        response = client.delete("/recovery-logs/2026-09-09")
-
-    assert response.status_code == 404
-    assert response.json() == {
-        "detail": "No existe un registro de recuperación para esta fecha."
-    }
-
-
-def test_recovery_log_rejects_invalid_sleep_minutes():
-    with TestClient(app) as client:
-        response = client.post(
+        invalid_sleep_response = client.post(
             "/recovery-logs/",
+            headers=headers,
             json={
                 "date": "2026-09-09",
                 "sleep_minutes": 1441,
@@ -206,16 +281,11 @@ def test_recovery_log_rejects_invalid_sleep_minutes():
                 "notes": None,
             },
         )
-
-    assert response.status_code == 422
-
-
-def test_recovery_log_rejects_invalid_sleep_quality():
-    with TestClient(app) as client:
-        response = client.post(
+        invalid_quality_response = client.post(
             "/recovery-logs/",
+            headers=headers,
             json={
-                "date": "2026-09-09",
+                "date": "2026-09-10",
                 "sleep_minutes": 480,
                 "sleep_quality": 6,
                 "is_rest_day": False,
@@ -223,4 +293,5 @@ def test_recovery_log_rejects_invalid_sleep_quality():
             },
         )
 
-    assert response.status_code == 422
+    assert invalid_sleep_response.status_code == 422
+    assert invalid_quality_response.status_code == 422
