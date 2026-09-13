@@ -4,15 +4,44 @@ from datetime import datetime
 from app.db import get_connection
 from app.services.exports import create_data_export
 
+def create_test_user_id(connection) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO users (
+            email,
+            display_name,
+            password_hash
+        )
+        VALUES (?, ?, ?)
+        """,
+        (
+            "owner@example.com",
+            "Owner",
+            "test-password-hash",
+        ),
+    )
 
+    return cursor.lastrowid
 def test_create_data_export_includes_nested_tracking_data(tmp_path):
     with get_connection() as connection:
+        user_id = create_test_user_id(connection)
+
         connection.execute(
             """
-            INSERT INTO daily_logs (date, steps, notes)
-            VALUES (?, ?, ?)
+            INSERT INTO daily_logs (
+                user_id,
+                date,
+                steps,
+                notes
+            )
+            VALUES (?, ?, ?, ?)
             """,
-            ("2026-09-07", 10000, "Paseo por la tarde."),
+            (
+                user_id,
+                "2026-09-07",
+                10000,
+                "Paseo por la tarde.",
+            ),
         )
 
         connection.execute(

@@ -20,6 +20,7 @@ def test_daily_logs_has_expected_columns():
 
     assert column_names == {
         "id",
+        "user_id",
         "date",
         "steps",
         "notes",

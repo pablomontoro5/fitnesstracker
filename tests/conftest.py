@@ -1,13 +1,10 @@
 import os
 
-
 os.environ["FITNESS_TRACKER_TESTING"] = "1"
 os.environ["FITNESS_TRACKER_JWT_SECRET"] = "test-only-secret"
 os.environ["FITNESS_TRACKER_ACCESS_TOKEN_MINUTES"] = "60"
 
-
 import pytest
-
 
 from app.db import get_connection, initialize_database
 
@@ -15,6 +12,7 @@ from app.db import get_connection, initialize_database
 @pytest.fixture(autouse=True)
 def clean_database():
     initialize_database()
+
     with get_connection() as connection:
         connection.execute("DELETE FROM fitness_goals")
         connection.execute("DELETE FROM nutrition_foods")
@@ -33,3 +31,5 @@ def clean_database():
         connection.execute("DELETE FROM users")
 
     yield
+
+    initialize_database()

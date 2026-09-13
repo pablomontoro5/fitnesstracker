@@ -7,8 +7,27 @@ from fastapi import UploadFile
 from app.db import DATABASE_PATH, get_connection
 from app.services.restores import restore_database
 
+def create_test_user_id(connection) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO users (
+            email,
+            display_name,
+            password_hash
+        )
+        VALUES (?, ?, ?)
+        """,
+        (
+            "owner@example.com",
+            "Owner",
+            "test-password-hash",
+        ),
+    )
 
-def create_valid_database(database_path):
+    return cursor.lastrowid
+
+
+def create_valid_database(database_path, user_id: int):
     with sqlite3.connect(DATABASE_PATH) as source_connection:
         with sqlite3.connect(database_path) as destination_connection:
             source_connection.backup(destination_connection)
@@ -16,26 +35,47 @@ def create_valid_database(database_path):
     with sqlite3.connect(database_path) as connection:
         connection.execute(
             """
-            INSERT INTO daily_logs (date, steps, notes)
-            VALUES (?, ?, ?)
+            INSERT INTO daily_logs (
+                user_id,
+                date,
+                steps,
+                notes
+            )
+            VALUES (?, ?, ?, ?)
             """,
-            ("2026-09-08", 9000, "Datos restaurados."),
+            (
+                user_id,
+                "2026-09-08",
+                9000,
+                "Datos restaurados.",
+            ),
         )
-
 def test_restore_database_replaces_current_database_and_creates_backup(
     tmp_path,
 ):
     with get_connection() as connection:
+        user_id = create_test_user_id(connection)
+
         connection.execute(
             """
-            INSERT INTO daily_logs (date, steps, notes)
-            VALUES (?, ?, ?)
+            INSERT INTO daily_logs (
+                user_id,
+                date,
+                steps,
+                notes
+            )
+            VALUES (?, ?, ?, ?)
             """,
-            ("2026-09-07", 1000, "Datos anteriores."),
+            (
+                user_id,
+                "2026-09-07",
+                1000,
+                "Datos anteriores.",
+            ),
         )
 
     uploaded_database_path = tmp_path / "uploaded.db"
-    create_valid_database(uploaded_database_path)
+    create_valid_database(uploaded_database_path, user_id)
 
     upload = UploadFile(
         filename="fitness_tracker_backup.db",

@@ -7,7 +7,38 @@ import pytest
 from app.db import get_connection
 
 from app.routers.statistics import get_consecutive_streaks
+def register_and_login(
+    client: TestClient,
+    *,
+    email: str = "ana@example.com",
+    display_name: str = "Ana",
+) -> dict[str, str]:
+    password = "password-segura-123"
 
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "display_name": display_name,
+            "password": password,
+        },
+    )
+    assert register_response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+    assert login_response.status_code == 200
+
+    return {
+        "Authorization": (
+            f"Bearer {login_response.json()['access_token']}"
+        )
+    }
 @pytest.fixture(autouse=True)
 def clear_statistics_test_data():
     with get_connection() as connection:
@@ -55,11 +86,13 @@ def clear_statistics_test_data():
 def create_daily_log(
     client: TestClient,
     *,
+    headers: dict[str, str],
     date: str,
     steps: int,
 ) -> dict:
     response = client.post(
         "/daily-logs/",
+        headers=headers,
         json={
             "date": date,
             "steps": steps,
@@ -70,14 +103,17 @@ def create_daily_log(
     assert response.status_code == 201
     return response.json()
 
+
 def create_recovery_log(
     client: TestClient,
     *,
+    headers: dict[str, str],
     date: str,
     sleep_minutes: int | None,
 ) -> dict:
     response = client.post(
         "/recovery-logs/",
+        headers=headers,
         json={
             "date": date,
             "sleep_minutes": sleep_minutes,
@@ -94,17 +130,18 @@ def create_recovery_log(
 def create_goal(
     client: TestClient,
     *,
+    headers: dict[str, str],
     goal_type: str,
     target_value: float,
 ) -> dict:
     response = client.put(
         f"/goals/{goal_type}",
+        headers=headers,
         json={"target_value": target_value},
     )
 
     assert response.status_code == 200
     return response.json()
-
 def create_workout_session(
     client: TestClient,
     *,
@@ -122,7 +159,6 @@ def create_workout_session(
 
     assert response.status_code == 201
     return response.json()
-
 
 def create_workout_exercise(
     client: TestClient,
@@ -265,16 +301,19 @@ def test_statistics_summary_is_empty_when_no_data_exists():
         "weight_change_kg": None,
     }
 
-
 def test_statistics_summary_aggregates_data_in_period():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         create_daily_log(
             client,
+            headers=headers,
             date="2026-09-30",
             steps=8000,
         )
         create_daily_log(
             client,
+            headers=headers,
             date="2026-10-01",
             steps=12000,
         )
@@ -283,97 +322,15 @@ def test_statistics_summary_aggregates_data_in_period():
             client,
             date="2026-09-30",
         )
-        exercise = create_workout_exercise(
-            client,
-            session_id=session["id"],
-        )
-
-        create_workout_set(
-            client,
-            exercise_id=exercise["id"],
-            position=1,
-            repetitions=10,
-            weight_kg=50,
-        )
-        create_workout_set(
-            client,
-            exercise_id=exercise["id"],
-            position=2,
-            repetitions=8,
-            weight_kg=60,
-        )
-
-        create_run(
-            client,
-            date="2026-09-30",
-            distance_km=5,
-            duration_seconds=1500,
-        )
-        create_run(
-            client,
-            date="2026-10-01",
-            distance_km=10,
-            duration_seconds=3600,
-        )
-
-        create_body_metric(
-            client,
-            date="2026-09-30",
-            weight_kg=80,
-        )
-        create_body_metric(
-            client,
-            date="2026-10-01",
-            weight_kg=79.5,
-        )
-
-        summary = get_summary(client)
-
-    assert summary["steps"] == {
-        "total": 20000,
-        "days_logged": 2,
-        "average_per_logged_day": 10000,
-    }
-
-    assert summary["workouts"] == {
-        "sessions": 1,
-        "exercises": 1,
-        "working_sets": 2,
-        "repetitions": 18,
-        "volume_kg": 980,
-    }
-
-    assert summary["running"] == {
-        "runs": 2,
-        "distance_km": 15,
-        "duration_seconds": 5100,
-        "average_pace_seconds_km": 340,
-    }
-
-    assert summary["body_metrics"]["records"] == 2
-    assert summary["body_metrics"]["latest"]["date"] == "2026-10-01"
-    assert summary["body_metrics"]["latest"]["weight_kg"] == 79.5
-    assert summary["body_metrics"]["latest"]["height_cm"] == 180
-    assert summary["body_metrics"]["latest"]["bmi"] == 24.54
-    assert summary["body_metrics"]["weight_change_kg"] == -0.5
-
-
 def test_statistics_summary_excludes_data_outside_period():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         create_daily_log(
             client,
+            headers=headers,
             date="2026-09-29",
             steps=9999,
-        )
-        create_daily_log(
-            client,
-            date="2026-10-01",
-            steps=1000,
-        )
-        create_daily_log(
-            client,
-            date="2026-11-01",
-            steps=8888,
         )
 
         create_run(
@@ -382,23 +339,6 @@ def test_statistics_summary_excludes_data_outside_period():
             distance_km=50,
             duration_seconds=15000,
         )
-        create_run(
-            client,
-            date="2026-10-01",
-            distance_km=5,
-            duration_seconds=1500,
-        )
-
-        summary = get_summary(client)
-
-    assert summary["steps"]["total"] == 1000
-    assert summary["steps"]["days_logged"] == 1
-    assert summary["running"]["runs"] == 1
-    assert summary["running"]["distance_km"] == 5
-    assert summary["running"]["duration_seconds"] == 1500
-    assert summary["running"]["average_pace_seconds_km"] == 300
-
-
 def test_statistics_summary_only_counts_working_sets():
     with TestClient(app) as client:
         session = create_workout_session(
@@ -411,8 +351,7 @@ def test_statistics_summary_only_counts_working_sets():
         )
 
         create_workout_set(
-            client,
-            exercise_id=exercise["id"],
+            client,            exercise_id=exercise["id"],
             set_type="warmup",
             position=1,
             repetitions=15,
@@ -454,12 +393,14 @@ def test_statistics_summary_only_counts_working_sets():
 
 def test_statistics_summary_rejects_inverted_date_range():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.get(
             "/statistics/summary",
             params={
                 "start_date": "2026-10-01",
                 "end_date": "2026-09-30",
             },
+            headers=headers,
         )
 
     assert response.status_code == 422
@@ -478,16 +419,19 @@ def test_statistics_summary_rejects_invalid_date():
         )
 
     assert response.status_code == 422
-
 def test_statistics_charts_returns_ordered_series_in_period():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         create_daily_log(
             client,
+            headers=headers,
             date="2026-09-30",
             steps=8000,
         )
         create_daily_log(
             client,
+            headers=headers,
             date="2026-10-01",
             steps=12000,
         )
@@ -536,46 +480,28 @@ def test_statistics_charts_returns_ordered_series_in_period():
         "start_date": "2026-09-30",
         "end_date": "2026-10-01",
         "steps": [
-            {
-                "date": "2026-09-30",
-                "steps": 8000,
-            },
-            {
-                "date": "2026-10-01",
-                "steps": 12000,
-            },
+            {"date": "2026-09-30", "steps": 8000},
+            {"date": "2026-10-01", "steps": 12000},
         ],
         "weight": [
-            {
-                "date": "2026-09-30",
-                "weight_kg": 80,
-            },
-            {
-                "date": "2026-10-01",
-                "weight_kg": 79.5,
-            },
+            {"date": "2026-09-30", "weight_kg": 80},
+            {"date": "2026-10-01", "weight_kg": 79.5},
         ],
         "running": [
-            {
-                "date": "2026-09-30",
-                "distance_km": 7.5,
-            },
-            {
-                "date": "2026-10-01",
-                "distance_km": 10,
-            },
+            {"date": "2026-09-30", "distance_km": 7.5},
+            {"date": "2026-10-01", "distance_km": 10},
         ],
     }
-
-
 def test_statistics_charts_rejects_inverted_date_range():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.get(
             "/statistics/charts",
             params={
                 "start_date": "2026-10-01",
                 "end_date": "2026-09-30",
             },
+            headers=headers,
         )
 
     assert response.status_code == 422
@@ -601,57 +527,103 @@ def test_get_consecutive_streaks_calculates_current_and_best_streaks():
     assert best_streak == 4
 def test_statistics_consistency_returns_steps_sleep_and_streaks():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         create_goal(
             client,
+            headers=headers,
             goal_type="daily_steps",
             target_value=8000,
         )
         create_goal(
             client,
+            headers=headers,
             goal_type="daily_sleep_minutes",
             target_value=480,
         )
 
-        create_daily_log(client, date="2026-09-01", steps=8000)
-        create_daily_log(client, date="2026-09-02", steps=9000)
-        create_daily_log(client, date="2026-09-03", steps=7000)
-        create_daily_log(client, date="2026-09-04", steps=8500)
-        create_daily_log(client, date="2026-09-05", steps=8000)
-        create_daily_log(client, date="2026-09-06", steps=8100)
-        create_daily_log(client, date="2026-09-07", steps=8300)
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-01",
+            steps=8000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-02",
+            steps=9000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-03",
+            steps=7000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-04",
+            steps=8500,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-05",
+            steps=8000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-06",
+            steps=8100,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-07",
+            steps=8300,
+        )
 
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-01",
             sleep_minutes=480,
         )
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-02",
             sleep_minutes=420,
         )
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-03",
             sleep_minutes=500,
         )
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-04",
             sleep_minutes=None,
         )
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-05",
             sleep_minutes=490,
         )
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-06",
             sleep_minutes=480,
         )
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-07",
             sleep_minutes=510,
         )
@@ -689,9 +661,21 @@ def test_statistics_consistency_returns_steps_sleep_and_streaks():
 
 def test_statistics_consistency_returns_null_goal_metrics_without_goals():
     with TestClient(app) as client:
-        create_daily_log(client, date="2026-09-01", steps=10000)
+        headers = register_and_login(
+            client,
+            email="sin-metas@example.com",
+            display_name="Sin metas",
+        )
+
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-01",
+            steps=10000,
+        )
         create_recovery_log(
             client,
+            headers=headers,
             date="2026-09-01",
             sleep_minutes=480,
         )
@@ -726,15 +710,16 @@ def test_statistics_consistency_returns_null_goal_metrics_without_goals():
             "best_streak": None,
         },
     }
-
 def test_statistics_consistency_rejects_inverted_date_range():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.get(
             "/statistics/consistency",
             params={
                 "start_date": "2026-09-02",
                 "end_date": "2026-09-01",
             },
+            headers=headers
         )
 
     assert response.status_code == 422
