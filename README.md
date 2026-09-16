@@ -342,26 +342,49 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Añadir exportación JSON, backup SQLite y restauración validada.
 - [x] Añadir objetivos de pasos, entrenamientos y running.
 
-### Fase 2 — Seguimiento avanzado
+## Fase 2 — Seguimiento avanzado
 
-- [ ] Añadir historial y gráficas detalladas de peso, IMC, volumen, ejercicios, pasos y running.
-- [ ] Detectar marcas personales de carga, repeticiones y volumen.
-- [ ] Añadir objetivos de peso, calorías, proteína, macronutrientes y composición corporal.
-- [ ] Añadir objetivos configurables de descanso, consistencia y rachas.
-- [ ] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos principales/secundarios e indicaciones técnicas.
-- [ ] Mejorar las validaciones, estados de carga y mensajes de error entre frontend y backend.
+- [x] Añadir resumen de actividad y gráficas temporales de pasos, peso y
+  kilómetros de running por periodo.
+- [x] Añadir progreso por ejercicio basado en series de trabajo.
+- [x] Detectar marcas personales de carga, repeticiones, volumen por serie,
+  volumen por sesión y 1RM estimado.
+- [x] Añadir objetivos diarios de calorías, proteína, carbohidratos y grasa.
+- [x] Añadir objetivos diarios de sueño y objetivos semanales de descanso.
+- [x] Añadir consistencia, días de objetivo cumplido, racha actual y mejor
+  racha para pasos y sueño.
+- [x] Añadir seguimiento de composición corporal: porcentaje graso, masa
+  grasa, masa magra y perímetros.
+- [ ] Añadir objetivos de peso, porcentaje graso, perímetros y composición
+  corporal.
+- [ ] Añadir medias móviles y comparativas entre periodos.
+- [ ] Ampliar gráficas de IMC, composición corporal, volumen de entrenamiento
+  y ritmo de running.
+- [ ] Añadir calendario de actividad y planificación de sesiones.
+- [ ] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos
+  principales/secundarios e indicaciones técnicas.
+- [ ] Crear biblioteca de alimentos, comidas frecuentes y plantillas de comida.
+- [ ] Mejorar filtros, estados vacíos, carga y mensajes de error entre
+  frontend y backend.
+### Fase 3 — Privacidad completa y despliegue
 
-### Fase 3 — Cuentas, privacidad y despliegue
-
-- [ ] Crear cuentas de usuario con registro e inicio de sesión.
-- [ ] Almacenar contraseñas exclusivamente mediante hash seguro.
-- [ ] Proteger la API con tokens de acceso y caducidad.
-- [ ] Asociar todos los datos personales a un `user_id`.
-- [ ] Garantizar que cada usuario solo puede consultar, editar, exportar o restaurar sus propios datos.
-- [ ] Migrar a PostgreSQL para uso multiusuario.
-- [ ] Configurar secretos con variables de entorno y desplegar mediante HTTPS.
-- [ ] Permitir que varias personas usen la aplicación desde sus propios dispositivos con datos privados e independientes.
-
+- [x] Registro, login y autenticación mediante tokens.
+- [x] Hash seguro de contraseñas.
+- [x] Aislamiento por usuario de pasos, recuperación, objetivos,
+  entrenamientos, carreras, métricas corporales y estadísticas.
+- [ ] Añadir `user_id` a nutrición: días, comidas y alimentos.
+- [ ] Añadir `user_id` a plantillas y a sus ejercicios/series.
+- [ ] Convertir exportación JSON en una exportación exclusiva de la cuenta
+  autenticada.
+- [ ] Sustituir el backup SQLite completo por exportaciones por usuario o
+  backups administrativos protegidos.
+- [ ] Diseñar restauración segura por usuario, sin sobrescribir datos de otras
+  cuentas.
+- [ ] Añadir control de sesión en frontend: login, logout, expiración de token
+  y envío consistente de `Authorization: Bearer ...`.
+- [ ] Añadir recuperación/cambio de contraseña.
+- [ ] Migrar a PostgreSQL para despliegue con concurrencia y usuarios reales.
+- [ ] Configurar variables de entorno, CORS restrictivo, HTTPS, logs y CI/CD.
 ### Fase 4 — Móvil y experiencia PWA
 
 - [ ] Añadir `manifest.webmanifest`, iconos y configuración de instalación.
@@ -428,9 +451,9 @@ python -m uvicorn app.main:app --reload
 
 ### 5. Abrir la aplicación
 
-- Aplicación: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+- Aplicación: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
+- Swagger UI: [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
+- ReDoc: [http://127.0.0.1:8001/redoc](http://127.0.0.1:8001/redoc)
 
 ### 6. Ejecutar pruebas
 
@@ -442,9 +465,16 @@ python -m pytest -q
 
 ## Limitaciones actuales
 
-- Proyecto personal para un único usuario.
+- La API dispone de cuentas, autenticación mediante token y aislamiento por usuario
+  para pasos, recuperación, objetivos, entrenamientos, carreras, métricas
+  corporales y estadísticas.
+- Nutrición y plantillas de entrenamiento todavía no tienen propiedad por usuario.
+- Las exportaciones JSON, copias SQLite y restauraciones siguen operando sobre la
+  base de datos completa; no deben exponerse a usuarios no administradores hasta
+  rediseñarse como operaciones aisladas por cuenta.
+- La persistencia actual usa SQLite local; no hay sincronización en la nube ni
+  despliegue multiusuario productivo.
 - Los pasos, entrenamientos, carreras y datos nutricionales se introducen manualmente.
-- No hay autenticación ni sincronización en la nube.
 - No hay integración actual con relojes, Apple Health, Health Connect ni dispositivos de actividad.
 - Los mapas, rutas GPS e importación GPX aún no están implementados.
 - El registro nutricional no sustituye orientación profesional.
