@@ -1,10 +1,12 @@
 from collections import defaultdict
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db import get_connection
+from app.dependencies import get_current_user
 from app.schemas import (
+    UserResponse,
     WorkoutPersonalRecord,
     WorkoutPersonalRecordsExerciseResponse,
     WorkoutProgressResponse,
@@ -18,21 +20,28 @@ router = APIRouter(
     tags=["workout progress"],
 )
 
+
 @router.get(
     "/exercise-names",
     response_model=list[str],
 )
-def list_exercise_names_with_progress() -> list[str]:
+def list_exercise_names_with_progress(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[str]:
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT DISTINCT workout_exercises.name
-            FROM workout_exercises
-            INNER JOIN workout_sets
-                ON workout_sets.workout_exercise_id = workout_exercises.id
-            WHERE workout_sets.set_type = 'working'
-            ORDER BY workout_exercises.name COLLATE NOCASE ASC
-            """
+            SELECT DISTINCT exercise.name
+            FROM workout_exercises AS exercise
+            INNER JOIN workout_sets AS workout_set
+                ON workout_set.workout_exercise_id = exercise.id
+            INNER JOIN workout_sessions AS session
+                ON session.id = exercise.workout_session_id
+            WHERE workout_set.set_type = 'working'
+              AND session.user_id = ?
+            ORDER BY exercise.name COLLATE NOCASE ASC
+            """,
+            (current_user.id,),
         ).fetchall()
 
     return [row["name"] for row in rows]
@@ -44,6 +53,7 @@ def list_exercise_names_with_progress() -> list[str]:
 )
 def get_workout_progress(
     exercise_name: str = Query(min_length=1, max_length=120),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutProgressResponse:
     normalized_exercise_name = exercise_name.strip()
 
@@ -57,36 +67,35 @@ def get_workout_progress(
         rows = connection.execute(
             """
             SELECT
-                workout_sessions.id AS session_id,
-                workout_sessions.date AS session_date,
-                workout_sessions.name AS session_name,
-                workout_sets.id AS set_id,
-                workout_sets.position AS set_position,
-                workout_sets.repetitions,
-                workout_sets.weight_kg,
-                workout_sets.rir,
-                workout_sets.repetitions * workout_sets.weight_kg AS volume_kg
-            FROM workout_sets
-            INNER JOIN workout_exercises
-                ON workout_sets.workout_exercise_id = workout_exercises.id
-            INNER JOIN workout_sessions
-                ON workout_exercises.workout_session_id = workout_sessions.id
-            WHERE workout_exercises.name = ?
-                AND workout_sets.set_type = 'working'
+                session.id AS session_id,
+                session.date AS session_date,
+                session.name AS session_name,
+                workout_set.id AS set_id,
+                workout_set.position AS set_position,
+                workout_set.repetitions,
+                workout_set.weight_kg,
+                workout_set.rir,
+                workout_set.repetitions * workout_set.weight_kg AS volume_kg
+            FROM workout_sets AS workout_set
+            INNER JOIN workout_exercises AS exercise
+                ON workout_set.workout_exercise_id = exercise.id
+            INNER JOIN workout_sessions AS session
+                ON exercise.workout_session_id = session.id
+            WHERE exercise.name = ?
+              AND workout_set.set_type = 'working'
+              AND session.user_id = ?
             ORDER BY
-                workout_sessions.date ASC,
-                workout_sessions.id ASC,
-                workout_sets.position ASC
+                session.date ASC,
+                session.id ASC,
+                workout_set.position ASC
             """,
-            (normalized_exercise_name,),
+            (normalized_exercise_name, current_user.id),
         ).fetchall()
 
     if not rows:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "No existen series de trabajo para ese ejercicio."
-            ),
+            detail="No existen series de trabajo para ese ejercicio.",
         )
 
     sessions: dict[int, dict] = defaultdict(
@@ -152,26 +161,28 @@ def get_workout_progress(
         ],
     )
 
+
 PERSONAL_RECORDS_SELECT = """
     SELECT
-        workout_exercises.name AS exercise_name,
-        workout_sessions.id AS session_id,
-        workout_sessions.name AS session_name,
-        workout_sessions.date AS session_date,
-        workout_sets.id AS set_id,
-        workout_sets.position AS set_position,
-        workout_sets.repetitions,
-        workout_sets.weight_kg,
-        workout_sets.repetitions * workout_sets.weight_kg AS volume_kg,
-        workout_sets.weight_kg * (
-            1 + workout_sets.repetitions / 30.0
+        exercise.name AS exercise_name,
+        session.id AS session_id,
+        session.name AS session_name,
+        session.date AS session_date,
+        workout_set.id AS set_id,
+        workout_set.position AS set_position,
+        workout_set.repetitions,
+        workout_set.weight_kg,
+        workout_set.repetitions * workout_set.weight_kg AS volume_kg,
+        workout_set.weight_kg * (
+            1 + workout_set.repetitions / 30.0
         ) AS estimated_one_rep_max_kg
-    FROM workout_sets
-    INNER JOIN workout_exercises
-        ON workout_sets.workout_exercise_id = workout_exercises.id
-    INNER JOIN workout_sessions
-        ON workout_exercises.workout_session_id = workout_sessions.id
-    WHERE workout_sets.set_type = 'working'
+    FROM workout_sets AS workout_set
+    INNER JOIN workout_exercises AS exercise
+        ON workout_set.workout_exercise_id = exercise.id
+    INNER JOIN workout_sessions AS session
+        ON exercise.workout_session_id = session.id
+    WHERE workout_set.set_type = 'working'
+      AND session.user_id = ?
 """
 
 
@@ -302,7 +313,9 @@ def build_personal_records(
                 estimated_one_rep_max_row,
                 metric="estimated_one_rep_max_kg",
                 label="1RM estimado",
-                value=estimated_one_rep_max_row["estimated_one_rep_max_kg"],
+                value=estimated_one_rep_max_row[
+                    "estimated_one_rep_max_kg"
+                ],
                 unit="kg",
                 set_id=estimated_one_rep_max_row["set_id"],
                 repetitions=estimated_one_rep_max_row["repetitions"],
@@ -333,6 +346,7 @@ def get_workout_personal_records(
         default=None,
         max_length=120,
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> list[WorkoutPersonalRecordsExerciseResponse]:
     normalized_exercise_name = None
 
@@ -346,20 +360,23 @@ def get_workout_personal_records(
             )
 
     query = PERSONAL_RECORDS_SELECT
-    parameters: tuple[str, ...] = ()
+    parameters: tuple[object, ...] = (current_user.id,)
 
     if normalized_exercise_name is not None:
         query += """
-            AND workout_exercises.name = ?
+            AND exercise.name = ?
         """
-        parameters = (normalized_exercise_name,)
+        parameters = (
+            current_user.id,
+            normalized_exercise_name,
+        )
 
     query += """
         ORDER BY
-            workout_exercises.name COLLATE NOCASE ASC,
-            workout_sessions.date ASC,
-            workout_sessions.id ASC,
-            workout_sets.position ASC
+            exercise.name COLLATE NOCASE ASC,
+            session.date ASC,
+            session.id ASC,
+            workout_set.position ASC
     """
 
     with get_connection() as connection:

@@ -55,9 +55,14 @@ def get_current_value(
             """
             SELECT COUNT(*) AS current_value
             FROM workout_sessions
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ?
+              AND date BETWEEN ? AND ?
             """,
-            (week_start.isoformat(), today.isoformat()),
+            (
+                user_id,
+                week_start.isoformat(),
+                today.isoformat(),
+            ),
         ).fetchone()
 
         return float(row["current_value"])
@@ -67,9 +72,14 @@ def get_current_value(
             """
             SELECT COALESCE(SUM(distance_km), 0) AS current_value
             FROM runs
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ?
+              AND date BETWEEN ? AND ?
             """,
-            (week_start.isoformat(), today.isoformat()),
+            (
+                user_id,
+                week_start.isoformat(),
+                today.isoformat(),
+            ),
         ).fetchone()
 
         return float(row["current_value"])

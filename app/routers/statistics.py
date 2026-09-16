@@ -1,8 +1,10 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends,HTTPException, Query, status
 
 from app.db import get_connection
+from app.dependencies import get_current_user
+
 from app.schemas import (
     ActivityChartsResponse,
     ActivityConsistencyResponse,
@@ -16,6 +18,7 @@ from app.schemas import (
     StatisticsRunningResponse,
     StatisticsStepsResponse,
     StatisticsWorkoutsResponse,
+    UserResponse,
 )
 
 
@@ -36,6 +39,7 @@ def get_activity_statistics(
     end_date: date = Query(
         description="Fecha final del periodo, incluida.",
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> ActivityStatisticsResponse:
     if start_date > end_date:
         raise HTTPException(
@@ -53,9 +57,9 @@ def get_activity_statistics(
                 COUNT(*) AS days_logged,
                 COALESCE(SUM(steps), 0) AS total_steps
             FROM daily_logs
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchone()
 
         workouts_row = connection.execute(
@@ -74,52 +78,52 @@ def get_activity_statistics(
             LEFT JOIN workout_sets
                 ON workout_sets.workout_exercise_id = workout_exercises.id
                 AND workout_sets.set_type = 'working'
-            WHERE workout_sessions.date BETWEEN ? AND ?
+            WHERE workout_sessions.user_id = ? AND workout_sessions.date BETWEEN ? AND ?
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchone()
 
         running_row = connection.execute(
             """
             SELECT
                 COUNT(*) AS runs,
-                TOTAL(distance_km) AS distance_km,
+                COALESCE(TOTAL(distance_km), 0) AS distance_km,
                 COALESCE(SUM(duration_seconds), 0) AS duration_seconds
             FROM runs
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchone()
 
         body_metrics_count_row = connection.execute(
             """
             SELECT COUNT(*) AS records
             FROM body_metrics
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchone()
 
         first_body_metric_row = connection.execute(
             """
             SELECT date, weight_kg, height_cm, bmi
             FROM body_metrics
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             ORDER BY date ASC, id ASC
             LIMIT 1
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchone()
 
         latest_body_metric_row = connection.execute(
             """
             SELECT date, weight_kg, height_cm, bmi
             FROM body_metrics
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             ORDER BY date DESC, id DESC
             LIMIT 1
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchone()
 
     days_logged = steps_row["days_logged"]
@@ -192,6 +196,7 @@ def get_activity_charts(
     end_date: date = Query(
         description="Fecha final del periodo, incluida.",
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> ActivityChartsResponse:
     if start_date > end_date:
         raise HTTPException(
@@ -207,20 +212,20 @@ def get_activity_charts(
             """
             SELECT date, steps
             FROM daily_logs
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             ORDER BY date ASC, id ASC
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchall()
 
         weight_rows = connection.execute(
             """
             SELECT date, weight_kg
             FROM body_metrics
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             ORDER BY date ASC, id ASC
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchall()
 
         running_rows = connection.execute(
@@ -229,11 +234,11 @@ def get_activity_charts(
                 date,
                 ROUND(SUM(distance_km), 2) AS distance_km
             FROM runs
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             GROUP BY date
             ORDER BY date ASC
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchall()
 
     return ActivityChartsResponse(
@@ -299,6 +304,7 @@ def build_consistency_metric(
     goal_target: float | None,
     logged_dates: set[date],
     completed_dates: set[date],
+
 ) -> ConsistencyMetricResponse:
     if goal_target is None:
         return ConsistencyMetricResponse(
@@ -340,6 +346,7 @@ def get_activity_consistency(
     end_date: date = Query(
         description="Fecha final del periodo, incluida.",
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> ActivityConsistencyResponse:
     if start_date > end_date:
         raise HTTPException(
@@ -356,30 +363,32 @@ def get_activity_consistency(
             """
             SELECT goal_type, target_value
             FROM fitness_goals
-            WHERE goal_type IN (
-                'daily_steps',
-                'daily_sleep_minutes'
-            )
-            """
+            WHERE user_id = ?
+              AND goal_type IN (
+                  'daily_steps',
+                  'daily_sleep_minutes'
+              )
+            """,
+            (current_user.id,),
         ).fetchall()
 
         step_rows = connection.execute(
             """
             SELECT date, steps
             FROM daily_logs
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchall()
 
         sleep_rows = connection.execute(
             """
             SELECT date, sleep_minutes
             FROM daily_recovery_logs
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ? AND date BETWEEN ? AND ?
                 AND sleep_minutes IS NOT NULL
             """,
-            (start_date_value, end_date_value),
+            (current_user.id, start_date_value, end_date_value),
         ).fetchall()
 
     goals_by_type = {

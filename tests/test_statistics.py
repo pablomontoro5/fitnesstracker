@@ -111,6 +111,7 @@ def create_recovery_log(
     date: str,
     sleep_minutes: int | None,
 ) -> dict:
+    
     response = client.post(
         "/recovery-logs/",
         headers=headers,
@@ -145,11 +146,13 @@ def create_goal(
 def create_workout_session(
     client: TestClient,
     *,
+    headers: dict[str, str],
     date: str,
     name: str = "Torso",
 ) -> dict:
     response = client.post(
         "/workout-sessions/",
+        headers=headers,
         json={
             "date": date,
             "name": name,
@@ -163,6 +166,7 @@ def create_workout_session(
 def create_workout_exercise(
     client: TestClient,
     *,
+    headers: dict[str, str],
     session_id: int,
     name: str = "Press banca",
     position: int = 1,
@@ -175,6 +179,7 @@ def create_workout_exercise(
             "position": position,
             "technique_notes": None,
         },
+        headers=headers,
     )
 
     assert response.status_code == 201
@@ -184,6 +189,7 @@ def create_workout_exercise(
 def create_workout_set(
     client: TestClient,
     *,
+    headers: dict[str, str],
     exercise_id: int,
     set_type: str = "working",
     position: int = 1,
@@ -201,6 +207,7 @@ def create_workout_set(
             "rir": 2,
             "notes": None,
         },
+        headers=headers,
     )
 
     assert response.status_code == 201
@@ -210,12 +217,14 @@ def create_workout_set(
 def create_run(
     client: TestClient,
     *,
+    headers: dict[str, str],
     date: str,
     distance_km: float,
     duration_seconds: int,
 ) -> dict:
     response = client.post(
         "/runs/",
+        headers=headers,
         json={
             "date": date,
             "distance_km": distance_km,
@@ -231,6 +240,7 @@ def create_run(
 def create_body_metric(
     client: TestClient,
     *,
+    headers: dict[str, str],
     date: str,
     weight_kg: float,
     height_cm: float = 180,
@@ -243,6 +253,7 @@ def create_body_metric(
             "height_cm": height_cm,
             "notes": None,
         },
+        headers=headers,
     )
 
     assert response.status_code == 201
@@ -252,11 +263,13 @@ def create_body_metric(
 def get_summary(
     client: TestClient,
     *,
+    headers: dict[str, str],
     start_date: str = "2026-09-30",
     end_date: str = "2026-10-01",
 ) -> dict:
     response = client.get(
         "/statistics/summary",
+        headers=headers,
         params={
             "start_date": start_date,
             "end_date": end_date,
@@ -266,10 +279,10 @@ def get_summary(
     assert response.status_code == 200
     return response.json()
 
-
 def test_statistics_summary_is_empty_when_no_data_exists():
     with TestClient(app) as client:
-        summary = get_summary(client)
+        headers = register_and_login(client)
+        summary = get_summary(client, headers=headers)
 
     assert summary["start_date"] == "2026-09-30"
     assert summary["end_date"] == "2026-10-01"
@@ -320,8 +333,91 @@ def test_statistics_summary_aggregates_data_in_period():
 
         session = create_workout_session(
             client,
+            headers=headers,
             date="2026-09-30",
         )
+        exercise = create_workout_exercise(
+            client,
+            headers=headers,
+            session_id=session["id"],
+        )
+
+        create_workout_set(
+            client,
+            headers=headers,
+            exercise_id=exercise["id"],
+            position=1,
+            repetitions=10,
+            weight_kg=50,
+        )
+        create_workout_set(
+            client,
+            headers=headers,
+            exercise_id=exercise["id"],
+            position=2,
+            repetitions=8,
+            weight_kg=60,
+        )
+
+        create_run(
+            client,
+            headers=headers,
+            date="2026-09-30",
+            distance_km=5,
+            duration_seconds=1500,
+        )
+        create_run(
+            client,
+            headers=headers,
+            date="2026-10-01",
+            distance_km=10,
+            duration_seconds=3600,
+        )
+
+        create_body_metric(
+            client,
+            headers=headers,
+            date="2026-09-30",
+            weight_kg=80,
+        )
+        create_body_metric(
+            client,
+            headers=headers,
+            date="2026-10-01",
+            weight_kg=79.5,
+        )
+
+        summary = get_summary(client, headers=headers)
+
+    assert summary["steps"] == {
+        "total": 20000,
+        "days_logged": 2,
+        "average_per_logged_day": 10000,
+    }
+
+    assert summary["workouts"] == {
+        "sessions": 1,
+        "exercises": 1,
+        "working_sets": 2,
+        "repetitions": 18,
+        "volume_kg": 980,
+    }
+
+    assert summary["running"] == {
+        "runs": 2,
+        "distance_km": 15,
+        "duration_seconds": 5100,
+        "average_pace_seconds_km": 340,
+    }
+
+    assert summary["body_metrics"]["records"] == 2
+    assert summary["body_metrics"]["latest"]["date"] == "2026-10-01"
+    assert summary["body_metrics"]["latest"]["weight_kg"] == 79.5
+    assert summary["body_metrics"]["latest"]["height_cm"] == 180
+    assert summary["body_metrics"]["latest"]["bmi"] == 24.54
+    assert summary["body_metrics"]["weight_change_kg"] == -0.5
+
+
 def test_statistics_summary_excludes_data_outside_period():
     with TestClient(app) as client:
         headers = register_and_login(client)
@@ -332,26 +428,61 @@ def test_statistics_summary_excludes_data_outside_period():
             date="2026-09-29",
             steps=9999,
         )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-10-01",
+            steps=1000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-11-01",
+            steps=8888,
+        )
 
         create_run(
             client,
+            headers=headers,
             date="2026-09-29",
             distance_km=50,
             duration_seconds=15000,
         )
+        create_run(
+            client,
+            headers=headers,
+            date="2026-10-01",
+            distance_km=5,
+            duration_seconds=1500,
+        )
+
+        summary = get_summary(client, headers=headers)
+
+    assert summary["steps"]["total"] == 1000
+    assert summary["steps"]["days_logged"] == 1
+    assert summary["running"]["runs"] == 1
+    assert summary["running"]["distance_km"] == 5
+    assert summary["running"]["duration_seconds"] == 1500
+    assert summary["running"]["average_pace_seconds_km"] == 300
+
 def test_statistics_summary_only_counts_working_sets():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         session = create_workout_session(
             client,
+            headers=headers,
             date="2026-09-30",
         )
         exercise = create_workout_exercise(
             client,
+            headers=headers,
             session_id=session["id"],
         )
 
         create_workout_set(
-            client,            exercise_id=exercise["id"],
+            client,            
+            exercise_id=exercise["id"],
+            headers=headers,
             set_type="warmup",
             position=1,
             repetitions=15,
@@ -359,6 +490,7 @@ def test_statistics_summary_only_counts_working_sets():
         )
         create_workout_set(
             client,
+            headers=headers,
             exercise_id=exercise["id"],
             set_type="approximation",
             position=2,
@@ -367,6 +499,7 @@ def test_statistics_summary_only_counts_working_sets():
         )
         create_workout_set(
             client,
+            headers=headers,
             exercise_id=exercise["id"],
             set_type="working",
             position=3,
@@ -375,6 +508,7 @@ def test_statistics_summary_only_counts_working_sets():
         )
         create_workout_set(
             client,
+            headers=headers,
             exercise_id=exercise["id"],
             set_type="drop_set",
             position=4,
@@ -382,7 +516,7 @@ def test_statistics_summary_only_counts_working_sets():
             weight_kg=30,
         )
 
-        summary = get_summary(client)
+        summary = get_summary(client, headers=headers)
 
     assert summary["workouts"]["sessions"] == 1
     assert summary["workouts"]["exercises"] == 1
@@ -410,12 +544,14 @@ def test_statistics_summary_rejects_inverted_date_range():
 
 def test_statistics_summary_rejects_invalid_date():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.get(
             "/statistics/summary",
             params={
                 "start_date": "not-a-date",
                 "end_date": "2026-10-01",
             },
+            headers=headers ,
         )
 
     assert response.status_code == 422
@@ -438,29 +574,34 @@ def test_statistics_charts_returns_ordered_series_in_period():
 
         create_body_metric(
             client,
+            headers=headers,
             date="2026-09-30",
             weight_kg=80,
         )
         create_body_metric(
             client,
+            headers=headers,
             date="2026-10-01",
             weight_kg=79.5,
         )
 
         create_run(
             client,
+            headers=headers,
             date="2026-09-30",
             distance_km=5,
             duration_seconds=1500,
         )
         create_run(
             client,
+            headers=headers,
             date="2026-09-30",
             distance_km=2.5,
             duration_seconds=900,
         )
         create_run(
             client,
+            headers=headers,
             date="2026-10-01",
             distance_km=10,
             duration_seconds=3600,
@@ -472,6 +613,7 @@ def test_statistics_charts_returns_ordered_series_in_period():
                 "start_date": "2026-09-30",
                 "end_date": "2026-10-01",
             },
+            headers=headers,
         )
 
     assert response.status_code == 200
@@ -630,6 +772,7 @@ def test_statistics_consistency_returns_steps_sleep_and_streaks():
 
         response = client.get(
             "/statistics/consistency",
+            headers=headers,
             params={
                 "start_date": "2026-09-01",
                 "end_date": "2026-09-07",
@@ -682,6 +825,7 @@ def test_statistics_consistency_returns_null_goal_metrics_without_goals():
 
         response = client.get(
             "/statistics/consistency",
+            headers=headers,
             params={
                 "start_date": "2026-09-01",
                 "end_date": "2026-09-03",
@@ -712,7 +856,11 @@ def test_statistics_consistency_returns_null_goal_metrics_without_goals():
     }
 def test_statistics_consistency_rejects_inverted_date_range():
     with TestClient(app) as client:
-        headers = register_and_login(client)
+        headers = register_and_login(
+            client,
+            email="sin-metas@example.com",
+            display_name="Sin metas",
+        )
         response = client.get(
             "/statistics/consistency",
             params={
@@ -727,3 +875,70 @@ def test_statistics_consistency_rejects_inverted_date_range():
         "start_date no puede ser posterior a end_date."
     )
 
+
+def test_statistics_only_include_current_user_data():
+    with TestClient(app) as client:
+        owner_headers = register_and_login(
+            client,
+            email="statistics-owner@example.com",
+            display_name="Statistics owner",
+        )
+        other_headers = register_and_login(
+            client,
+            email="statistics-other@example.com",
+            display_name="Statistics other",
+        )
+
+        create_daily_log(
+            client,
+            headers=owner_headers,
+            date="2026-09-30",
+            steps=12000,
+        )
+        create_run(
+            client,
+            headers=owner_headers,
+            date="2026-09-30",
+            distance_km=10,
+            duration_seconds=3600,
+        )
+        create_body_metric(
+            client,
+            headers=owner_headers,
+            date="2026-09-30",
+            weight_kg=90,
+        )
+
+        owner_session = create_workout_session(
+            client,
+            headers=owner_headers,
+            date="2026-09-30",
+        )
+        owner_exercise = create_workout_exercise(
+            client,
+            headers=owner_headers,
+            session_id=owner_session["id"],
+        )
+        create_workout_set(
+            client,
+            headers=owner_headers,
+            exercise_id=owner_exercise["id"],
+            repetitions=10,
+            weight_kg=100,
+        )
+
+        response = client.get(
+            "/statistics/summary",
+            headers=other_headers,
+            params={
+                "start_date": "2026-09-30",
+                "end_date": "2026-09-30",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["steps"]["total"] == 0
+    assert response.json()["workouts"]["sessions"] == 0
+    assert response.json()["workouts"]["working_sets"] == 0
+    assert response.json()["running"]["runs"] == 0
+    assert response.json()["body_metrics"]["records"] == 0
