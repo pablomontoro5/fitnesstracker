@@ -33,3 +33,39 @@ def clean_database():
     yield
 
     initialize_database()
+
+from fastapi.testclient import TestClient
+
+
+def register_and_login(
+    client: TestClient,
+    *,
+    email: str = "test@example.com",
+    display_name: str = "Test User",
+) -> dict[str, str]:
+    password = "password-segura-123"
+
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "display_name": display_name,
+            "password": password,
+        },
+    )
+    assert register_response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+    assert login_response.status_code == 200
+
+    return {
+        "Authorization": (
+            f"Bearer {login_response.json()['access_token']}"
+        )
+    }
