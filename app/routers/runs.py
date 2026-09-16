@@ -1,10 +1,10 @@
 import sqlite3
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Response, status
-
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from app.dependencies import get_current_user
 from app.db import get_connection
-from app.schemas import RunCreate, RunResponse, RunUpdate
+from app.schemas import RunCreate, RunResponse, RunUpdate,UserResponse
 
 
 router = APIRouter(
@@ -36,7 +36,10 @@ def row_to_run(row: sqlite3.Row) -> RunResponse:
     response_model=RunResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_run(run: RunCreate) -> RunResponse:
+def create_run(
+    run: RunCreate,
+    current_user: UserResponse = Depends(get_current_user),
+) -> RunResponse:
     average_pace_seconds_km = calculate_average_pace(
         distance_km=run.distance_km,
         duration_seconds=run.duration_seconds,
@@ -46,15 +49,17 @@ def create_run(run: RunCreate) -> RunResponse:
         cursor = connection.execute(
             """
             INSERT INTO runs (
+                user_id,
                 date,
                 distance_km,
                 duration_seconds,
                 average_pace_seconds_km,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
+                current_user.id,
                 run.date.isoformat(),
                 run.distance_km,
                 run.duration_seconds,
@@ -73,16 +78,14 @@ def create_run(run: RunCreate) -> RunResponse:
                 average_pace_seconds_km,
                 notes
             FROM runs
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (cursor.lastrowid,),
+            (cursor.lastrowid, current_user.id),
         ).fetchone()
 
     return row_to_run(row)
-
-
 @router.get("/", response_model=list[RunResponse])
-def list_runs() -> list[RunResponse]:
+def list_runs(current_user: UserResponse = Depends(get_current_user)) -> list[RunResponse]:
     with get_connection() as connection:
         rows = connection.execute(
             """
@@ -94,15 +97,17 @@ def list_runs() -> list[RunResponse]:
                 average_pace_seconds_km,
                 notes
             FROM runs
+            WHERE user_id = ?
             ORDER BY date DESC, id DESC
-            """
+            """,
+            (current_user.id,)
         ).fetchall()
 
     return [row_to_run(row) for row in rows]
 
 
 @router.get("/{run_id}", response_model=RunResponse)
-def get_run(run_id: int) -> RunResponse:
+def get_run(run_id: int, current_user: UserResponse = Depends(get_current_user)) -> RunResponse:
     with get_connection() as connection:
         row = connection.execute(
             """
@@ -114,9 +119,9 @@ def get_run(run_id: int) -> RunResponse:
                 average_pace_seconds_km,
                 notes
             FROM runs
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (run_id,),
+            (run_id, current_user.id),
         ).fetchone()
 
     if row is None:
@@ -135,6 +140,7 @@ def get_run(run_id: int) -> RunResponse:
 def update_run(
     run_id: int,
     run: RunUpdate,
+    current_user: UserResponse = Depends(get_current_user)
 ) -> RunResponse:
     average_pace_seconds_km = calculate_average_pace(
         distance_km=run.distance_km,
@@ -151,7 +157,7 @@ def update_run(
                 duration_seconds = ?,
                 average_pace_seconds_km = ?,
                 notes = ?
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
             (
                 run.date.isoformat(),
@@ -160,6 +166,7 @@ def update_run(
                 average_pace_seconds_km,
                 run.notes,
                 run_id,
+                current_user.id,
             ),
         )
 
@@ -179,9 +186,9 @@ def update_run(
                 average_pace_seconds_km,
                 notes
             FROM runs
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (run_id,),
+            (run_id,current_user.id),
         ).fetchone()
 
     return row_to_run(row)
@@ -191,14 +198,14 @@ def update_run(
     "/{run_id}",
     response_model=None,
 )
-def delete_run(run_id: int) -> Response:
+def delete_run(run_id: int, current_user: UserResponse = Depends(get_current_user)) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM runs
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (run_id,),
+            (run_id, current_user.id),
         )
 
     if cursor.rowcount == 0:
