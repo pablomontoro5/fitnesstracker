@@ -294,6 +294,199 @@ def migrate_daily_recovery_logs_table(
         "RENAME TO daily_recovery_logs"
     )
 
+def get_legacy_user_id(
+    connection: sqlite3.Connection,
+    *,
+    table_name: str,
+    empty_error_message: str,
+) -> int | None:
+    legacy_rows_count = connection.execute(
+        f"SELECT COUNT(*) AS count FROM {table_name}"
+    ).fetchone()["count"]
+
+    first_user_row = connection.execute(
+        """
+        SELECT id
+        FROM users
+        ORDER BY id ASC
+        LIMIT 1
+        """
+    ).fetchone()
+
+    if first_user_row is None and legacy_rows_count > 0:
+        raise RuntimeError(empty_error_message)
+
+    if first_user_row is None:
+        return None
+
+    return first_user_row["id"]
+
+
+def migrate_body_metrics_table(connection: sqlite3.Connection) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(body_metrics)"
+        ).fetchall()
+    }
+
+    if "user_id" in columns:
+        return
+
+    legacy_user_id = get_legacy_user_id(
+        connection,
+        table_name="body_metrics",
+        empty_error_message=(
+            "No se pueden migrar métricas corporales sin "
+            "un usuario propietario."
+        ),
+    )
+
+    if legacy_user_id is None:
+        return
+
+    connection.execute(
+        """
+        CREATE TABLE body_metrics_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            weight_kg REAL NOT NULL CHECK (weight_kg > 0),
+            height_cm REAL NOT NULL CHECK (height_cm > 0),
+            bmi REAL NOT NULL CHECK (bmi > 0),
+            body_fat_percentage REAL
+                CHECK (
+                    body_fat_percentage > 0
+                    AND body_fat_percentage < 100
+                ),
+            waist_cm REAL CHECK (waist_cm > 0 AND waist_cm <= 300),
+            hip_cm REAL CHECK (hip_cm > 0 AND hip_cm <= 300),
+            chest_cm REAL CHECK (chest_cm > 0 AND chest_cm <= 300),
+            arm_cm REAL CHECK (arm_cm > 0 AND arm_cm <= 200),
+            thigh_cm REAL CHECK (thigh_cm > 0 AND thigh_cm <= 300),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+            UNIQUE (user_id, date)
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO body_metrics_new (
+            id,
+            user_id,
+            date,
+            weight_kg,
+            height_cm,
+            bmi,
+            body_fat_percentage,
+            waist_cm,
+            hip_cm,
+            chest_cm,
+            arm_cm,
+            thigh_cm,
+            notes,
+            created_at
+        )
+        SELECT
+            id,
+            ?,
+            date,
+            weight_kg,
+            height_cm,
+            bmi,
+            body_fat_percentage,
+            waist_cm,
+            hip_cm,
+            chest_cm,
+            arm_cm,
+            thigh_cm,
+            notes,
+            created_at
+        FROM body_metrics
+        """,
+        (legacy_user_id,),
+    )
+
+    connection.execute("DROP TABLE body_metrics")
+    connection.execute(
+        "ALTER TABLE body_metrics_new RENAME TO body_metrics"
+    )
+
+
+def migrate_runs_table(connection: sqlite3.Connection) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(runs)"
+        ).fetchall()
+    }
+
+    if "user_id" in columns:
+        return
+
+    legacy_user_id = get_legacy_user_id(
+        connection,
+        table_name="runs",
+        empty_error_message=(
+            "No se pueden migrar carreras sin un usuario propietario."
+        ),
+    )
+
+    if legacy_user_id is None:
+        return
+
+    connection.execute(
+        """
+        CREATE TABLE runs_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            distance_km REAL NOT NULL CHECK (distance_km > 0),
+            duration_seconds INTEGER NOT NULL CHECK (duration_seconds > 0),
+            average_pace_seconds_km REAL NOT NULL
+                CHECK (average_pace_seconds_km > 0),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO runs_new (
+            id,
+            user_id,
+            date,
+            distance_km,
+            duration_seconds,
+            average_pace_seconds_km,
+            notes,
+            created_at
+        )
+        SELECT
+            id,
+            ?,
+            date,
+            distance_km,
+            duration_seconds,
+            average_pace_seconds_km,
+            notes,
+            created_at
+        FROM runs
+        """,
+        (legacy_user_id,),
+    )
+
+    connection.execute("DROP TABLE runs")
+    connection.execute("ALTER TABLE runs_new RENAME TO runs")
 
 def initialize_database() -> None:
 
@@ -358,19 +551,27 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS body_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
                 weight_kg REAL NOT NULL CHECK (weight_kg > 0),
                 height_cm REAL NOT NULL CHECK (height_cm > 0),
                 bmi REAL NOT NULL CHECK (bmi > 0),
                 body_fat_percentage REAL
-                    CHECK (body_fat_percentage > 0 AND body_fat_percentage < 100),
+                    CHECK (
+                        body_fat_percentage > 0
+                        AND body_fat_percentage < 100
+                    ),
                 waist_cm REAL CHECK (waist_cm > 0 AND waist_cm <= 300),
                 hip_cm REAL CHECK (hip_cm > 0 AND hip_cm <= 300),
                 chest_cm REAL CHECK (chest_cm > 0 AND chest_cm <= 300),
                 arm_cm REAL CHECK (arm_cm > 0 AND arm_cm <= 200),
                 thigh_cm REAL CHECK (thigh_cm > 0 AND thigh_cm <= 300),
                 notes TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+                UNIQUE (user_id, date)
             )
             """
         )
@@ -404,10 +605,14 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS workout_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
                 name TEXT NOT NULL CHECK (length(trim(name)) > 0),
                 notes TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
             )
             """
         )
@@ -457,13 +662,17 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS runs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
                 date TEXT NOT NULL,
                 distance_km REAL NOT NULL CHECK (distance_km > 0),
                 duration_seconds INTEGER NOT NULL CHECK (duration_seconds > 0),
                 average_pace_seconds_km REAL NOT NULL
                     CHECK (average_pace_seconds_km > 0),
                 notes TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
             )
             """
         )
@@ -590,3 +799,18 @@ def initialize_database() -> None:
         migrate_fitness_goals_table(connection)
         migrate_daily_logs_table(connection)
         migrate_daily_recovery_logs_table(connection)
+        migrate_body_metrics_table(connection)
+        migrate_runs_table(connection)
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_body_metrics_user_date
+            ON body_metrics(user_id, date)
+            """
+        )
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_runs_user_date
+            ON runs(user_id, date)
+            """
+        )
