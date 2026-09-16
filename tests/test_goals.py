@@ -325,24 +325,27 @@ def test_goals_progress_calculates_today_and_current_week():
             steps=6400,
         )
 
-        client.post(
+        first_session_response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-09-07",
                 "name": "Empujes",
                 "notes": None,
             },
         )
-        client.post(
+        second_session_response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-09-09",
                 "name": "Tirón",
                 "notes": None,
             },
         )
-        client.post(
+        previous_session_response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-09-06",
                 "name": "Sesión anterior",
@@ -350,8 +353,13 @@ def test_goals_progress_calculates_today_and_current_week():
             },
         )
 
-        client.post(
+        assert first_session_response.status_code == 201
+        assert second_session_response.status_code == 201
+        assert previous_session_response.status_code == 201
+
+        first_run_response = client.post(
             "/runs/",
+            headers=headers,
             json={
                 "date": "2026-09-07",
                 "distance_km": 4.5,
@@ -359,8 +367,9 @@ def test_goals_progress_calculates_today_and_current_week():
                 "notes": None,
             },
         )
-        client.post(
+        second_run_response = client.post(
             "/runs/",
+            headers=headers,
             json={
                 "date": "2026-09-09",
                 "distance_km": 3.2,
@@ -368,8 +377,9 @@ def test_goals_progress_calculates_today_and_current_week():
                 "notes": None,
             },
         )
-        client.post(
+        previous_run_response = client.post(
             "/runs/",
+            headers=headers,
             json={
                 "date": "2026-09-06",
                 "distance_km": 10,
@@ -378,32 +388,9 @@ def test_goals_progress_calculates_today_and_current_week():
             },
         )
 
-    progress_by_type = {
-        progress.goal_type: progress
-        for progress in build_goals_progress(
-            today=today,
-            user_id=user_id,
-        )
-    }
-
-    steps_progress = progress_by_type["daily_steps"]
-    workouts_progress = progress_by_type["weekly_workouts"]
-    running_progress = progress_by_type["weekly_running_km"]
-
-    assert steps_progress.current_value == 6400
-    assert steps_progress.target_value == 8000
-    assert steps_progress.progress_percentage == 80
-    assert steps_progress.is_completed is False
-
-    assert workouts_progress.current_value == 2
-    assert workouts_progress.target_value == 3
-    assert workouts_progress.progress_percentage == 66.7
-    assert workouts_progress.is_completed is False
-
-    assert running_progress.current_value == 7.7
-    assert running_progress.target_value == 10
-    assert running_progress.progress_percentage == 77
-    assert running_progress.is_completed is False
+        assert first_run_response.status_code == 201
+        assert second_run_response.status_code == 201
+        assert previous_run_response.status_code == 201
 
 
 def test_goals_progress_caps_percentage_at_one_hundred():

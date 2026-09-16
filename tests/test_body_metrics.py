@@ -1,11 +1,13 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.conftest import register_and_login
 
 
 def create_body_metric(
     client: TestClient,
     *,
+    headers: dict[str, str],
     date: str,
     weight_kg: float = 80,
     height_cm: float = 180,
@@ -19,6 +21,7 @@ def create_body_metric(
 ) -> dict:
     response = client.post(
         "/body-metrics/",
+        headers=headers,
         json={
             "date": date,
             "weight_kg": weight_kg,
@@ -39,8 +42,11 @@ def create_body_metric(
 
 def test_create_body_metric_calculates_bmi():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.post(
             "/body-metrics/",
+            headers=headers,
             json={
                 "date": "2026-08-14",
                 "weight_kg": 80,
@@ -61,8 +67,11 @@ def test_create_body_metric_calculates_bmi():
 
 def test_create_body_metric_calculates_body_composition():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         body_metric = create_body_metric(
             client,
+            headers=headers,
             date="2026-08-15",
             weight_kg=80,
             height_cm=180,
@@ -87,14 +96,20 @@ def test_create_body_metric_calculates_body_composition():
 
 def test_list_body_metrics():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         create_body_metric(
             client,
+            headers=headers,
             date="2026-08-16",
             weight_kg=75,
             height_cm=175,
         )
 
-        response = client.get("/body-metrics/")
+        response = client.get(
+            "/body-metrics/",
+            headers=headers,
+        )
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
@@ -103,8 +118,11 @@ def test_list_body_metrics():
 
 def test_update_body_metric_updates_composition():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         body_metric = create_body_metric(
             client,
+            headers=headers,
             date="2026-08-17",
             weight_kg=80,
             height_cm=180,
@@ -112,6 +130,7 @@ def test_update_body_metric_updates_composition():
 
         response = client.put(
             f"/body-metrics/{body_metric['id']}",
+            headers=headers,
             json={
                 "date": "2026-08-17",
                 "weight_kg": 79.5,
@@ -138,8 +157,11 @@ def test_update_body_metric_updates_composition():
 
 def test_invalid_body_metric_is_rejected():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.post(
             "/body-metrics/",
+            headers=headers,
             json={
                 "date": "2026-08-18",
                 "weight_kg": -10,
@@ -153,8 +175,11 @@ def test_invalid_body_metric_is_rejected():
 
 def test_invalid_body_fat_percentage_is_rejected():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.post(
             "/body-metrics/",
+            headers=headers,
             json={
                 "date": "2026-08-19",
                 "weight_kg": 80,
@@ -169,8 +194,11 @@ def test_invalid_body_fat_percentage_is_rejected():
 
 def test_body_composition_progress_returns_records_and_changes():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         create_body_metric(
             client,
+            headers=headers,
             date="2026-09-01",
             weight_kg=80,
             height_cm=180,
@@ -180,6 +208,7 @@ def test_body_composition_progress_returns_records_and_changes():
         )
         create_body_metric(
             client,
+            headers=headers,
             date="2026-09-10",
             weight_kg=78,
             height_cm=180,
@@ -190,6 +219,7 @@ def test_body_composition_progress_returns_records_and_changes():
 
         response = client.get(
             "/body-metrics/progress",
+            headers=headers,
             params={
                 "start_date": "2026-09-01",
                 "end_date": "2026-09-10",
@@ -227,8 +257,11 @@ def test_body_composition_progress_returns_records_and_changes():
 
 def test_body_composition_progress_uses_first_and_last_available_value():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         create_body_metric(
             client,
+            headers=headers,
             date="2026-09-11",
             weight_kg=80,
             body_fat_percentage=None,
@@ -236,6 +269,7 @@ def test_body_composition_progress_uses_first_and_last_available_value():
         )
         create_body_metric(
             client,
+            headers=headers,
             date="2026-09-12",
             weight_kg=79,
             body_fat_percentage=20,
@@ -243,6 +277,7 @@ def test_body_composition_progress_uses_first_and_last_available_value():
         )
         create_body_metric(
             client,
+            headers=headers,
             date="2026-09-13",
             weight_kg=78,
             body_fat_percentage=18,
@@ -251,6 +286,7 @@ def test_body_composition_progress_uses_first_and_last_available_value():
 
         response = client.get(
             "/body-metrics/progress",
+            headers=headers,
             params={
                 "start_date": "2026-09-11",
                 "end_date": "2026-09-13",
@@ -265,8 +301,11 @@ def test_body_composition_progress_uses_first_and_last_available_value():
 
 def test_body_composition_progress_returns_empty_data_for_empty_period():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.get(
             "/body-metrics/progress",
+            headers=headers,
             params={
                 "start_date": "2030-01-01",
                 "end_date": "2030-01-31",
@@ -291,8 +330,11 @@ def test_body_composition_progress_returns_empty_data_for_empty_period():
 
 def test_body_composition_progress_rejects_inverted_date_range():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.get(
             "/body-metrics/progress",
+            headers=headers,
             params={
                 "start_date": "2026-09-10",
                 "end_date": "2026-09-01",
@@ -303,3 +345,88 @@ def test_body_composition_progress_rejects_inverted_date_range():
     assert response.json()["detail"] == (
         "start_date no puede ser posterior a end_date."
     )
+
+
+def test_users_have_isolated_body_metrics_and_can_share_dates():
+    with TestClient(app) as client:
+        first_headers = register_and_login(
+            client,
+            email="body-first@example.com",
+            display_name="Body First",
+        )
+        second_headers = register_and_login(
+            client,
+            email="body-second@example.com",
+            display_name="Body Second",
+        )
+
+        first_metric = create_body_metric(
+            client,
+            headers=first_headers,
+            date="2026-09-20",
+            weight_kg=80,
+        )
+        second_metric = create_body_metric(
+            client,
+            headers=second_headers,
+            date="2026-09-20",
+            weight_kg=70,
+        )
+
+        first_list_response = client.get(
+            "/body-metrics/",
+            headers=first_headers,
+        )
+        second_list_response = client.get(
+            "/body-metrics/",
+            headers=second_headers,
+        )
+        other_get_response = client.get(
+            f"/body-metrics/{first_metric['id']}",
+            headers=second_headers,
+        )
+        other_update_response = client.put(
+            f"/body-metrics/{first_metric['id']}",
+            headers=second_headers,
+            json={
+                "date": "2026-09-20",
+                "weight_kg": 99,
+                "height_cm": 180,
+                "body_fat_percentage": None,
+                "waist_cm": None,
+                "hip_cm": None,
+                "chest_cm": None,
+                "arm_cm": None,
+                "thigh_cm": None,
+                "notes": "Intento no autorizado.",
+            },
+        )
+        other_delete_response = client.delete(
+            f"/body-metrics/{first_metric['id']}",
+            headers=second_headers,
+        )
+        other_progress_response = client.get(
+            "/body-metrics/progress",
+            headers=second_headers,
+            params={
+                "start_date": "2026-09-20",
+                "end_date": "2026-09-20",
+            },
+        )
+
+    assert first_list_response.status_code == 200
+    assert second_list_response.status_code == 200
+    assert [metric["id"] for metric in first_list_response.json()] == [
+        first_metric["id"]
+    ]
+    assert [metric["id"] for metric in second_list_response.json()] == [
+        second_metric["id"]
+    ]
+    assert other_get_response.status_code == 404
+    assert other_update_response.status_code == 404
+    assert other_delete_response.status_code == 404
+    assert other_progress_response.status_code == 200
+    assert [
+        record["weight_kg"]
+        for record in other_progress_response.json()["records"]
+    ] == [70]

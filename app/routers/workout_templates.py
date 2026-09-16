@@ -1,9 +1,11 @@
 import sqlite3
 from datetime import date
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends,HTTPException, Response, status
+from app.dependencies import get_current_user
 
 from app.db import get_connection
 from app.schemas import (
+    UserResponse,
     WorkoutSessionResponse,
     WorkoutTemplateCreate,
     WorkoutTemplateExerciseCreate,
@@ -576,6 +578,7 @@ def delete_workout_template_set(set_id: int) -> Response:
 )
 def create_session_from_workout_template(
     template_id: int,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutSessionResponse:
     with get_connection() as connection:
         workout_template = connection.execute(
@@ -595,10 +598,16 @@ def create_session_from_workout_template(
 
         session_cursor = connection.execute(
             """
-            INSERT INTO workout_sessions (date, name, notes)
-            VALUES (?, ?, ?)
+            INSERT INTO workout_sessions (
+                user_id,
+                date,
+                name,
+                notes
+            )
+            VALUES (?, ?, ?, ?)
             """,
             (
+                current_user.id,
                 date.today().isoformat(),
                 workout_template["name"],
                 workout_template["notes"],
@@ -695,9 +704,9 @@ def create_session_from_workout_template(
             """
             SELECT id, date, name, notes
             FROM workout_sessions
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (session_id,),
+            (session_id, current_user.id),
         ).fetchone()
 
     return WorkoutSessionResponse(

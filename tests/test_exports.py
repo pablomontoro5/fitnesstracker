@@ -4,6 +4,7 @@ from datetime import datetime
 from app.db import get_connection
 from app.services.exports import create_data_export
 
+
 def create_test_user_id(connection) -> int:
     cursor = connection.execute(
         """
@@ -22,6 +23,8 @@ def create_test_user_id(connection) -> int:
     )
 
     return cursor.lastrowid
+
+
 def test_create_data_export_includes_nested_tracking_data(tmp_path):
     with get_connection() as connection:
         user_id = create_test_user_id(connection)
@@ -47,23 +50,41 @@ def test_create_data_export_includes_nested_tracking_data(tmp_path):
         connection.execute(
             """
             INSERT INTO body_metrics (
+                user_id,
                 date,
                 weight_kg,
                 height_cm,
                 bmi,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            ("2026-09-07", 75.5, 180, 23.3, "Medición matinal."),
+            (
+                user_id,
+                "2026-09-07",
+                75.5,
+                180,
+                23.3,
+                "Medición matinal.",
+            ),
         )
 
         session_cursor = connection.execute(
             """
-            INSERT INTO workout_sessions (date, name, notes)
-            VALUES (?, ?, ?)
+            INSERT INTO workout_sessions (
+                user_id,
+                date,
+                name,
+                notes
+            )
+            VALUES (?, ?, ?, ?)
             """,
-            ("2026-09-07", "Pierna", "Buen entrenamiento."),
+            (
+                user_id,
+                "2026-09-07",
+                "Pierna",
+                "Buen entrenamiento.",
+            ),
         )
 
         exercise_cursor = connection.execute(
@@ -115,15 +136,23 @@ def test_create_data_export_includes_nested_tracking_data(tmp_path):
         connection.execute(
             """
             INSERT INTO runs (
+                user_id,
                 date,
                 distance_km,
                 duration_seconds,
                 average_pace_seconds_km,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            ("2026-09-07", 5, 1500, 300, "Carrera suave."),
+            (
+                user_id,
+                "2026-09-07",
+                5,
+                1500,
+                300,
+                "Carrera suave.",
+            ),
         )
 
         nutrition_day_cursor = connection.execute(

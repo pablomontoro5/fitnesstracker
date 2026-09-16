@@ -1,17 +1,20 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.conftest import register_and_login
 
 
 def create_exercise(
     client: TestClient,
     *,
+    headers: dict[str, str],
     session_date: str,
     session_name: str,
     exercise_name: str,
 ) -> int:
     session_response = client.post(
         "/workout-sessions/",
+        headers=headers,
         json={
             "date": session_date,
             "name": session_name,
@@ -24,6 +27,7 @@ def create_exercise(
 
     exercise_response = client.post(
         f"/workout-sessions/{session_id}/exercises/",
+        headers=headers,
         json={
             "name": exercise_name,
             "muscle_group": "Pectoral",
@@ -40,6 +44,7 @@ def create_set(
     client: TestClient,
     exercise_id: int,
     *,
+    headers: dict[str, str],
     set_type: str,
     position: int,
     repetitions: int,
@@ -48,6 +53,7 @@ def create_set(
 ) -> None:
     response = client.post(
         f"/workout-exercises/{exercise_id}/sets/",
+        headers=headers,
         json={
             "set_type": set_type,
             "position": position,
@@ -63,10 +69,12 @@ def create_set(
 
 def test_workout_progress_returns_working_sets_grouped_by_session():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         exercise_name = "Press inclinado con mancuernas"
 
         first_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-08-14",
             session_name="Empujes A",
             exercise_name=exercise_name,
@@ -74,6 +82,7 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
         create_set(
             client,
             first_exercise_id,
+            headers=headers,
             set_type="warmup",
             position=1,
             repetitions=15,
@@ -83,6 +92,7 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
         create_set(
             client,
             first_exercise_id,
+            headers=headers,
             set_type="working",
             position=2,
             repetitions=10,
@@ -92,6 +102,7 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
         create_set(
             client,
             first_exercise_id,
+            headers=headers,
             set_type="working",
             position=3,
             repetitions=8,
@@ -101,6 +112,7 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
 
         second_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-08-21",
             session_name="Empujes B",
             exercise_name=exercise_name,
@@ -108,6 +120,7 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
         create_set(
             client,
             second_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=10,
@@ -117,6 +130,7 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
 
         response = client.get(
             "/workouts/progress",
+            headers=headers,
             params={"exercise_name": exercise_name},
         )
 
@@ -152,8 +166,11 @@ def test_workout_progress_returns_working_sets_grouped_by_session():
 
 def test_workout_progress_returns_404_when_exercise_has_no_working_sets():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-08-14",
             session_name="Empujes sin trabajo",
             exercise_name="Aperturas en pec deck",
@@ -161,6 +178,7 @@ def test_workout_progress_returns_404_when_exercise_has_no_working_sets():
         create_set(
             client,
             exercise_id,
+            headers=headers,
             set_type="warmup",
             position=1,
             repetitions=15,
@@ -170,21 +188,32 @@ def test_workout_progress_returns_404_when_exercise_has_no_working_sets():
 
         response = client.get(
             "/workouts/progress",
+            headers=headers,
             params={"exercise_name": "Aperturas en pec deck"},
         )
 
     assert response.status_code == 404
 
+
 def test_workout_progress_requires_exercise_name():
     with TestClient(app) as client:
-        response = client.get("/workouts/progress")
+        headers = register_and_login(client)
+
+        response = client.get(
+            "/workouts/progress",
+            headers=headers,
+        )
 
     assert response.status_code == 422
 
+
 def test_workout_progress_includes_session_strength_summaries():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-08",
             session_name="Empujes con progreso",
             exercise_name="Press banca con barra",
@@ -193,6 +222,7 @@ def test_workout_progress_includes_session_strength_summaries():
         create_set(
             client,
             exercise_id,
+            headers=headers,
             set_type="warmup",
             position=1,
             repetitions=15,
@@ -202,6 +232,7 @@ def test_workout_progress_includes_session_strength_summaries():
         create_set(
             client,
             exercise_id,
+            headers=headers,
             set_type="working",
             position=2,
             repetitions=10,
@@ -211,6 +242,7 @@ def test_workout_progress_includes_session_strength_summaries():
         create_set(
             client,
             exercise_id,
+            headers=headers,
             set_type="working",
             position=3,
             repetitions=8,
@@ -220,6 +252,7 @@ def test_workout_progress_includes_session_strength_summaries():
         create_set(
             client,
             exercise_id,
+            headers=headers,
             set_type="working",
             position=4,
             repetitions=6,
@@ -229,6 +262,7 @@ def test_workout_progress_includes_session_strength_summaries():
 
         response = client.get(
             "/workouts/progress",
+            headers=headers,
             params={
                 "exercise_name": "Press banca con barra",
             },
@@ -244,17 +278,27 @@ def test_workout_progress_includes_session_strength_summaries():
     assert session["max_weight_kg"] == 60
     assert session["max_volume_set_kg"] == 500
 
+
 def test_list_exercise_names_with_progress_returns_empty_list():
     with TestClient(app) as client:
-        response = client.get("/workouts/exercise-names")
+        headers = register_and_login(client)
+
+        response = client.get(
+            "/workouts/exercise-names",
+            headers=headers,
+        )
 
     assert response.status_code == 200
     assert response.json() == []
 
+
 def test_list_exercise_names_with_progress_returns_unique_sorted_names():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         first_session_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-01",
             session_name="Torso A",
             exercise_name="Remo con barra",
@@ -262,6 +306,7 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
         create_set(
             client,
             first_session_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=10,
@@ -271,6 +316,7 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
 
         repeated_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-02",
             session_name="Torso B",
             exercise_name="Remo con barra",
@@ -278,6 +324,7 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
         create_set(
             client,
             repeated_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=8,
@@ -287,6 +334,7 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
 
         press_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-03",
             session_name="Empujes",
             exercise_name="Press banca con barra",
@@ -294,6 +342,7 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
         create_set(
             client,
             press_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=10,
@@ -303,6 +352,7 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
 
         warmup_only_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-04",
             session_name="Pierna",
             exercise_name="Sentadilla",
@@ -310,6 +360,7 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
         create_set(
             client,
             warmup_only_exercise_id,
+            headers=headers,
             set_type="warmup",
             position=1,
             repetitions=12,
@@ -317,7 +368,10 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
             rir=None,
         )
 
-        response = client.get("/workouts/exercise-names")
+        response = client.get(
+            "/workouts/exercise-names",
+            headers=headers,
+        )
 
     assert response.status_code == 200
     assert response.json() == [
@@ -325,12 +379,15 @@ def test_list_exercise_names_with_progress_returns_unique_sorted_names():
         "Remo con barra",
     ]
 
+
 def test_personal_records_returns_all_metrics_for_working_sets():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         exercise_name = "Press banca marcas personales"
 
         first_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-01",
             session_name="Empujes A",
             exercise_name=exercise_name,
@@ -338,6 +395,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
         create_set(
             client,
             first_exercise_id,
+            headers=headers,
             set_type="warmup",
             position=1,
             repetitions=15,
@@ -347,6 +405,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
         create_set(
             client,
             first_exercise_id,
+            headers=headers,
             set_type="working",
             position=2,
             repetitions=10,
@@ -356,6 +415,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
         create_set(
             client,
             first_exercise_id,
+            headers=headers,
             set_type="working",
             position=3,
             repetitions=8,
@@ -365,6 +425,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
 
         second_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-08",
             session_name="Empujes B",
             exercise_name=exercise_name,
@@ -372,6 +433,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
         create_set(
             client,
             second_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=12,
@@ -381,6 +443,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
         create_set(
             client,
             second_exercise_id,
+            headers=headers,
             set_type="working",
             position=2,
             repetitions=5,
@@ -390,6 +453,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
         create_set(
             client,
             second_exercise_id,
+            headers=headers,
             set_type="drop_set",
             position=3,
             repetitions=20,
@@ -399,6 +463,7 @@ def test_personal_records_returns_all_metrics_for_working_sets():
 
         response = client.get(
             "/workouts/personal-records",
+            headers=headers,
             params={"exercise_name": exercise_name},
         )
 
@@ -439,7 +504,12 @@ def test_personal_records_returns_all_metrics_for_working_sets():
 
 def test_personal_records_returns_empty_list_without_working_sets():
     with TestClient(app) as client:
-        response = client.get("/workouts/personal-records")
+        headers = register_and_login(client)
+
+        response = client.get(
+            "/workouts/personal-records",
+            headers=headers,
+        )
 
     assert response.status_code == 200
     assert response.json() == []
@@ -447,8 +517,11 @@ def test_personal_records_returns_empty_list_without_working_sets():
 
 def test_personal_records_filters_by_exercise_name():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         press_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-10",
             session_name="Empujes",
             exercise_name="Press de prueba",
@@ -456,6 +529,7 @@ def test_personal_records_filters_by_exercise_name():
         create_set(
             client,
             press_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=8,
@@ -465,6 +539,7 @@ def test_personal_records_filters_by_exercise_name():
 
         row_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-10",
             session_name="Tracción",
             exercise_name="Remo de prueba",
@@ -472,6 +547,7 @@ def test_personal_records_filters_by_exercise_name():
         create_set(
             client,
             row_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=10,
@@ -481,6 +557,7 @@ def test_personal_records_filters_by_exercise_name():
 
         response = client.get(
             "/workouts/personal-records",
+            headers=headers,
             params={"exercise_name": "Press de prueba"},
         )
 
@@ -492,8 +569,11 @@ def test_personal_records_filters_by_exercise_name():
 
 def test_personal_records_returns_404_for_unknown_exercise():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.get(
             "/workouts/personal-records",
+            headers=headers,
             params={"exercise_name": "Ejercicio inexistente"},
         )
 
@@ -505,8 +585,11 @@ def test_personal_records_returns_404_for_unknown_exercise():
 
 def test_personal_records_rejects_blank_exercise_name():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.get(
             "/workouts/personal-records",
+            headers=headers,
             params={"exercise_name": "   "},
         )
 
@@ -518,10 +601,12 @@ def test_personal_records_rejects_blank_exercise_name():
 
 def test_personal_records_uses_oldest_set_when_values_tie():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         exercise_name = "Remo empate"
 
         first_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-01",
             session_name="Tracción A",
             exercise_name=exercise_name,
@@ -529,6 +614,7 @@ def test_personal_records_uses_oldest_set_when_values_tie():
         create_set(
             client,
             first_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=10,
@@ -538,6 +624,7 @@ def test_personal_records_uses_oldest_set_when_values_tie():
 
         second_exercise_id = create_exercise(
             client,
+            headers=headers,
             session_date="2026-09-08",
             session_name="Tracción B",
             exercise_name=exercise_name,
@@ -545,6 +632,7 @@ def test_personal_records_uses_oldest_set_when_values_tie():
         create_set(
             client,
             second_exercise_id,
+            headers=headers,
             set_type="working",
             position=1,
             repetitions=10,
@@ -554,6 +642,7 @@ def test_personal_records_uses_oldest_set_when_values_tie():
 
         response = client.get(
             "/workouts/personal-records",
+            headers=headers,
             params={"exercise_name": exercise_name},
         )
 

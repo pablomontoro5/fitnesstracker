@@ -1,9 +1,10 @@
 import sqlite3
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.db import get_connection
+from app.dependencies import get_current_user
 from app.schemas import (
     BodyCompositionChanges,
     BodyCompositionProgressRecord,
@@ -11,6 +12,7 @@ from app.schemas import (
     BodyMetricCreate,
     BodyMetricResponse,
     BodyMetricUpdate,
+    UserResponse,
 )
 
 
@@ -140,7 +142,10 @@ def calculate_change(
     response_model=BodyMetricResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_body_metric(body_metric: BodyMetricCreate) -> BodyMetricResponse:
+def create_body_metric(
+    body_metric: BodyMetricCreate,
+    current_user: UserResponse = Depends(get_current_user),
+) -> BodyMetricResponse:
     bmi = calculate_bmi(
         weight_kg=body_metric.weight_kg,
         height_cm=body_metric.height_cm,
@@ -151,6 +156,7 @@ def create_body_metric(body_metric: BodyMetricCreate) -> BodyMetricResponse:
             cursor = connection.execute(
                 """
                 INSERT INTO body_metrics (
+                    user_id,
                     date,
                     weight_kg,
                     height_cm,
@@ -163,9 +169,10 @@ def create_body_metric(body_metric: BodyMetricCreate) -> BodyMetricResponse:
                     thigh_cm,
                     notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    current_user.id,
                     body_metric.date.isoformat(),
                     body_metric.weight_kg,
                     body_metric.height_cm,
@@ -184,9 +191,9 @@ def create_body_metric(body_metric: BodyMetricCreate) -> BodyMetricResponse:
                 f"""
                 SELECT {BODY_METRIC_SELECT_COLUMNS}
                 FROM body_metrics
-                WHERE id = ?
+                WHERE id = ? AND user_id = ?
                 """,
-                (cursor.lastrowid,),
+                (cursor.lastrowid, current_user.id),
             ).fetchone()
     except sqlite3.IntegrityError as error:
         raise HTTPException(
@@ -198,14 +205,18 @@ def create_body_metric(body_metric: BodyMetricCreate) -> BodyMetricResponse:
 
 
 @router.get("/", response_model=list[BodyMetricResponse])
-def list_body_metrics() -> list[BodyMetricResponse]:
+def list_body_metrics(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[BodyMetricResponse]:
     with get_connection() as connection:
         rows = connection.execute(
             f"""
             SELECT {BODY_METRIC_SELECT_COLUMNS}
             FROM body_metrics
-            ORDER BY date DESC
-            """
+            WHERE user_id = ?
+            ORDER BY date DESC, id DESC
+            """,
+            (current_user.id,),
         ).fetchall()
 
     return [row_to_body_metric(row) for row in rows]
@@ -222,6 +233,7 @@ def get_body_composition_progress(
     end_date: date = Query(
         description="Fecha final del periodo, incluida.",
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> BodyCompositionProgressResponse:
     if start_date > end_date:
         raise HTTPException(
@@ -234,10 +246,12 @@ def get_body_composition_progress(
             f"""
             SELECT {BODY_METRIC_SELECT_COLUMNS}
             FROM body_metrics
-            WHERE date BETWEEN ? AND ?
+            WHERE user_id = ?
+              AND date BETWEEN ? AND ?
             ORDER BY date ASC, id ASC
             """,
             (
+                current_user.id,
                 start_date.isoformat(),
                 end_date.isoformat(),
             ),
@@ -268,15 +282,18 @@ def get_body_composition_progress(
 
 
 @router.get("/{metric_id}", response_model=BodyMetricResponse)
-def get_body_metric(metric_id: int) -> BodyMetricResponse:
+def get_body_metric(
+    metric_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> BodyMetricResponse:
     with get_connection() as connection:
         row = connection.execute(
             f"""
             SELECT {BODY_METRIC_SELECT_COLUMNS}
             FROM body_metrics
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (metric_id,),
+            (metric_id, current_user.id),
         ).fetchone()
 
     if row is None:
@@ -295,6 +312,7 @@ def get_body_metric(metric_id: int) -> BodyMetricResponse:
 def update_body_metric(
     metric_id: int,
     body_metric: BodyMetricUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> BodyMetricResponse:
     bmi = calculate_bmi(
         weight_kg=body_metric.weight_kg,
@@ -318,7 +336,7 @@ def update_body_metric(
                     arm_cm = ?,
                     thigh_cm = ?,
                     notes = ?
-                WHERE id = ?
+                WHERE id = ? AND user_id = ?
                 """,
                 (
                     body_metric.date.isoformat(),
@@ -333,6 +351,7 @@ def update_body_metric(
                     body_metric.thigh_cm,
                     body_metric.notes,
                     metric_id,
+                    current_user.id,
                 ),
             )
 
@@ -346,9 +365,9 @@ def update_body_metric(
                 f"""
                 SELECT {BODY_METRIC_SELECT_COLUMNS}
                 FROM body_metrics
-                WHERE id = ?
+                WHERE id = ? AND user_id = ?
                 """,
-                (metric_id,),
+                (metric_id, current_user.id),
             ).fetchone()
     except sqlite3.IntegrityError as error:
         raise HTTPException(
@@ -363,14 +382,17 @@ def update_body_metric(
     "/{metric_id}",
     response_model=None,
 )
-def delete_body_metric(metric_id: int) -> Response:
+def delete_body_metric(
+    metric_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM body_metrics
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
-            (metric_id,),
+            (metric_id, current_user.id),
         )
 
     if cursor.rowcount == 0:

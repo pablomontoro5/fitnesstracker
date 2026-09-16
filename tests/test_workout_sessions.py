@@ -1,12 +1,15 @@
 from fastapi.testclient import TestClient
+from tests.conftest import register_and_login
 
 from app.main import app
 
 
 def test_create_workout_session():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-08-14",
                 "name": "Empujes",
@@ -22,8 +25,10 @@ def test_create_workout_session():
 
 def test_list_workout_sessions():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         create_response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-08-15",
                 "name": "Tirón",
@@ -33,7 +38,10 @@ def test_list_workout_sessions():
 
         assert create_response.status_code == 201
 
-        response = client.get("/workout-sessions/")
+        response = client.get(
+            "/workout-sessions/",
+            headers=headers,
+        )
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
@@ -45,8 +53,10 @@ def test_list_workout_sessions():
 
 def test_get_workout_session():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         create_response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-08-16",
                 "name": "Pierna",
@@ -57,7 +67,7 @@ def test_get_workout_session():
         assert create_response.status_code == 201
 
         session_id = create_response.json()["id"]
-        response = client.get(f"/workout-sessions/{session_id}")
+        response = client.get(f"/workout-sessions/{session_id}", headers=headers)
 
     assert response.status_code == 200
     assert response.json()["name"] == "Pierna"
@@ -65,8 +75,10 @@ def test_get_workout_session():
 
 def test_delete_workout_session():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         create_response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-08-17",
                 "name": "Movilidad",
@@ -78,17 +90,24 @@ def test_delete_workout_session():
 
         session_id = create_response.json()["id"]
 
-        delete_response = client.delete(f"/workout-sessions/{session_id}")
-        get_response = client.get(f"/workout-sessions/{session_id}")
-
+        delete_response = client.delete(
+            f"/workout-sessions/{session_id}",
+            headers=headers,
+        )
+        get_response = client.get(
+            f"/workout-sessions/{session_id}",
+            headers=headers,
+        )
     assert delete_response.status_code == 204
     assert get_response.status_code == 404
 
 
 def test_empty_workout_name_is_rejected():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.post(
             "/workout-sessions/",
+            headers=headers,
             json={
                 "date": "2026-08-18",
                 "name": "",

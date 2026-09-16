@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-
+from tests.conftest import register_and_login
 
 def create_template(
     client: TestClient,
@@ -398,6 +398,8 @@ def test_update_and_delete_workout_template_set():
 
 def test_create_session_from_workout_template_copies_exercises_and_sets():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         workout_template = create_template(
             client,
             name="Torso A",
@@ -456,7 +458,8 @@ def test_create_session_from_workout_template_copies_exercises_and_sets():
         )
 
         response = client.post(
-            f"/workout-templates/{workout_template['id']}/create-session"
+            f"/workout-templates/{workout_template['id']}/create-session",
+            headers=headers,
         )
 
         assert response.status_code == 201
@@ -464,7 +467,8 @@ def test_create_session_from_workout_template_copies_exercises_and_sets():
         created_session = response.json()
 
         exercises_response = client.get(
-            f"/workout-sessions/{created_session['id']}/exercises/"
+            f"/workout-sessions/{created_session['id']}/exercises/",
+            headers=headers,
         )
 
         assert exercises_response.status_code == 200
@@ -486,10 +490,12 @@ def test_create_session_from_workout_template_copies_exercises_and_sets():
         assert copied_exercises[1]["technique_notes"] is None
 
         first_sets_response = client.get(
-            f"/workout-exercises/{copied_exercises[0]['id']}/sets/"
+            f"/workout-exercises/{copied_exercises[0]['id']}/sets/",
+            headers=headers,
         )
         second_sets_response = client.get(
-            f"/workout-exercises/{copied_exercises[1]['id']}/sets/"
+            f"/workout-exercises/{copied_exercises[1]['id']}/sets/",
+            headers=headers,
         )
 
     assert first_sets_response.status_code == 200
@@ -527,10 +533,14 @@ def test_create_session_from_workout_template_copies_exercises_and_sets():
     assert second_sets_response.json()[0]["weight_kg"] == 60
     assert second_sets_response.json()[0]["volume_kg"] == 600
 
+
 def test_create_session_from_missing_workout_template_returns_404():
     with TestClient(app) as client:
+        headers = register_and_login(client)
+
         response = client.post(
-            "/workout-templates/999999/create-session"
+            "/workout-templates/999999/create-session",
+            headers=headers,
         )
 
     assert response.status_code == 404
