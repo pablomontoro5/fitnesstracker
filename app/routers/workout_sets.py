@@ -1,14 +1,33 @@
 import sqlite3
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db import get_connection
-from app.schemas import WorkoutSetCreate, WorkoutSetResponse, WorkoutSetUpdate
+from app.dependencies import get_current_user
+from app.schemas import (
+    UserResponse,
+    WorkoutSetCreate,
+    WorkoutSetResponse,
+    WorkoutSetUpdate,
+)
 
 
 router = APIRouter(
     tags=["workout sets"],
 )
+
+
+WORKOUT_SET_SELECT_COLUMNS = """
+    workout_set.id,
+    workout_set.workout_exercise_id,
+    workout_set.set_type,
+    workout_set.position,
+    workout_set.target_rep_range,
+    workout_set.repetitions,
+    workout_set.weight_kg,
+    workout_set.rir,
+    workout_set.notes
+"""
 
 
 def row_to_workout_set(row: sqlite3.Row) -> WorkoutSetResponse:
@@ -26,18 +45,50 @@ def row_to_workout_set(row: sqlite3.Row) -> WorkoutSetResponse:
     )
 
 
-def ensure_exercise_exists(exercise_id: int) -> None:
-    with get_connection() as connection:
-        exercise = connection.execute(
-            "SELECT id FROM workout_exercises WHERE id = ?",
-            (exercise_id,),
-        ).fetchone()
+def ensure_owned_exercise_exists(
+    connection: sqlite3.Connection,
+    *,
+    exercise_id: int,
+    user_id: int,
+) -> None:
+    exercise = connection.execute(
+        """
+        SELECT exercise.id
+        FROM workout_exercises AS exercise
+        JOIN workout_sessions AS session
+            ON session.id = exercise.workout_session_id
+        WHERE exercise.id = ?
+          AND session.user_id = ?
+        """,
+        (exercise_id, user_id),
+    ).fetchone()
 
     if exercise is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe un ejercicio con ese id.",
         )
+
+
+def get_owned_set_row(
+    connection: sqlite3.Connection,
+    *,
+    set_id: int,
+    user_id: int,
+) -> sqlite3.Row | None:
+    return connection.execute(
+        f"""
+        SELECT {WORKOUT_SET_SELECT_COLUMNS}
+        FROM workout_sets AS workout_set
+        JOIN workout_exercises AS exercise
+            ON exercise.id = workout_set.workout_exercise_id
+        JOIN workout_sessions AS session
+            ON session.id = exercise.workout_session_id
+        WHERE workout_set.id = ?
+          AND session.user_id = ?
+        """,
+        (set_id, user_id),
+    ).fetchone()
 
 
 @router.post(
@@ -48,11 +99,16 @@ def ensure_exercise_exists(exercise_id: int) -> None:
 def create_workout_set(
     exercise_id: int,
     workout_set: WorkoutSetCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutSetResponse:
-    ensure_exercise_exists(exercise_id)
-
     try:
         with get_connection() as connection:
+            ensure_owned_exercise_exists(
+                connection,
+                exercise_id=exercise_id,
+                user_id=current_user.id,
+            )
+
             cursor = connection.execute(
                 """
                 INSERT INTO workout_sets (
@@ -79,28 +135,18 @@ def create_workout_set(
                 ),
             )
 
-            row = connection.execute(
-                """
-                SELECT
-                    id,
-                    workout_exercise_id,
-                    set_type,
-                    position,
-                    target_rep_range,
-                    repetitions,
-                    weight_kg,
-                    rir,
-                    notes
-                FROM workout_sets
-                WHERE id = ?
-                """,
-                (cursor.lastrowid,),
-            ).fetchone()
-
+            row = get_owned_set_row(
+                connection,
+                set_id=cursor.lastrowid,
+                user_id=current_user.id,
+            )
     except sqlite3.IntegrityError as error:
         error_message = str(error)
 
-        if "workout_sets.workout_exercise_id, workout_sets.position" in error_message:
+        if (
+            "workout_sets.workout_exercise_id, workout_sets.position"
+            in error_message
+        ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Ya existe una serie en esa posición para este ejercicio.",
@@ -110,6 +156,7 @@ def create_workout_set(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"No se pudo guardar la serie: {error_message}",
         ) from error
+
     return row_to_workout_set(row)
 
 
@@ -117,27 +164,30 @@ def create_workout_set(
     "/workout-exercises/{exercise_id}/sets/",
     response_model=list[WorkoutSetResponse],
 )
-def list_workout_sets(exercise_id: int) -> list[WorkoutSetResponse]:
-    ensure_exercise_exists(exercise_id)
-
+def list_workout_sets(
+    exercise_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[WorkoutSetResponse]:
     with get_connection() as connection:
+        ensure_owned_exercise_exists(
+            connection,
+            exercise_id=exercise_id,
+            user_id=current_user.id,
+        )
+
         rows = connection.execute(
-            """
-            SELECT
-                id,
-                workout_exercise_id,
-                set_type,
-                position,
-                target_rep_range,
-                repetitions,
-                weight_kg,
-                rir,
-                notes
-            FROM workout_sets
-            WHERE workout_exercise_id = ?
-            ORDER BY position ASC
+            f"""
+            SELECT {WORKOUT_SET_SELECT_COLUMNS}
+            FROM workout_sets AS workout_set
+            JOIN workout_exercises AS exercise
+                ON exercise.id = workout_set.workout_exercise_id
+            JOIN workout_sessions AS session
+                ON session.id = exercise.workout_session_id
+            WHERE workout_set.workout_exercise_id = ?
+              AND session.user_id = ?
+            ORDER BY workout_set.position ASC
             """,
-            (exercise_id,),
+            (exercise_id, current_user.id),
         ).fetchall()
 
     return [row_to_workout_set(row) for row in rows]
@@ -147,25 +197,16 @@ def list_workout_sets(exercise_id: int) -> list[WorkoutSetResponse]:
     "/workout-sets/{set_id}",
     response_model=WorkoutSetResponse,
 )
-def get_workout_set(set_id: int) -> WorkoutSetResponse:
+def get_workout_set(
+    set_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> WorkoutSetResponse:
     with get_connection() as connection:
-        row = connection.execute(
-            """
-            SELECT
-                id,
-                workout_exercise_id,
-                set_type,
-                position,
-                target_rep_range,
-                repetitions,
-                weight_kg,
-                rir,
-                notes
-            FROM workout_sets
-            WHERE id = ?
-            """,
-            (set_id,),
-        ).fetchone()
+        row = get_owned_set_row(
+            connection,
+            set_id=set_id,
+            user_id=current_user.id,
+        )
 
     if row is None:
         raise HTTPException(
@@ -175,6 +216,7 @@ def get_workout_set(set_id: int) -> WorkoutSetResponse:
 
     return row_to_workout_set(row)
 
+
 @router.put(
     "/workout-sets/{set_id}",
     response_model=WorkoutSetResponse,
@@ -182,9 +224,22 @@ def get_workout_set(set_id: int) -> WorkoutSetResponse:
 def update_workout_set(
     set_id: int,
     workout_set: WorkoutSetUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutSetResponse:
     try:
         with get_connection() as connection:
+            owned_row = get_owned_set_row(
+                connection,
+                set_id=set_id,
+                user_id=current_user.id,
+            )
+
+            if owned_row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No existe una serie con ese id.",
+                )
+
             cursor = connection.execute(
                 """
                 UPDATE workout_sets
@@ -216,28 +271,18 @@ def update_workout_set(
                     detail="No existe una serie con ese id.",
                 )
 
-            row = connection.execute(
-                """
-                SELECT
-                    id,
-                    workout_exercise_id,
-                    set_type,
-                    position,
-                    target_rep_range,
-                    repetitions,
-                    weight_kg,
-                    rir,
-                    notes
-                FROM workout_sets
-                WHERE id = ?
-                """,
-                (set_id,),
-            ).fetchone()
-
+            row = get_owned_set_row(
+                connection,
+                set_id=set_id,
+                user_id=current_user.id,
+            )
     except sqlite3.IntegrityError as error:
         error_message = str(error)
 
-        if "workout_sets.workout_exercise_id, workout_sets.position" in error_message:
+        if (
+            "workout_sets.workout_exercise_id, workout_sets.position"
+            in error_message
+        ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Ya existe una serie en esa posición para este ejercicio.",
@@ -255,8 +300,23 @@ def update_workout_set(
     "/workout-sets/{set_id}",
     response_model=None,
 )
-def delete_workout_set(set_id: int) -> Response:
+def delete_workout_set(
+    set_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
+        owned_row = get_owned_set_row(
+            connection,
+            set_id=set_id,
+            user_id=current_user.id,
+        )
+
+        if owned_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existe una serie con ese id.",
+            )
+
         cursor = connection.execute(
             """
             DELETE FROM workout_sets
@@ -272,6 +332,3 @@ def delete_workout_set(set_id: int) -> Response:
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-

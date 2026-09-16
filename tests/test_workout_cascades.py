@@ -1,11 +1,17 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.conftest import register_and_login
 
 
-def create_session(client: TestClient) -> int:
+def create_session(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+) -> int:
     response = client.post(
         "/workout-sessions/",
+        headers=headers,
         json={
             "date": "2026-08-01",
             "name": "Sesión de prueba",
@@ -17,9 +23,15 @@ def create_session(client: TestClient) -> int:
     return response.json()["id"]
 
 
-def create_exercise(client: TestClient, session_id: int) -> int:
+def create_exercise(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+    session_id: int,
+) -> int:
     response = client.post(
         f"/workout-sessions/{session_id}/exercises/",
+        headers=headers,
         json={
             "name": "Press banca",
             "muscle_group": "Pectoral",
@@ -32,9 +44,15 @@ def create_exercise(client: TestClient, session_id: int) -> int:
     return response.json()["id"]
 
 
-def create_set(client: TestClient, exercise_id: int) -> int:
+def create_set(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+    exercise_id: int,
+) -> int:
     response = client.post(
         f"/workout-exercises/{exercise_id}/sets/",
+        headers=headers,
         json={
             "set_type": "working",
             "position": 1,
@@ -52,14 +70,32 @@ def create_set(client: TestClient, exercise_id: int) -> int:
 
 def test_deleting_session_cascades_to_exercises_and_sets():
     with TestClient(app) as client:
-        session_id = create_session(client)
-        exercise_id = create_exercise(client, session_id)
-        set_id = create_set(client, exercise_id)
+        headers = register_and_login(client)
 
-        delete_response = client.delete(f"/workout-sessions/{session_id}")
+        session_id = create_session(client, headers=headers)
+        exercise_id = create_exercise(
+            client,
+            headers=headers,
+            session_id=session_id,
+        )
+        set_id = create_set(
+            client,
+            headers=headers,
+            exercise_id=exercise_id,
+        )
 
-        exercise_response = client.get(f"/workout-exercises/{exercise_id}")
-        set_response = client.get(f"/workout-sets/{set_id}")
+        delete_response = client.delete(
+            f"/workout-sessions/{session_id}",
+            headers=headers,
+        )
+        exercise_response = client.get(
+            f"/workout-exercises/{exercise_id}",
+            headers=headers,
+        )
+        set_response = client.get(
+            f"/workout-sets/{set_id}",
+            headers=headers,
+        )
 
     assert delete_response.status_code == 204
     assert exercise_response.status_code == 404
@@ -68,15 +104,36 @@ def test_deleting_session_cascades_to_exercises_and_sets():
 
 def test_deleting_exercise_cascades_to_sets():
     with TestClient(app) as client:
-        session_id = create_session(client)
-        exercise_id = create_exercise(client, session_id)
-        set_id = create_set(client, exercise_id)
+        headers = register_and_login(client)
 
-        delete_response = client.delete(f"/workout-exercises/{exercise_id}")
+        session_id = create_session(client, headers=headers)
+        exercise_id = create_exercise(
+            client,
+            headers=headers,
+            session_id=session_id,
+        )
+        set_id = create_set(
+            client,
+            headers=headers,
+            exercise_id=exercise_id,
+        )
 
-        exercise_response = client.get(f"/workout-exercises/{exercise_id}")
-        set_response = client.get(f"/workout-sets/{set_id}")
-        session_response = client.get(f"/workout-sessions/{session_id}")
+        delete_response = client.delete(
+            f"/workout-exercises/{exercise_id}",
+            headers=headers,
+        )
+        exercise_response = client.get(
+            f"/workout-exercises/{exercise_id}",
+            headers=headers,
+        )
+        set_response = client.get(
+            f"/workout-sets/{set_id}",
+            headers=headers,
+        )
+        session_response = client.get(
+            f"/workout-sessions/{session_id}",
+            headers=headers,
+        )
 
     assert delete_response.status_code == 204
     assert exercise_response.status_code == 404
