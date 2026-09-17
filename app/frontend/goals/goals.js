@@ -57,6 +57,58 @@ const GOAL_CONFIG = {
   },
 };
 
+const BODY_GOAL_CONFIG = {
+  weight_kg: {
+    label: "Peso",
+    unit: "kg",
+    decimalPlaces: 1,
+    icon: "⚖️",
+    max: 500,
+  },
+  body_fat_percentage: {
+    label: "Porcentaje graso",
+    unit: "%",
+    decimalPlaces: 1,
+    icon: "📊",
+    max: 99.99,
+  },
+  waist_cm: {
+    label: "Cintura",
+    unit: "cm",
+    decimalPlaces: 1,
+    icon: "📏",
+    max: 300,
+  },
+  hip_cm: {
+    label: "Cadera",
+    unit: "cm",
+    decimalPlaces: 1,
+    icon: "📏",
+    max: 300,
+  },
+  chest_cm: {
+    label: "Pecho",
+    unit: "cm",
+    decimalPlaces: 1,
+    icon: "📏",
+    max: 300,
+  },
+  arm_cm: {
+    label: "Brazo",
+    unit: "cm",
+    decimalPlaces: 1,
+    icon: "💪",
+    max: 200,
+  },
+  thigh_cm: {
+    label: "Muslo",
+    unit: "cm",
+    decimalPlaces: 1,
+    icon: "🦵",
+    max: 300,
+  },
+};
+
 const statusMessage = document.querySelector("#goals-status");
 const goalCards = [...document.querySelectorAll("[data-goal-type]")];
 
@@ -157,10 +209,20 @@ function renderGoal(goalType, goal, progress) {
     return;
   }
 
+  const hasProgress = Boolean(progress);
+  const isNutritionGoal = goalType.startsWith("daily_")
+    && [
+      "daily_calories",
+      "daily_protein_g",
+      "daily_carbs_g",
+      "daily_fat_g",
+    ].includes(goalType);
   const current = progress?.current_value ?? 0;
   const percentage = progress?.progress_percentage ?? 0;
   const isCompleted = progress?.is_completed ?? false;
-  const currentFormatted = getDisplayValue(current, config);
+  const currentFormatted = isNutritionGoal && !hasProgress
+    ? "Consulta Nutrición"
+    : getDisplayValue(current, config);
   const targetFormatted = getTargetLabelValue(
     goal.target_value,
     config,
@@ -187,8 +249,8 @@ async function loadGoals() {
 
   try {
     const [goalsResponse, progressResponse] = await Promise.all([
-      fetch("/goals/"),
-      fetch("/goals/progress"),
+      apiFetch("/goals/"),
+      apiFetch("/goals/progress"),
     ]);
 
     if (!goalsResponse.ok) {
@@ -265,7 +327,7 @@ async function saveGoal(event) {
   saveButton.disabled = true;
 
   try {
-    const response = await fetch(`/goals/${goalType}`, {
+    const response = await apiFetch(`/goals/${goalType}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -305,7 +367,7 @@ async function deleteGoal(event) {
   button.disabled = true;
 
   try {
-    const response = await fetch(`/goals/${goalType}`, {
+    const response = await apiFetch(`/goals/${goalType}`, {
       method: "DELETE",
     });
 
@@ -333,6 +395,337 @@ function configureEventListeners() {
       .addEventListener("click", deleteGoal);
   }
 }
+function formatBodyGoalValue(metricType, value) {
+  const config = BODY_GOAL_CONFIG[metricType];
+
+  return `${formatValue(value, config.decimalPlaces)} ${config.unit}`;
+}
+
+function getBodyGoalDirectionLabel(direction) {
+  const labels = {
+    decrease: "Reducir",
+    increase: "Aumentar",
+    maintain: "Mantener",
+  };
+
+  return labels[direction];
+}
+
+function createBodyGoalCard(goal, progress) {
+  const config = BODY_GOAL_CONFIG[goal.metric_type];
+  const card = document.createElement("article");
+
+  card.className = "panel goal-card";
+  card.dataset.bodyGoalMetricType = goal.metric_type;
+
+  const heading = document.createElement("div");
+  heading.className = "goal-card-heading";
+
+  const headingText = document.createElement("div");
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = getBodyGoalDirectionLabel(goal.direction);
+
+  const title = document.createElement("h2");
+  title.textContent = config.label;
+
+  headingText.append(eyebrow, title);
+
+  const icon = document.createElement("span");
+  icon.className = "goal-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = config.icon;
+
+  heading.append(headingText, icon);
+
+  const description = document.createElement("p");
+  description.className = "goal-description";
+  description.textContent = `Objetivo: ${formatBodyGoalValue(
+    goal.metric_type,
+    goal.target_value,
+  )}.`;
+
+  const summary = document.createElement("div");
+  summary.className = "goal-progress-summary";
+
+  const current = document.createElement("strong");
+  const target = document.createElement("span");
+
+  if (progress.current_value === null) {
+    current.textContent = "Sin medición";
+    target.textContent = `Objetivo: ${formatBodyGoalValue(
+      goal.metric_type,
+      goal.target_value,
+    )}`;
+  } else {
+    current.textContent = formatBodyGoalValue(
+      goal.metric_type,
+      progress.current_value,
+    );
+    target.textContent = `Objetivo: ${formatBodyGoalValue(
+      goal.metric_type,
+      goal.target_value,
+    )}`;
+  }
+
+  summary.append(current, target);
+
+  const track = document.createElement("div");
+  track.className = "goal-progress-track";
+  track.setAttribute("role", "progressbar");
+  track.setAttribute("aria-valuemin", "0");
+  track.setAttribute("aria-valuemax", "100");
+
+  const percentage = progress.progress_percentage ?? 0;
+  track.setAttribute("aria-valuenow", String(percentage));
+
+  const bar = document.createElement("span");
+  bar.className = "goal-progress-bar";
+  bar.style.width = `${percentage}%`;
+  track.append(bar);
+
+  const progressText = document.createElement("p");
+  progressText.className = "goal-progress-text";
+
+if (progress.current_value === null) {
+  progressText.textContent = (
+    "Registra una medición corporal para calcular tu progreso."
+  );
+} else if (progress.is_completed) {
+  progressText.textContent = "Has alcanzado este objetivo.";
+} else if (progress.progress_percentage === null) {
+  progressText.textContent = (
+    `Distancia al objetivo: ${formatBodyGoalValue(
+      goal.metric_type,
+      progress.remaining_value,
+    )}.`
+  );
+} else {
+  progressText.textContent = `${formatValue(
+    progress.progress_percentage,
+    1,
+  )}% completado · faltan ${formatBodyGoalValue(
+    goal.metric_type,
+    progress.remaining_value,
+  )}.`;
+}
+
+  const completed = document.createElement("p");
+  completed.className = "goal-completed-message";
+  completed.textContent = "✓ Objetivo completado";
+  completed.classList.toggle("hidden", !progress.is_completed);
+
+  const baseline = document.createElement("p");
+  baseline.className = "goal-baseline-help";
+  baseline.textContent = goal.start_value === null
+    ? "Aún no hay una línea base disponible."
+    : `Inicio: ${formatBodyGoalValue(
+      goal.metric_type,
+      goal.start_value,
+    )}.`;
+
+  const actions = document.createElement("div");
+  actions.className = "goal-actions";
+
+  const deleteButton = document.createElement("button");
+  deleteButton.className = "danger-button";
+  deleteButton.type = "button";
+  deleteButton.textContent = "Eliminar";
+  deleteButton.addEventListener("click", () => {
+    deleteBodyCompositionGoal(goal.metric_type, deleteButton);
+  });
+
+  actions.append(deleteButton);
+
+  card.classList.toggle("completed", progress.is_completed);
+  card.append(
+    heading,
+    description,
+    summary,
+    track,
+    progressText,
+    completed,
+    baseline,
+    actions,
+  );
+
+  return card;
+}
+
+const bodyGoalForm = document.querySelector("#body-goal-form");
+const bodyGoalMetricTypeInput = document.querySelector(
+  "#body-goal-metric-type",
+);
+const bodyGoalDirectionInput = document.querySelector(
+  "#body-goal-direction",
+);
+const bodyGoalTargetValueInput = document.querySelector(
+  "#body-goal-target-value",
+);
+const bodyGoalStartValueInput = document.querySelector(
+  "#body-goal-start-value",
+);
+const bodyGoalSaveButton = document.querySelector(
+  "#body-goal-save-button",
+);
+const bodyGoalsGrid = document.querySelector(
+  "#body-composition-goals-grid",
+);
+const bodyGoalsEmptyState = document.querySelector(
+  "#body-composition-goals-empty",
+);
+
+async function loadBodyCompositionGoals() {
+  const [goalsResponse, progressResponse] = await Promise.all([
+    apiFetch("/goals/body-composition"),
+    apiFetch("/goals/body-composition/progress"),
+  ]);
+
+  if (!goalsResponse.ok) {
+    throw new Error(await readErrorMessage(goalsResponse));
+  }
+
+  if (!progressResponse.ok) {
+    throw new Error(await readErrorMessage(progressResponse));
+  }
+
+  const goals = await goalsResponse.json();
+  const progressItems = await progressResponse.json();
+  const progressByMetric = new Map(
+    progressItems.map((item) => [item.metric_type, item]),
+  );
+
+  bodyGoalsGrid.replaceChildren();
+
+  for (const goal of goals) {
+    const progress = progressByMetric.get(goal.metric_type);
+
+    if (progress) {
+      bodyGoalsGrid.append(createBodyGoalCard(goal, progress));
+    }
+  }
+
+  bodyGoalsEmptyState.classList.toggle("hidden", goals.length > 0);
+  bodyGoalsGrid.classList.toggle("hidden", goals.length === 0);
+}
+
+async function saveBodyCompositionGoal(event) {
+  event.preventDefault();
+  clearStatus();
+
+  const metricType = bodyGoalMetricTypeInput.value;
+  const direction = bodyGoalDirectionInput.value;
+  const targetValue = Number(bodyGoalTargetValueInput.value);
+  const startValueText = bodyGoalStartValueInput.value.trim();
+  const startValue = startValueText === "" ? null : Number(startValueText);
+  const metricConfig = BODY_GOAL_CONFIG[metricType];
+
+  if (!Number.isFinite(targetValue) || targetValue <= 0) {
+    showStatus("Introduce un objetivo corporal mayor que cero.", "error");
+    bodyGoalTargetValueInput.focus();
+    return;
+  }
+
+  if (targetValue > metricConfig.max) {
+    showStatus(
+      `El objetivo de ${metricConfig.label.toLowerCase()} no puede superar ${metricConfig.max}.`,
+      "error",
+    );
+    bodyGoalTargetValueInput.focus();
+    return;
+  }
+
+  if (
+    startValue !== null
+    && (!Number.isFinite(startValue) || startValue <= 0)
+  ) {
+    if (startValue !== null && startValue > metricConfig.max) {
+      showStatus(
+        `El valor inicial de ${metricConfig.label.toLowerCase()} no puede superar ${metricConfig.max}.`,
+        "error",
+      );
+      bodyGoalStartValueInput.focus();
+      return;
+    }
+        showStatus(
+      "El valor inicial debe ser un número mayor que cero.",
+      "error",
+    );
+    bodyGoalStartValueInput.focus();
+    return;
+  }
+
+  bodyGoalSaveButton.disabled = true;
+
+  try {
+    const response = await apiFetch(
+      `/goals/body-composition/${metricType}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          target_value: targetValue,
+          direction,
+          start_value: startValue,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    bodyGoalForm.reset();
+    showStatus("Objetivo corporal guardado correctamente.", "success");
+    await loadBodyCompositionGoals();
+  } catch (error) {
+    showStatus(error.message, "error");
+  } finally {
+    bodyGoalSaveButton.disabled = false;
+  }
+}
+
+async function deleteBodyCompositionGoal(metricType, button) {
+  const config = BODY_GOAL_CONFIG[metricType];
+  const confirmed = window.confirm(
+    `¿Quieres eliminar tu objetivo de ${config.label.toLowerCase()}? Tus mediciones se conservarán.`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  clearStatus();
+  button.disabled = true;
+
+  try {
+    const response = await apiFetch(
+      `/goals/body-composition/${metricType}`,
+      { method: "DELETE" },
+    );
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    showStatus("Objetivo corporal eliminado correctamente.", "success");
+    await loadBodyCompositionGoals();
+  } catch (error) {
+    showStatus(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
 
 configureEventListeners();
-loadGoals();
+
+bodyGoalForm.addEventListener("submit", saveBodyCompositionGoal);
+
+Promise.all([
+  loadGoals(),
+  loadBodyCompositionGoals(),
+]).catch((error) => {
+  showStatus(error.message, "error");
+});

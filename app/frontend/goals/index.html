@@ -396,6 +396,98 @@
         </article>
       </section>
     </section>
+    <section
+      class="body-composition-goals-section"
+      aria-labelledby="body-composition-goals-title"
+    >
+      <div class="charts-heading">
+        <div>
+          <p class="eyebrow">Composición corporal</p>
+          <h2 id="body-composition-goals-title">Objetivos corporales</h2>
+          <p>
+            Define una meta de peso, porcentaje graso o perímetros. Si dejas el
+            valor inicial vacío, se usará tu última medición disponible.
+          </p>
+        </div>
+      </div>
+
+      <article class="panel body-goal-creator">
+        <form id="body-goal-form" class="form-grid">
+          <label>
+            Métrica
+            <select id="body-goal-metric-type" required>
+              <option value="weight_kg">Peso</option>
+              <option value="body_fat_percentage">Porcentaje graso</option>
+              <option value="waist_cm">Cintura</option>
+              <option value="hip_cm">Cadera</option>
+              <option value="chest_cm">Pecho</option>
+              <option value="arm_cm">Brazo</option>
+              <option value="thigh_cm">Muslo</option>
+            </select>
+          </label>
+
+          <label>
+            Dirección
+            <select id="body-goal-direction" required>
+              <option value="decrease">Reducir</option>
+              <option value="increase">Aumentar</option>
+              <option value="maintain">Mantener</option>
+            </select>
+          </label>
+
+          <label>
+            Valor objetivo
+            <input
+              id="body-goal-target-value"
+              type="number"
+              min="0.01"
+              step="0.1"
+              required
+            />
+          </label>
+
+          <label>
+            Valor inicial
+            <span class="optional">Opcional</span>
+            <input
+              id="body-goal-start-value"
+              type="number"
+              min="0.01"
+              step="0.1"
+            />
+          </label>
+
+          <p class="goal-baseline-help full-width">
+            Si no indicas un valor inicial, se toma la última medición que tengas
+            para la métrica elegida. Si todavía no hay una medición, podrás guardar
+            la meta, pero el progreso aparecerá cuando registres datos corporales.
+          </p>
+
+          <div class="goal-actions full-width">
+            <button
+              id="body-goal-save-button"
+              class="primary-button"
+              type="submit"
+            >
+              Guardar objetivo corporal
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <div
+        id="body-composition-goals-empty"
+        class="empty-state large-empty-state"
+      >
+        Aún no tienes objetivos corporales. Crea uno para seguir tu evolución.
+      </div>
+
+      <section
+        id="body-composition-goals-grid"
+        class="goals-grid hidden"
+        aria-label="Objetivos de composición corporal"
+      ></section>
+    </section>
     <section class="nutrition-goals-section" aria-labelledby="nutrition-goals-title">
       <div class="charts-heading">
         <div>
@@ -671,7 +763,7 @@
       </section>
     </section>
   </main>
-
+  <script src="/static/auth.js"></script>
   <script src="/static/goals/goals.js"></script>
 </body>
 </html>
