@@ -41,7 +41,27 @@ def register_and_login(
         },
         register_response.json()["id"],
     )
+def create_body_composition_goal(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+    metric_type: str,
+    target_value: float,
+    direction: str,
+    start_value: float | None = None,
+) -> dict:
+    response = client.put(
+        f"/goals/body-composition/{metric_type}",
+        headers=headers,
+        json={
+            "target_value": target_value,
+            "direction": direction,
+            "start_value": start_value,
+        },
+    )
 
+    assert response.status_code == 200
+    return response.json()
 
 def create_goal(
     client: TestClient,
@@ -883,3 +903,353 @@ def test_weekly_rest_day_goal_must_be_integer_and_at_most_seven():
 
     assert decimal_response.status_code == 422
     assert excessive_response.status_code == 422
+
+def create_body_metric(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+    date_value: str,
+    weight_kg: float = 80,
+    height_cm: float = 180,
+    body_fat_percentage: float | None = None,
+    waist_cm: float | None = None,
+) -> dict:
+    response = client.post(
+        "/body-metrics/",
+        headers=headers,
+        json={
+            "date": date_value,
+            "weight_kg": weight_kg,
+            "height_cm": height_cm,
+            "body_fat_percentage": body_fat_percentage,
+            "waist_cm": waist_cm,
+            "hip_cm": None,
+            "chest_cm": None,
+            "arm_cm": None,
+            "thigh_cm": None,
+            "notes": None,
+        },
+    )
+
+    assert response.status_code == 201
+    return response.json()
+
+def test_user_can_create_list_update_and_delete_body_composition_goal():
+    with TestClient(app) as client:
+        headers, _ = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+
+        first_goal = create_body_composition_goal(
+            client,
+            headers=headers,
+            metric_type="weight_kg",
+            target_value=70,
+            direction="decrease",
+            start_value=80,
+        )
+
+        update_response = client.put(
+            "/goals/body-composition/weight_kg",
+            headers=headers,
+            json={
+                "target_value": 72,
+                "direction": "decrease",
+                "start_value": None,
+            },
+        )
+        list_response = client.get(
+            "/goals/body-composition",
+            headers=headers,
+        )
+        delete_response = client.delete(
+            "/goals/body-composition/weight_kg",
+            headers=headers,
+        )
+        missing_response = client.delete(
+            "/goals/body-composition/weight_kg",
+            headers=headers,
+        )
+
+    assert first_goal["start_value"] == 80
+    assert update_response.status_code == 200
+    assert update_response.json()["id"] == first_goal["id"]
+    assert update_response.json()["target_value"] == 72
+    assert update_response.json()["start_value"] == 80
+    assert list_response.status_code == 200
+    assert list_response.json() == [update_response.json()]
+    assert delete_response.status_code == 204
+    assert missing_response.status_code == 404
+
+
+def test_body_composition_goal_uses_latest_metric_as_baseline():
+    with TestClient(app) as client:
+        headers, _ = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+
+        create_body_metric(
+            client,
+            headers=headers,
+            date_value="2026-09-01",
+            weight_kg=82,
+        )
+        create_body_metric(
+            client,
+            headers=headers,
+            date_value="2026-09-10",
+            weight_kg=80,
+        )
+
+        goal = create_body_composition_goal(
+            client,
+            headers=headers,
+            metric_type="weight_kg",
+            target_value=75,
+            direction="decrease",
+        )
+
+    assert goal["start_value"] == 80
+
+
+def get_body_composition_remaining_value(
+    *,
+    direction: BodyCompositionGoalDirection,
+    current_value: float | None,
+    target_value: float,
+) -> float | None:
+    if current_value is None:
+        return None
+
+    if direction == "decrease":
+        return round(max(current_value - target_value, 0), 2)
+
+    if direction == "increase":
+        return round(max(target_value - current_value, 0), 2)
+
+    return round(abs(current_value - target_value), 2)
+
+def test_body_composition_goal_progress_calculates_decrease_goal():
+    with TestClient(app) as client:
+        headers, _ = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+
+        create_body_metric(
+            client,
+            headers=headers,
+            date_value="2026-09-01",
+            weight_kg=80,
+        )
+        create_body_composition_goal(
+            client,
+            headers=headers,
+            metric_type="weight_kg",
+            target_value=70,
+            direction="decrease",
+        )
+        create_body_metric(
+            client,
+            headers=headers,
+            date_value="2026-09-10",
+            weight_kg=75,
+        )
+
+        response = client.get(
+            "/goals/body-composition/progress",
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "metric_type": "weight_kg",
+            "direction": "decrease",
+            "start_value": 80,
+            "current_value": 75,
+            "current_value_date": "2026-09-10",
+            "target_value": 70,
+            "remaining_value": get_body_composition_remaining_value(
+                direction="decrease",
+                current_value=75,
+                target_value=70,
+            ),
+            "progress_percentage": 50,
+            "is_completed": False,
+        }
+    ]
+
+def test_body_composition_goal_progress_marks_decrease_goal_as_completed():
+    with TestClient(app) as client:
+        headers, _ = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+
+        create_body_metric(
+            client,
+            headers=headers,
+            date_value="2026-09-01",
+            weight_kg=80,
+        )
+        create_body_composition_goal(
+            client,
+            headers=headers,
+            metric_type="weight_kg",
+            target_value=70,
+            direction="decrease",
+        )
+        create_body_metric(
+            client,
+            headers=headers,
+            date_value="2026-09-10",
+            weight_kg=69.5,
+        )
+
+        response = client.get(
+            "/goals/body-composition/progress",
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+
+    progress = response.json()[0]
+
+    assert progress["start_value"] == 80
+    assert progress["current_value"] == 69.5
+    assert progress["target_value"] == 70
+    assert progress["remaining_value"] == 0
+    assert progress["progress_percentage"] == 100
+    assert progress["is_completed"] is True
+
+def test_body_composition_goal_progress_returns_no_values_without_metrics():
+    with TestClient(app) as client:
+        headers, _ = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+
+        create_body_composition_goal(
+            client,
+            headers=headers,
+            metric_type="waist_cm",
+            target_value=80,
+            direction="decrease",
+        )
+
+        response = client.get(
+            "/goals/body-composition/progress",
+            headers=headers,
+        )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "metric_type": "waist_cm",
+            "direction": "decrease",
+            "start_value": None,
+            "current_value": None,
+            "current_value_date": None,
+            "target_value": 80,
+            "remaining_value": None,
+            "progress_percentage": None,
+            "is_completed": False,
+        }
+    ]
+
+
+def test_body_composition_goal_validates_direction_against_baseline():
+    with TestClient(app) as client:
+        headers, _ = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+
+        response = client.put(
+            "/goals/body-composition/weight_kg",
+            headers=headers,
+            json={
+                "target_value": 80,
+                "direction": "decrease",
+                "start_value": 80,
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "Un objetivo de reducción debe ser menor que el valor inicial."
+    )
+
+
+def test_users_have_isolated_body_composition_goals_and_progress():
+    with TestClient(app) as client:
+        ana_headers, _ = register_and_login(
+            client,
+            email="ana@example.com",
+            display_name="Ana",
+        )
+        bruno_headers, _ = register_and_login(
+            client,
+            email="bruno@example.com",
+            display_name="Bruno",
+        )
+
+        create_body_metric(
+            client,
+            headers=ana_headers,
+            date_value="2026-09-01",
+            weight_kg=80,
+        )
+        create_body_metric(
+            client,
+            headers=bruno_headers,
+            date_value="2026-09-01",
+            weight_kg=95,
+        )
+
+        ana_goal = create_body_composition_goal(
+            client,
+            headers=ana_headers,
+            metric_type="weight_kg",
+            target_value=70,
+            direction="decrease",
+        )
+        bruno_goal = create_body_composition_goal(
+            client,
+            headers=bruno_headers,
+            metric_type="weight_kg",
+            target_value=90,
+            direction="decrease",
+        )
+
+        ana_list_response = client.get(
+            "/goals/body-composition",
+            headers=ana_headers,
+        )
+        bruno_progress_response = client.get(
+            "/goals/body-composition/progress",
+            headers=bruno_headers,
+        )
+        bruno_delete_response = client.delete(
+            "/goals/body-composition/weight_kg",
+            headers=bruno_headers,
+        )
+        ana_list_after_delete_response = client.get(
+            "/goals/body-composition",
+            headers=ana_headers,
+        )
+
+    assert ana_goal["id"] != bruno_goal["id"]
+    assert ana_list_response.json() == [ana_goal]
+    assert bruno_progress_response.json()[0]["current_value"] == 95
+    assert bruno_delete_response.status_code == 204
+    assert ana_list_after_delete_response.json() == [ana_goal]

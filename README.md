@@ -355,7 +355,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
   racha para pasos y sueño.
 - [x] Añadir seguimiento de composición corporal: porcentaje graso, masa
   grasa, masa magra y perímetros.
-- [ ] Añadir objetivos de peso, porcentaje graso, perímetros y composición
+- [x] Añadir objetivos de peso, porcentaje graso, perímetros y composición
   corporal.
 - [ ] Añadir medias móviles y comparativas entre periodos.
 - [ ] Ampliar gráficas de IMC, composición corporal, volumen de entrenamiento

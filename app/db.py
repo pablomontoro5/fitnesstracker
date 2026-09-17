@@ -31,6 +31,32 @@ FITNESS_GOAL_TYPES_SQL = ", ".join(
     for goal_type in FITNESS_GOAL_TYPES
 )
 
+BODY_COMPOSITION_GOAL_METRIC_TYPES = (
+    "weight_kg",
+    "body_fat_percentage",
+    "waist_cm",
+    "hip_cm",
+    "chest_cm",
+    "arm_cm",
+    "thigh_cm",
+)
+
+BODY_COMPOSITION_GOAL_DIRECTIONS = (
+    "decrease",
+    "increase",
+    "maintain",
+)
+
+BODY_COMPOSITION_GOAL_METRIC_TYPES_SQL = ", ".join(
+    f"'{metric_type}'"
+    for metric_type in BODY_COMPOSITION_GOAL_METRIC_TYPES
+)
+
+BODY_COMPOSITION_GOAL_DIRECTIONS_SQL = ", ".join(
+    f"'{direction}'"
+    for direction in BODY_COMPOSITION_GOAL_DIRECTIONS
+)
+
 def get_connection() -> sqlite3.Connection:
     """Devuelve una conexión configurada con la base de datos SQLite."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -487,6 +513,92 @@ def migrate_runs_table(connection: sqlite3.Connection) -> None:
 
     connection.execute("DROP TABLE runs")
     connection.execute("ALTER TABLE runs_new RENAME TO runs")
+def migrate_body_composition_goals_table(
+    connection: sqlite3.Connection,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(body_composition_goals)"
+        ).fetchall()
+    }
+
+    if not columns or "user_id" in columns:
+        return
+
+    legacy_user_id = get_legacy_user_id(
+        connection,
+        table_name="body_composition_goals",
+        empty_error_message=(
+            "No se pueden migrar objetivos corporales sin "
+            "un usuario propietario."
+        ),
+    )
+
+    if legacy_user_id is None:
+        return
+
+    connection.execute(
+        f"""
+        CREATE TABLE body_composition_goals_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            metric_type TEXT NOT NULL CHECK (
+                metric_type IN (
+                    {BODY_COMPOSITION_GOAL_METRIC_TYPES_SQL}
+                )
+            ),
+            target_value REAL NOT NULL CHECK (target_value > 0),
+            direction TEXT NOT NULL CHECK (
+                direction IN (
+                    {BODY_COMPOSITION_GOAL_DIRECTIONS_SQL}
+                )
+            ),
+            start_value REAL,
+            started_at TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+            UNIQUE (user_id, metric_type)
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO body_composition_goals_new (
+            id,
+            user_id,
+            metric_type,
+            target_value,
+            direction,
+            start_value,
+            started_at,
+            created_at,
+            updated_at
+        )
+        SELECT
+            id,
+            ?,
+            metric_type,
+            target_value,
+            direction,
+            start_value,
+            started_at,
+            created_at,
+            updated_at
+        FROM body_composition_goals
+        """,
+        (legacy_user_id,),
+    )
+
+    connection.execute("DROP TABLE body_composition_goals")
+    connection.execute(
+        "ALTER TABLE body_composition_goals_new "
+        "RENAME TO body_composition_goals"
+    )
 
 def initialize_database() -> None:
 
@@ -796,6 +908,37 @@ def initialize_database() -> None:
             )
             """
         )
+
+        connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS body_composition_goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                metric_type TEXT NOT NULL CHECK (
+                    metric_type IN (
+                        {BODY_COMPOSITION_GOAL_METRIC_TYPES_SQL}
+                    )
+                ),
+                target_value REAL NOT NULL CHECK (target_value > 0),
+                direction TEXT NOT NULL CHECK (
+                    direction IN (
+                        {BODY_COMPOSITION_GOAL_DIRECTIONS_SQL}
+                    )
+                ),
+                start_value REAL,
+                started_at TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+                UNIQUE (user_id, metric_type)
+            )
+            """
+        )
+
+        migrate_body_composition_goals_table(connection)
+
         migrate_fitness_goals_table(connection)
         migrate_daily_logs_table(connection)
         migrate_daily_recovery_logs_table(connection)
@@ -808,6 +951,7 @@ def initialize_database() -> None:
             ON body_metrics(user_id, date)
             """
         )
+
         connection.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_runs_user_date
