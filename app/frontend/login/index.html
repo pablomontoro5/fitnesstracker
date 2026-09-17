@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Inicia sesión o crea tu cuenta de Fitness Tracker."
+  />
+  <title>Acceso | Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Fitness Tracker</p>
+        <h1>Acceso</h1>
+      </div>
+
+      <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">
+        API Docs
+      </a>
+    </div>
+  </header>
+
+  <main class="container auth-page">
+    <a class="back-link" href="/">← Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Tu espacio personal</p>
+        <h2>Accede a tus registros</h2>
+        <p>
+          Inicia sesión para guardar y consultar tus datos de actividad,
+          entrenamiento, nutrición, recuperación y composición corporal.
+        </p>
+      </div>
+    </section>
+
+    <p
+      id="auth-status"
+      class="status-message"
+      role="status"
+      aria-live="polite"
+    ></p>
+
+    <section class="auth-grid">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Ya tengo cuenta</p>
+            <h2>Iniciar sesión</h2>
+          </div>
+        </div>
+
+        <form id="login-form" class="form-grid">
+          <label class="full-width">
+            Correo electrónico
+            <input
+              id="login-email"
+              type="email"
+              autocomplete="email"
+              maxlength="254"
+              required
+            />
+          </label>
+
+          <label class="full-width">
+            Contraseña
+            <input
+              id="login-password"
+              type="password"
+              autocomplete="current-password"
+              minlength="12"
+              maxlength="128"
+              required
+            />
+          </label>
+
+          <div class="form-actions full-width">
+            <button id="login-submit-button" class="primary-button" type="submit">
+              Entrar
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Primera vez</p>
+            <h2>Crear cuenta</h2>
+          </div>
+        </div>
+
+        <form id="register-form" class="form-grid">
+          <label class="full-width">
+            Nombre visible
+            <input
+              id="register-display-name"
+              type="text"
+              autocomplete="name"
+              minlength="1"
+              maxlength="80"
+              required
+            />
+          </label>
+
+          <label class="full-width">
+            Correo electrónico
+            <input
+              id="register-email"
+              type="email"
+              autocomplete="email"
+              maxlength="254"
+              required
+            />
+          </label>
+
+          <label class="full-width">
+            Contraseña
+            <span class="optional">Mínimo 12 caracteres</span>
+            <input
+              id="register-password"
+              type="password"
+              autocomplete="new-password"
+              minlength="12"
+              maxlength="128"
+              required
+            />
+          </label>
+
+          <div class="form-actions full-width">
+            <button
+              id="register-submit-button"
+              class="primary-button"
+              type="submit"
+            >
+              Crear cuenta
+            </button>
+          </div>
+        </form>
+      </article>
+    </section>
+  </main>
+
+  <script src="/static/auth.js"></script>
+  <script src="/static/login/login.js"></script>
+</body>
+</html>
