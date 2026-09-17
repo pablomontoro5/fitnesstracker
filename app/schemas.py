@@ -141,7 +141,49 @@ class BodyCompositionProgressResponse(BaseModel):
     end_date: date
     records: list[BodyCompositionProgressRecord]
     changes: BodyCompositionChanges
-    
+BodyCompositionGoalMetricType = Literal[
+    "weight_kg",
+    "body_fat_percentage",
+    "waist_cm",
+    "hip_cm",
+    "chest_cm",
+    "arm_cm",
+    "thigh_cm",
+]
+
+BodyCompositionGoalDirection = Literal[
+    "decrease",
+    "increase",
+    "maintain",
+]
+
+
+class BodyCompositionGoalUpsert(BaseModel):
+    target_value: float = Field(gt=0, le=500)
+    direction: BodyCompositionGoalDirection
+    start_value: float | None = Field(default=None, gt=0, le=500)
+
+
+class BodyCompositionGoalResponse(BaseModel):
+    id: int
+    metric_type: BodyCompositionGoalMetricType
+    target_value: float
+    direction: BodyCompositionGoalDirection
+    start_value: float | None
+    started_at: date
+
+
+class BodyCompositionGoalProgressResponse(BaseModel):
+    metric_type: BodyCompositionGoalMetricType
+    direction: BodyCompositionGoalDirection
+    start_value: float | None
+    current_value: float | None
+    current_value_date: date | None
+    target_value: float
+    remaining_value: float | None
+    progress_percentage: float | None
+    is_completed: bool
+      
 class WorkoutSessionCreate(BaseModel):
     date: date
     name: str = Field(min_length=1, max_length=100)
