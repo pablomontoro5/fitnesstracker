@@ -357,11 +357,11 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
   grasa, masa magra y perímetros.
 - [x] Añadir objetivos de peso, porcentaje graso, perímetros y composición
   corporal.
-- [ ] Añadir medias móviles y comparativas entre periodos.
-- [ ] Ampliar gráficas de IMC, composición corporal, volumen de entrenamiento
+- [x] Añadir medias móviles y comparativas entre periodos.
+- [x] Ampliar gráficas de IMC, composición corporal, volumen de entrenamiento
   y ritmo de running.
 - [ ] Añadir calendario de actividad y planificación de sesiones.
-- [ ] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos
+- [x] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos
   principales/secundarios e indicaciones técnicas.
 - [ ] Crear biblioteca de alimentos, comidas frecuentes y plantillas de comida.
 - [ ] Mejorar filtros, estados vacíos, carga y mensajes de error entre

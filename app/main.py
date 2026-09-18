@@ -11,6 +11,7 @@ from app.routers import (
     backups,
     body_metrics,
     daily_logs,
+    exercise_catalog,
     exports,
     goals,
     nutrition_days,
@@ -62,6 +63,7 @@ app.include_router(workout_templates.router)
 app.include_router(goals.router)
 app.include_router(recovery.router)
 app.include_router(auth.router)
+app.include_router(exercise_catalog.router)
 app.mount(
     "/static",
     StaticFiles(directory=FRONTEND_DIR, html=True),
