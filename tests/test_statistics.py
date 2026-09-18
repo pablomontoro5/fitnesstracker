@@ -1,11 +1,9 @@
-from fastapi.testclient import TestClient
 from datetime import date
-from app.main import app
 
 import pytest
+from fastapi.testclient import TestClient
 
-from app.db import get_connection
-
+from app.main import app
 from app.routers.statistics import get_consecutive_streaks
 def register_and_login(
     client: TestClient,
@@ -39,49 +37,6 @@ def register_and_login(
             f"Bearer {login_response.json()['access_token']}"
         )
     }
-@pytest.fixture(autouse=True)
-def clear_statistics_test_data():
-    with get_connection() as connection:
-        connection.execute(
-            """
-            DELETE FROM daily_logs
-            WHERE date IN ('2026-09-30', '2026-10-01', '2026-11-01')
-            """
-        )
-        connection.execute(
-            """
-            DELETE FROM daily_recovery_logs
-            WHERE date IN (
-                '2026-09-28',
-                '2026-09-29',
-                '2026-09-30',
-                '2026-10-01',
-                '2026-10-02',
-                '2026-11-01'
-            )
-            """
-        )
-
-        connection.execute(
-            """
-            DELETE FROM runs
-            WHERE date IN ('2026-09-30', '2026-10-01', '2026-11-01')
-            """
-        )
-
-        connection.execute(
-            """
-            DELETE FROM body_metrics
-            WHERE date IN ('2026-09-30', '2026-10-01', '2026-11-01')
-            """
-        )
-
-        connection.execute(
-            """
-            DELETE FROM workout_sessions
-            WHERE date IN ('2026-09-30', '2026-10-01', '2026-11-01')
-            """
-        )
 
 def create_daily_log(
     client: TestClient,
@@ -279,6 +234,309 @@ def get_summary(
     assert response.status_code == 200
     return response.json()
 
+def get_trends(
+    client: TestClient,
+    *,
+    headers: dict[str, str],
+    start_date: str,
+    end_date: str,
+) -> dict:
+    response = client.get(
+        "/statistics/trends",
+        headers=headers,
+        params={
+            "start_date": start_date,
+            "end_date": end_date,
+        },
+    )
+
+    assert response.status_code == 200
+    return response.json()
+def test_statistics_trends_return_daily_points_and_moving_averages():
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-01",
+            steps=7000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-03",
+            steps=14000,
+        )
+
+        trends = get_trends(
+            client,
+            headers=headers,
+            start_date="2026-09-01",
+            end_date="2026-09-03",
+        )
+
+    assert trends["steps"] == [
+        {
+            "date": "2026-09-01",
+            "value": 7000,
+            "moving_average_7": 7000,
+            "moving_average_14": 7000,
+            "moving_average_28": 7000,
+        },
+        {
+            "date": "2026-09-02",
+            "value": 0,
+            "moving_average_7": 3500,
+            "moving_average_14": 3500,
+            "moving_average_28": 3500,
+        },
+        {
+            "date": "2026-09-03",
+            "value": 14000,
+            "moving_average_7": 7000,
+            "moving_average_14": 7000,
+            "moving_average_28": 7000,
+        },
+    ]
+def test_statistics_trends_use_days_before_visible_period_for_moving_average():
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-08-31",
+            steps=4000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-01",
+            steps=7000,
+        )
+
+        trends = get_trends(
+            client,
+            headers=headers,
+            start_date="2026-09-01",
+            end_date="2026-09-01",
+        )
+
+    assert trends["steps"] == [
+        {
+            "date": "2026-09-01",
+            "value": 7000,
+            "moving_average_7": 5500,
+            "moving_average_14": 5500,
+            "moving_average_28": 5500,
+        }
+    ]
+def test_statistics_trends_calculate_running_pace_and_ignore_missing_days():
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+
+        create_run(
+            client,
+            headers=headers,
+            date="2026-09-01",
+            distance_km=5,
+            duration_seconds=1500,
+        )
+        create_run(
+            client,
+            headers=headers,
+            date="2026-09-01",
+            distance_km=10,
+            duration_seconds=3600,
+        )
+
+        trends = get_trends(
+            client,
+            headers=headers,
+            start_date="2026-09-01",
+            end_date="2026-09-02",
+        )
+
+    assert trends["running_distance_km"][0]["value"] == 15
+    assert trends["running_distance_km"][1]["value"] == 0
+    assert trends["running_pace_seconds_km"][0]["value"] == 340
+    assert trends["running_pace_seconds_km"][1]["value"] is None
+    assert trends["running_pace_seconds_km"][1]["moving_average_7"] == 340
+def test_statistics_workout_volume_groups_working_sets_by_day():
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+
+        session = create_workout_session(
+            client,
+            headers=headers,
+            date="2026-09-01",
+        )
+        exercise = create_workout_exercise(
+            client,
+            headers=headers,
+            session_id=session["id"],
+        )
+
+        create_workout_set(
+            client,
+            headers=headers,
+            exercise_id=exercise["id"],
+            set_type="warmup",
+            position=1,
+            repetitions=10,
+            weight_kg=20,
+        )
+        create_workout_set(
+            client,
+            headers=headers,
+            exercise_id=exercise["id"],
+            set_type="working",
+            position=2,
+            repetitions=10,
+            weight_kg=50,
+        )
+        create_workout_set(
+            client,
+            headers=headers,
+            exercise_id=exercise["id"],
+            set_type="working",
+            position=3,
+            repetitions=8,
+            weight_kg=60,
+        )
+
+        response = client.get(
+            "/statistics/workout-volume",
+            headers=headers,
+            params={
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-02",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-02",
+        "records": [
+            {
+                "date": "2026-09-01",
+                "volume_kg": 980,
+                "working_sets": 2,
+                "repetitions": 18,
+            }
+        ],
+    }
+def test_statistics_comparison_uses_previous_equivalent_period():
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-08-30",
+            steps=8000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-08-31",
+            steps=7000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-01",
+            steps=10000,
+        )
+        create_daily_log(
+            client,
+            headers=headers,
+            date="2026-09-02",
+            steps=11000,
+        )
+
+        response = client.get(
+            "/statistics/comparison",
+            headers=headers,
+            params={
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-02",
+            },
+        )
+
+    assert response.status_code == 200
+
+    comparison = response.json()
+
+    assert comparison["current_start_date"] == "2026-09-01"
+    assert comparison["current_end_date"] == "2026-09-02"
+    assert comparison["previous_start_date"] == "2026-08-30"
+    assert comparison["previous_end_date"] == "2026-08-31"
+
+    assert comparison["steps"] == {
+        "current_value": 21000,
+        "previous_value": 15000,
+        "absolute_change": 6000,
+        "percentage_change": 40,
+    }
+def test_statistics_comparison_returns_null_for_weight_without_previous_measurement():
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+
+        create_body_metric(
+            client,
+            headers=headers,
+            date="2026-09-02",
+            weight_kg=80,
+        )
+
+        response = client.get(
+            "/statistics/comparison",
+            headers=headers,
+            params={
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-02",
+            },
+        )
+
+    assert response.status_code == 200
+
+    assert response.json()["weight_kg"] == {
+        "current_value": 80,
+        "previous_value": None,
+        "absolute_change": None,
+        "percentage_change": None,
+    }
+def test_statistics_comparison_returns_null_for_weight_without_previous_measurement():
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+
+        create_body_metric(
+            client,
+            headers=headers,
+            date="2026-09-02",
+            weight_kg=80,
+        )
+
+        response = client.get(
+            "/statistics/comparison",
+            headers=headers,
+            params={
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-02",
+            },
+        )
+
+    assert response.status_code == 200
+
+    assert response.json()["weight_kg"] == {
+        "current_value": 80,
+        "previous_value": None,
+        "absolute_change": None,
+        "percentage_change": None,
+    }
 def test_statistics_summary_is_empty_when_no_data_exists():
     with TestClient(app) as client:
         headers = register_and_login(client)
@@ -942,3 +1200,50 @@ def test_statistics_only_include_current_user_data():
     assert response.json()["workouts"]["working_sets"] == 0
     assert response.json()["running"]["runs"] == 0
     assert response.json()["body_metrics"]["records"] == 0
+
+
+def calculate_moving_average(
+    values: list[float | None],
+    index: int,
+    window: int,
+    *,
+    include_missing_as_zero: bool,
+) -> float | None:
+    start_index = max(0, index - window + 1)
+    window_values = values[start_index : index + 1]
+
+    if include_missing_as_zero:
+        first_available_index = next(
+            (
+                value_index
+                for value_index, value in enumerate(window_values)
+                if value is not None
+            ),
+            None,
+        )
+
+        if first_available_index is None:
+            return 0.0
+
+        available_window_values = window_values[first_available_index:]
+
+        numeric_values = [
+            value if value is not None else 0.0
+            for value in available_window_values
+        ]
+
+        return round(
+            sum(numeric_values) / len(numeric_values),
+            2,
+        )
+
+    numeric_values = [
+        value
+        for value in window_values
+        if value is not None
+    ]
+
+    if not numeric_values:
+        return None
+
+    return round(sum(numeric_values) / len(numeric_values), 2)
