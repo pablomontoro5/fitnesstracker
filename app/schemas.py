@@ -141,6 +141,8 @@ class BodyCompositionProgressResponse(BaseModel):
     end_date: date
     records: list[BodyCompositionProgressRecord]
     changes: BodyCompositionChanges
+
+
 BodyCompositionGoalMetricType = Literal[
     "weight_kg",
     "body_fat_percentage",
@@ -183,7 +185,7 @@ class BodyCompositionGoalProgressResponse(BaseModel):
     remaining_value: float | None
     progress_percentage: float | None
     is_completed: bool
-      
+
 class WorkoutSessionCreate(BaseModel):
     date: date
     name: str = Field(min_length=1, max_length=100)
@@ -472,6 +474,55 @@ class ActivityChartsResponse(BaseModel):
     steps: list[StatisticsStepsChartPoint]
     weight: list[StatisticsWeightChartPoint]
     running: list[StatisticsRunningChartPoint]
+class StatisticsTrendPoint(BaseModel):
+    date: date
+    value: float | None
+    moving_average_7: float | None
+    moving_average_14: float | None
+    moving_average_28: float | None
+
+
+class StatisticsTrendsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    steps: list[StatisticsTrendPoint]
+    workout_volume_kg: list[StatisticsTrendPoint]
+    running_distance_km: list[StatisticsTrendPoint]
+    running_pace_seconds_km: list[StatisticsTrendPoint]
+
+
+class StatisticsWorkoutVolumeChartPoint(BaseModel):
+    date: date
+    volume_kg: float
+    working_sets: int
+    repetitions: int
+
+
+class StatisticsWorkoutVolumeResponse(BaseModel):
+    start_date: date
+    end_date: date
+    records: list[StatisticsWorkoutVolumeChartPoint]
+
+
+class StatisticsComparisonMetric(BaseModel):
+    current_value: float | None
+    previous_value: float | None
+    absolute_change: float | None
+    percentage_change: float | None
+
+
+class StatisticsComparisonResponse(BaseModel):
+    current_start_date: date
+    current_end_date: date
+    previous_start_date: date
+    previous_end_date: date
+    steps: StatisticsComparisonMetric
+    workout_volume_kg: StatisticsComparisonMetric
+    running_distance_km: StatisticsComparisonMetric
+    running_average_pace_seconds_km: StatisticsComparisonMetric
+    weight_kg: StatisticsComparisonMetric
+    bmi: StatisticsComparisonMetric
+    body_fat_percentage: StatisticsComparisonMetric
 
 class WorkoutTemplateCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
@@ -604,3 +655,86 @@ class UserResponse(BaseModel):
 class AccessTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class MovingAveragePoint(BaseModel):
+    days: Literal[7, 14, 28]
+    value: float | None
+
+
+class StatisticsTrendPoint(BaseModel):
+    date: date
+    value: float | None
+    moving_average_7: float | None
+    moving_average_14: float | None
+    moving_average_28: float | None
+
+
+class StatisticsTrendsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    steps: list[StatisticsTrendPoint]
+    workout_volume_kg: list[StatisticsTrendPoint]
+    running_distance_km: list[StatisticsTrendPoint]
+    running_pace_seconds_km: list[StatisticsTrendPoint]
+class StatisticsBodyCompositionChartPoint(BaseModel):
+    date: date
+    weight_kg: float
+    bmi: float
+    body_fat_percentage: float | None
+    fat_mass_kg: float | None
+    lean_mass_kg: float | None
+    waist_cm: float | None
+    hip_cm: float | None
+    chest_cm: float | None
+    arm_cm: float | None
+    thigh_cm: float | None
+
+
+class StatisticsBodyCompositionResponse(BaseModel):
+    start_date: date
+    end_date: date
+    records: list[StatisticsBodyCompositionChartPoint]
+
+class StatisticsWorkoutVolumeChartPoint(BaseModel):
+    date: date
+    volume_kg: float
+    working_sets: int
+    repetitions: int
+
+
+class StatisticsWorkoutVolumeResponse(BaseModel):
+    start_date: date
+    end_date: date
+    records: list[StatisticsWorkoutVolumeChartPoint]
+
+class StatisticsRunningProgressChartPoint(BaseModel):
+    date: date
+    distance_km: float
+    duration_seconds: int
+    average_pace_seconds_km: float | None
+
+
+class StatisticsRunningProgressResponse(BaseModel):
+    start_date: date
+    end_date: date
+    records: list[StatisticsRunningProgressChartPoint]
+
+class StatisticsComparisonMetric(BaseModel):
+    current_value: float | None
+    previous_value: float | None
+    absolute_change: float | None
+    percentage_change: float | None
+
+
+class StatisticsComparisonResponse(BaseModel):
+    current_start_date: date
+    current_end_date: date
+    previous_start_date: date
+    previous_end_date: date
+    steps: StatisticsComparisonMetric
+    workout_volume_kg: StatisticsComparisonMetric
+    running_distance_km: StatisticsComparisonMetric
+    running_average_pace_seconds_km: StatisticsComparisonMetric
+    weight_kg: StatisticsComparisonMetric
+    bmi: StatisticsComparisonMetric
+    body_fat_percentage: StatisticsComparisonMetric
