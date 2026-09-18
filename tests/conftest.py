@@ -13,17 +13,13 @@ def clean_database():
 
     with get_connection() as connection:
         connection.execute("DELETE FROM fitness_goals")
-
-        connection.execute(
-            """
-            DELETE FROM body_composition_goals
-            WHERE 1 = 1
-            """
-        )
+        connection.execute("DELETE FROM body_composition_goals")
 
         connection.execute("DELETE FROM nutrition_foods")
         connection.execute("DELETE FROM nutrition_meals")
         connection.execute("DELETE FROM nutrition_days")
+
+        connection.execute("DELETE FROM planned_workouts")
 
         connection.execute("DELETE FROM workout_template_sets")
         connection.execute("DELETE FROM workout_template_exercises")

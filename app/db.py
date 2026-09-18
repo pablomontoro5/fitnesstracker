@@ -513,6 +513,72 @@ def migrate_runs_table(connection: sqlite3.Connection) -> None:
 
     connection.execute("DROP TABLE runs")
     connection.execute("ALTER TABLE runs_new RENAME TO runs")
+def migrate_workout_templates_table(
+    connection: sqlite3.Connection,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(workout_templates)"
+        ).fetchall()
+    }
+
+    if "user_id" in columns:
+        return
+
+    legacy_user_id = get_legacy_user_id(
+        connection,
+        table_name="workout_templates",
+        empty_error_message=(
+            "No se pueden migrar plantillas de entrenamiento sin "
+            "un usuario propietario."
+        ),
+    )
+
+    if legacy_user_id is None:
+        return
+
+    connection.execute(
+        """
+        CREATE TABLE workout_templates_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO workout_templates_new (
+            id,
+            user_id,
+            name,
+            notes,
+            created_at
+        )
+        SELECT
+            id,
+            ?,
+            name,
+            notes,
+            created_at
+        FROM workout_templates
+        """,
+        (legacy_user_id,),
+    )
+
+    connection.execute("DROP TABLE workout_templates")
+    connection.execute(
+        "ALTER TABLE workout_templates_new "
+        "RENAME TO workout_templates"
+    )
+
 def migrate_body_composition_goals_table(
     connection: sqlite3.Connection,
 ) -> None:
@@ -842,9 +908,13 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS workout_templates (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
                 name TEXT NOT NULL CHECK (length(trim(name)) > 0),
                 notes TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
             )
             """
         )
@@ -889,7 +959,6 @@ def initialize_database() -> None:
             )
             """
         )
-
         connection.execute(
             f"""
             CREATE TABLE IF NOT EXISTS fitness_goals (
@@ -944,6 +1013,7 @@ def initialize_database() -> None:
         migrate_daily_recovery_logs_table(connection)
         migrate_body_metrics_table(connection)
         migrate_runs_table(connection)
+        migrate_workout_templates_table(connection)
 
         connection.execute(
             """
@@ -956,5 +1026,62 @@ def initialize_database() -> None:
             """
             CREATE INDEX IF NOT EXISTS idx_runs_user_date
             ON runs(user_id, date)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_workout_templates_user_id
+            ON workout_templates(user_id)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_planned_workouts_user_date
+            ON planned_workouts(user_id, scheduled_date)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+                idx_planned_workouts_user_status_date
+            ON planned_workouts(user_id, status, scheduled_date)
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS planned_workouts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                scheduled_date TEXT NOT NULL,
+                workout_template_id INTEGER,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                notes TEXT,
+                status TEXT NOT NULL DEFAULT 'planned'
+                    CHECK (
+                        status IN (
+                            'planned',
+                            'completed',
+                            'skipped'
+                        )
+                    ),
+                workout_session_id INTEGER UNIQUE,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (workout_template_id)
+                    REFERENCES workout_templates(id)
+                    ON DELETE SET NULL,
+                FOREIGN KEY (workout_session_id)
+                    REFERENCES workout_sessions(id)
+                    ON DELETE SET NULL
+            )
             """
         )
