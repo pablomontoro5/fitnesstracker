@@ -738,3 +738,47 @@ class StatisticsComparisonResponse(BaseModel):
     weight_kg: StatisticsComparisonMetric
     bmi: StatisticsComparisonMetric
     body_fat_percentage: StatisticsComparisonMetric
+
+EquipmentType = Literal[
+    "barbell",
+    "dumbbell",
+    "cable",
+    "machine",
+    "bodyweight",
+    "kettlebell",
+    "band",
+    "other",
+]
+
+MovementPattern = Literal[
+    "squat",
+    "hinge",
+    "horizontal_push",
+    "vertical_push",
+    "horizontal_pull",
+    "vertical_pull",
+    "carry",
+    "isolation",
+    "core",
+    "cardio",
+]
+
+ExerciseType = Literal[
+    "compound",
+    "isolation",
+    "cardio",
+]
+
+
+class ExerciseCatalogItemResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    primary_muscle_group: str
+    secondary_muscle_groups: list[str]
+    equipment: EquipmentType
+    movement_pattern: MovementPattern
+    exercise_type: ExerciseType
+    variants: list[str]
+    instructions: list[str]
+    default_rep_range: str
