@@ -203,18 +203,29 @@
         <div id="session-detail-content" class="hidden">
           <form id="exercise-form" class="form-grid compact-form">
             <label>
-              Grupo muscular sugerido
-              <select id="exercise-suggestion-muscle-group">
-                <option value="">Selecciona un grupo</option>
+              Grupo muscular
+              <select id="exercise-catalog-muscle-group">
+                <option value="">Todos los grupos</option>
               </select>
             </label>
 
             <label>
-              Ejercicio sugerido
-              <select id="exercise-suggestion">
-                <option value="">Primero selecciona un grupo</option>
+              Ejercicio del catálogo
+              <select id="exercise-catalog-select">
+                <option value="">Cargando catálogo…</option>
               </select>
             </label>
+
+            <p class="exercise-suggestion-help full-width">
+              Selecciona un ejercicio para rellenar el nombre, grupo muscular y notas
+              técnicas. También puedes escribir un ejercicio personalizado.
+            </p>
+
+            <article
+              id="exercise-catalog-details"
+              class="exercise-catalog-details hidden full-width"
+              aria-live="polite"
+            ></article>
 
             <p class="exercise-suggestion-help full-width">
               Las sugerencias son opcionales. Puedes seleccionar una para rellenar los
@@ -446,7 +457,7 @@
     </section>
     <section class="panel personal-records-panel">
       <div class="panel-heading">
-        <div>
+        <div>eot
           <p class="eyebrow">Paso 5</p>
           <h2>Marcas personales</h2>
         </div>
@@ -521,6 +532,7 @@
       </button>
     </article>
   </template>
+  <script src="/static/auth.js"></script>
   <script src="/static/workouts/workouts.js" type="module"></script>
 </body>
 </html>

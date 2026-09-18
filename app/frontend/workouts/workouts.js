@@ -6,6 +6,7 @@ const state = {
   selectedExercise: null,
   sets: [],
   pendingSets: [],
+  exerciseCatalog: {},
 };
 
 const elements = {
@@ -30,10 +31,15 @@ const elements = {
   repeatSessionButton: document.querySelector("#repeat-session-button"),
 
   exerciseForm: document.querySelector("#exercise-form"),
-  exerciseSuggestionMuscleGroup: document.querySelector(
-    "#exercise-suggestion-muscle-group",
+  exerciseCatalogMuscleGroup: document.querySelector(
+    "#exercise-catalog-muscle-group",
   ),
-  exerciseSuggestion: document.querySelector("#exercise-suggestion"),
+  exerciseCatalogSelect: document.querySelector(
+    "#exercise-catalog-select",
+  ),
+  exerciseCatalogDetails: document.querySelector(
+    "#exercise-catalog-details",
+  ),
   exerciseName: document.querySelector("#exercise-name"),
   exerciseMuscleGroup: document.querySelector("#exercise-muscle-group"),
   exercisesList: document.querySelector("#exercises-list"),
@@ -227,12 +233,14 @@ function showStatus(message, type = "success") {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+  const headers = {
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers || {}),
+  };
+
+  const response = await apiFetch(path, {
     ...options,
+    headers,
   });
 
   if (response.status === 204) {
@@ -245,12 +253,12 @@ async function request(path, options = {}) {
     const detail = Array.isArray(body?.detail)
       ? body.detail.map((error) => error.msg).join(". ")
       : body?.detail;
+
     throw new Error(detail || "No se pudo completar la operación.");
   }
 
   return body;
 }
-
 function setListEmpty(container, message) {
   container.className = "empty-state";
   container.textContent = message;
@@ -264,79 +272,165 @@ function createSelectOption(value, label = value) {
 }
 
 
-function populateSuggestionMuscleGroups() {
-  elements.exerciseSuggestionMuscleGroup.innerHTML = "";
-  elements.exerciseSuggestionMuscleGroup.append(
-    createSelectOption("", "Selecciona un grupo"),
+function getCatalogExercise(exerciseId) {
+  return state.exerciseCatalog.find(
+    (exercise) => exercise.id === exerciseId,
+  );
+}
+
+function renderCatalogMuscleGroups() {
+  const selectedValue = elements.exerciseCatalogMuscleGroup.value;
+  const muscleGroups = [
+    ...new Set(
+      state.exerciseCatalog.map(
+        (exercise) => exercise.primary_muscle_group,
+      ),
+    ),
+  ].sort((firstGroup, secondGroup) =>
+    firstGroup.localeCompare(secondGroup, "es"),
   );
 
-  for (const muscleGroup of Object.keys(exerciseSuggestions)) {
-    elements.exerciseSuggestionMuscleGroup.append(
+  elements.exerciseCatalogMuscleGroup.replaceChildren(
+    createSelectOption("", "Todos los grupos"),
+    ...muscleGroups.map((muscleGroup) =>
       createSelectOption(muscleGroup),
-    );
-  }
-}
-
-function resetExerciseSuggestions() {
-  elements.exerciseSuggestionMuscleGroup.value = "";
-  elements.exerciseSuggestion.innerHTML = "";
-  elements.exerciseSuggestion.append(
-    createSelectOption("", "Primero selecciona un grupo"),
+    ),
   );
-  elements.exerciseSuggestion.disabled = true;
+
+  elements.exerciseCatalogMuscleGroup.value = muscleGroups.includes(
+    selectedValue,
+  )
+    ? selectedValue
+    : "";
 }
 
+function renderCatalogExercises() {
+  const selectedMuscleGroup =
+    elements.exerciseCatalogMuscleGroup.value;
+  const selectedExerciseId = elements.exerciseCatalogSelect.value;
 
-function updateExerciseSuggestions() {
-  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
+  const exercises = state.exerciseCatalog.filter((exercise) =>
+    !selectedMuscleGroup
+      || exercise.primary_muscle_group === selectedMuscleGroup,
+  );
 
-  elements.exerciseSuggestion.innerHTML = "";
-
-  if (!muscleGroup) {
-    elements.exerciseSuggestion.append(
-      createSelectOption("", "Primero selecciona un grupo"),
-    );
-    elements.exerciseSuggestion.disabled = true;
-    return;
-  }
-
-  elements.exerciseSuggestion.append(
+  elements.exerciseCatalogSelect.replaceChildren(
     createSelectOption("", "Selecciona un ejercicio"),
+    ...exercises.map((exercise) =>
+      createSelectOption(
+        exercise.id,
+        `${exercise.name} · ${exercise.primary_muscle_group}`,
+      ),
+    ),
   );
 
+  const selectedExerciseStillExists = exercises.some(
+    (exercise) => exercise.id === selectedExerciseId,
+  );
 
-  for (const exerciseName of exerciseSuggestions[muscleGroup]) {
-    elements.exerciseSuggestion.append(createSelectOption(exerciseName));
-  }
+  elements.exerciseCatalogSelect.value = selectedExerciseStillExists
+    ? selectedExerciseId
+    : "";
 
-  elements.exerciseSuggestion.disabled = false;
+  renderCatalogExerciseDetails(
+    getCatalogExercise(elements.exerciseCatalogSelect.value),
+  );
 }
 
-function applyExerciseSuggestion() {
-  const muscleGroup = elements.exerciseSuggestionMuscleGroup.value;
-  const exerciseName = elements.exerciseSuggestion.value;
+function appendCatalogDetail(parent, label, value) {
+  const detail = document.createElement("p");
+  const detailLabel = document.createElement("strong");
 
-  if (!muscleGroup || !exerciseName) {
+  detailLabel.textContent = `${label}: `;
+  detail.append(detailLabel, value);
+  parent.append(detail);
+}
+
+function renderCatalogExerciseDetails(exercise) {
+  elements.exerciseCatalogDetails.replaceChildren();
+
+  if (!exercise) {
+    elements.exerciseCatalogDetails.classList.add("hidden");
     return;
   }
 
-  elements.exerciseName.value = exerciseName;
-  elements.exerciseMuscleGroup.value = muscleGroup;
+  const title = document.createElement("h3");
+  title.textContent = exercise.name;
+
+  const instructionsTitle = document.createElement("strong");
+  instructionsTitle.textContent = "Indicaciones técnicas";
+
+  const instructions = document.createElement("ol");
+
+  for (const instruction of exercise.instructions) {
+    const item = document.createElement("li");
+    item.textContent = instruction;
+    instructions.append(item);
+  }
+
+  appendCatalogDetail(
+    elements.exerciseCatalogDetails,
+    "Principal",
+    exercise.primary_muscle_group,
+  );
+  appendCatalogDetail(
+    elements.exerciseCatalogDetails,
+    "Secundarios",
+    exercise.secondary_muscle_groups.length
+      ? exercise.secondary_muscle_groups.join(", ")
+      : "—",
+  );
+  appendCatalogDetail(
+    elements.exerciseCatalogDetails,
+    "Equipo",
+    exercise.equipment,
+  );
+  appendCatalogDetail(
+    elements.exerciseCatalogDetails,
+    "Patrón",
+    exercise.movement_pattern.replaceAll("_", " "),
+  );
+  appendCatalogDetail(
+    elements.exerciseCatalogDetails,
+    "Rango recomendado",
+    exercise.default_rep_range,
+  );
+
+  elements.exerciseCatalogDetails.append(
+    title,
+    instructionsTitle,
+    instructions,
+  );
+  elements.exerciseCatalogDetails.classList.remove("hidden");
+}
+
+function applyCatalogExercise() {
+  const exercise = getCatalogExercise(
+    elements.exerciseCatalogSelect.value,
+  );
+
+  renderCatalogExerciseDetails(exercise);
+
+  if (!exercise) {
+    return;
+  }
+
+  elements.exerciseName.value = exercise.name;
+  elements.exerciseMuscleGroup.value =
+    exercise.primary_muscle_group;
+
+  if (!elements.exerciseForm.elements.technique_notes.value.trim()) {
+    elements.exerciseForm.elements.technique_notes.value =
+      exercise.instructions.join(" ");
+  }
+
   elements.exerciseName.focus();
 }
 
-function resetSelectedExercise() {
-  state.selectedExercise = null;
-  state.sets = [];
-  state.pendingSets = [];
-  elements.selectedExerciseTitle.textContent = "Selecciona un ejercicio";
-  elements.exerciseEmptyState.classList.remove("hidden");
-  elements.exerciseDetailContent.classList.add("hidden");
-  elements.deleteExerciseButton.classList.add("hidden");
-  elements.editExerciseButton.classList.add("hidden");
-  elements.editExerciseForm.classList.add("hidden");
-  elements.setCount.textContent = "0";
-  setListEmpty(elements.setsList, "No hay series en este ejercicio.");
+function resetExerciseCatalogSelection() {
+  elements.exerciseCatalogMuscleGroup.value = "";
+  elements.exerciseCatalogSelect.value = "";
+  renderCatalogExercises();
 }
 
 function resetSelectedSession() {
@@ -821,9 +915,10 @@ async function selectSession(session) {
   elements.repeatSessionButton.classList.remove("hidden");
   elements.exerciseForm.reset();
   elements.exerciseForm.elements.position.value = "1";
-  resetExerciseSuggestions();
+  resetExerciseCatalogSelection();
   resetSelectedExercise();
   renderSessions();
+
 
   try {
     await loadExercises(session.id);
@@ -899,7 +994,7 @@ async function handleCreateExercise(event) {
 
     elements.exerciseForm.reset();
     elements.exerciseForm.elements.position.value = String(exercise.position + 1);
-    resetExerciseSuggestions();
+    resetExerciseCatalogSelection();
     showStatus(`Ejercicio “${exercise.name}” añadido.`);
     await loadExercises(state.selectedSession.id);
     await selectExercise(exercise);
@@ -932,6 +1027,19 @@ function closeExerciseEditor() {
   elements.editExerciseForm.classList.add("hidden");
 }
 
+async function loadExerciseCatalog() {
+  try {
+    state.exerciseCatalog = await request("/exercise-catalog/");
+    renderCatalogMuscleGroups();
+    renderCatalogExercises();
+  } catch (error) {
+    showStatus(error.message, "error");
+    elements.exerciseCatalogSelect.replaceChildren(
+      createSelectOption("", "No se pudo cargar el catálogo"),
+    );
+    elements.exerciseCatalogSelect.disabled = true;
+  }
+}
 
 async function handleUpdateExercise(event) {
   event.preventDefault();
@@ -1240,14 +1348,14 @@ function configureEventListeners() {
     closeExerciseEditor,
   );
 
-  elements.exerciseSuggestionMuscleGroup.addEventListener(
+  elements.exerciseCatalogMuscleGroup.addEventListener(
     "change",
-    updateExerciseSuggestions,
+    renderCatalogExercises,
   );
 
-  elements.exerciseSuggestion.addEventListener(
+  elements.exerciseCatalogSelect.addEventListener(
     "change",
-    applyExerciseSuggestion,
+    applyCatalogExercise,
   );
 
   elements.repeatSessionButton.addEventListener(
@@ -1259,8 +1367,7 @@ function configureEventListeners() {
 async function initializeApp() {
   elements.sessionDate.value = todayAsIsoDate();
 
-  populateSuggestionMuscleGroups();
-  resetExerciseSuggestions();
+  await loadExerciseCatalog();
   configureEventListeners();
 
   await Promise.all([
