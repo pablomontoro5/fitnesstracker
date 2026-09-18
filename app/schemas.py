@@ -600,7 +600,88 @@ GoalType = Literal[
     "weekly_rest_days",
 ]
 
+PlannedWorkoutStatus = Literal[
+    "planned",
+    "completed",
+    "skipped",
+]
 
+
+class PlannedWorkoutCreate(BaseModel):
+    scheduled_date: date
+    workout_template_id: int | None = Field(
+        default=None,
+        gt=0,
+    )
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    notes: str | None = Field(
+        default=None,
+        max_length=1000,
+    )
+
+
+class PlannedWorkoutUpdate(BaseModel):
+    scheduled_date: date
+    workout_template_id: int | None = Field(
+        default=None,
+        gt=0,
+    )
+    name: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    notes: str | None = Field(
+        default=None,
+        max_length=1000,
+    )
+    status: Literal["planned", "skipped"]
+
+
+class PlannedWorkoutComplete(BaseModel):
+    completed_date: date | None = None
+
+
+class PlannedWorkoutResponse(BaseModel):
+    id: int
+    scheduled_date: date
+    workout_template_id: int | None
+    name: str
+    notes: str | None
+    status: PlannedWorkoutStatus
+    workout_session_id: int | None
+
+
+class PlannedWorkoutCompleteResponse(BaseModel):
+    planned_workout: PlannedWorkoutResponse
+    workout_session: WorkoutSessionResponse
+
+
+class CalendarPlannedWorkoutResponse(BaseModel):
+    id: int
+    name: str
+    status: PlannedWorkoutStatus
+
+
+class CalendarActivityDayResponse(BaseModel):
+    date: date
+    steps: int
+    has_workout: bool
+    workout_sessions: int
+    running_distance_km: float
+    sleep_minutes: int | None
+    is_rest_day: bool
+    planned_workouts: list[CalendarPlannedWorkoutResponse]
+
+
+class CalendarActivityResponse(BaseModel):
+    start_date: date
+    end_date: date
+    days: list[CalendarActivityDayResponse]
+    
 class FitnessGoalUpsert(BaseModel):
     target_value: float = Field(gt=0, le=1_000_000)
 

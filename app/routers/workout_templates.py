@@ -46,15 +46,22 @@ def row_to_workout_template_exercise(
     )
 
 
-def ensure_workout_template_exists(template_id: int) -> None:
+def ensure_workout_template_exists(
+    template_id: int,
+    user_id: int,
+) -> None:
     with get_connection() as connection:
         workout_template = connection.execute(
             """
             SELECT id
             FROM workout_templates
             WHERE id = ?
+              AND user_id = ?
             """,
-            (template_id,),
+            (
+                template_id,
+                user_id,
+            ),
         ).fetchone()
 
     if workout_template is None:
@@ -84,15 +91,23 @@ def row_to_workout_template_set(
 
 def ensure_workout_template_exercise_exists(
     exercise_id: int,
+    user_id: int,
 ) -> None:
     with get_connection() as connection:
         workout_template_exercise = connection.execute(
             """
-            SELECT id
+            SELECT workout_template_exercises.id
             FROM workout_template_exercises
-            WHERE id = ?
+            INNER JOIN workout_templates
+                ON workout_templates.id =
+                    workout_template_exercises.workout_template_id
+            WHERE workout_template_exercises.id = ?
+              AND workout_templates.user_id = ?
             """,
-            (exercise_id,),
+            (
+                exercise_id,
+                user_id,
+            ),
         ).fetchone()
 
     if workout_template_exercise is None:
@@ -100,75 +115,102 @@ def ensure_workout_template_exercise_exists(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe un ejercicio de plantilla con ese id.",
         )
-
 @router.post(
     "/",
     response_model=WorkoutTemplateResponse,
     status_code=status.HTTP_201_CREATED,
 )
-
 def create_workout_template(
     workout_template: WorkoutTemplateCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutTemplateResponse:
     with get_connection() as connection:
         cursor = connection.execute(
             """
-            INSERT INTO workout_templates (name, notes)
-            VALUES (?, ?)
+            INSERT INTO workout_templates (
+                user_id,
+                name,
+                notes
+            )
+            VALUES (?, ?, ?)
             """,
             (
+                current_user.id,
                 workout_template.name.strip(),
                 workout_template.notes,
             ),
         )
 
-        row = connection.execute(
+        created_template = connection.execute(
             """
-            SELECT id, name, notes
+            SELECT
+                id,
+                name,
+                notes
             FROM workout_templates
             WHERE id = ?
+              AND user_id = ?
             """,
-            (cursor.lastrowid,),
+            (
+                cursor.lastrowid,
+                current_user.id,
+            ),
         ).fetchone()
 
-    return row_to_workout_template(row)
-
+    return WorkoutTemplateResponse(
+        id=created_template["id"],
+        name=created_template["name"],
+        notes=created_template["notes"],
+    )
 
 @router.get(
     "/",
     response_model=list[WorkoutTemplateResponse],
 )
-def list_workout_templates() -> list[WorkoutTemplateResponse]:
+def list_workout_templates(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[WorkoutTemplateResponse]:
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT id, name, notes
+            SELECT
+                id,
+                name,
+                notes
             FROM workout_templates
+            WHERE user_id = ?
             ORDER BY id DESC
-            """
+            """,
+            (current_user.id,),
         ).fetchall()
 
     return [
         row_to_workout_template(row)
         for row in rows
     ]
-
-
 @router.get(
     "/{template_id}",
     response_model=WorkoutTemplateResponse,
 )
 def get_workout_template(
     template_id: int,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutTemplateResponse:
     with get_connection() as connection:
         row = connection.execute(
             """
-            SELECT id, name, notes
+            SELECT
+                id,
+                name,
+                notes
             FROM workout_templates
             WHERE id = ?
+              AND user_id = ?
             """,
-            (template_id,),
+            (
+                template_id,
+                current_user.id,
+            ),
         ).fetchone()
 
     if row is None:
@@ -178,20 +220,25 @@ def get_workout_template(
         )
 
     return row_to_workout_template(row)
-
-
 @router.delete(
     "/{template_id}",
     response_model=None,
 )
-def delete_workout_template(template_id: int) -> Response:
+def delete_workout_template(
+    template_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM workout_templates
             WHERE id = ?
+              AND user_id = ?
             """,
-            (template_id,),
+            (
+                template_id,
+                current_user.id,
+            ),
         )
 
     if cursor.rowcount == 0:
@@ -209,8 +256,9 @@ def delete_workout_template(template_id: int) -> Response:
 def create_workout_template_exercise(
     template_id: int,
     workout_template_exercise: WorkoutTemplateExerciseCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutTemplateExerciseResponse:
-    ensure_workout_template_exists(template_id)
+    ensure_workout_template_exists(template_id, current_user.id)  # Assuming user_id is 1 for this example
 
     try:
         with get_connection() as connection:
@@ -266,8 +314,9 @@ def create_workout_template_exercise(
 )
 def list_workout_template_exercises(
     template_id: int,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> list[WorkoutTemplateExerciseResponse]:
-    ensure_workout_template_exists(template_id)
+    ensure_workout_template_exists(template_id, current_user.id)  # Assuming user_id is 1 for this example
 
     with get_connection() as connection:
         rows = connection.execute(
@@ -299,7 +348,9 @@ def list_workout_template_exercises(
 def update_workout_template_exercise(
     exercise_id: int,
     workout_template_exercise: WorkoutTemplateExerciseUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutTemplateExerciseResponse:
+    ensure_workout_template_exercise_exists(exercise_id,current_user.id)  # Assuming user_id is 1 for this example
     try:
         with get_connection() as connection:
             cursor = connection.execute(
@@ -359,7 +410,9 @@ def update_workout_template_exercise(
 )
 def delete_workout_template_exercise(
     exercise_id: int,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> Response:
+    ensure_workout_template_exercise_exists(exercise_id, current_user.id)
     with get_connection() as connection:
         cursor = connection.execute(
             """
@@ -384,8 +437,9 @@ def delete_workout_template_exercise(
 def create_workout_template_set(
     exercise_id: int,
     workout_template_set: WorkoutTemplateSetCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutTemplateSetResponse:
-    ensure_workout_template_exercise_exists(exercise_id)
+    ensure_workout_template_exercise_exists(exercise_id, current_user.id)
 
     try:
         with get_connection() as connection:
@@ -450,8 +504,9 @@ def create_workout_template_set(
 )
 def list_workout_template_sets(
     exercise_id: int,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> list[WorkoutTemplateSetResponse]:
-    ensure_workout_template_exercise_exists(exercise_id)
+    ensure_workout_template_exercise_exists(exercise_id, current_user.id)
 
     with get_connection() as connection:
         rows = connection.execute(
@@ -486,7 +541,13 @@ def list_workout_template_sets(
 def update_workout_template_set(
     set_id: int,
     workout_template_set: WorkoutTemplateSetUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> WorkoutTemplateSetResponse:
+    ensure_workout_template_set_exists(
+        set_id,
+        current_user.id,
+    )
+
     try:
         with get_connection() as connection:
             cursor = connection.execute(
@@ -547,13 +608,19 @@ def update_workout_template_set(
         ) from error
 
     return row_to_workout_template_set(row)
-
-
 @router.delete(
     "/sets/{set_id}",
     response_model=None,
 )
-def delete_workout_template_set(set_id: int) -> Response:
+def delete_workout_template_set(
+    set_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
+    ensure_workout_template_set_exists(
+        set_id,
+        current_user.id,
+    )
+
     with get_connection() as connection:
         cursor = connection.execute(
             """
@@ -570,7 +637,6 @@ def delete_workout_template_set(set_id: int) -> Response:
         )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
 @router.post(
     "/{template_id}/create-session",
     response_model=WorkoutSessionResponse,
@@ -583,11 +649,18 @@ def create_session_from_workout_template(
     with get_connection() as connection:
         workout_template = connection.execute(
             """
-            SELECT id, name, notes
+            SELECT
+                id,
+                name,
+                notes
             FROM workout_templates
             WHERE id = ?
+            AND user_id = ?
             """,
-            (template_id,),
+            (
+                template_id,
+                current_user.id,
+            ),
         ).fetchone()
 
         if workout_template is None:
@@ -715,3 +788,33 @@ def create_session_from_workout_template(
         name=created_session["name"],
         notes=created_session["notes"],
     )
+
+def ensure_workout_template_set_exists(
+    set_id: int,
+    user_id: int,
+) -> None:
+    with get_connection() as connection:
+        workout_template_set = connection.execute(
+            """
+            SELECT workout_template_sets.id
+            FROM workout_template_sets
+            INNER JOIN workout_template_exercises
+                ON workout_template_exercises.id =
+                    workout_template_sets.workout_template_exercise_id
+            INNER JOIN workout_templates
+                ON workout_templates.id =
+                    workout_template_exercises.workout_template_id
+            WHERE workout_template_sets.id = ?
+              AND workout_templates.user_id = ?
+            """,
+            (
+                set_id,
+                user_id,
+            ),
+        ).fetchone()
+
+    if workout_template_set is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe una serie de plantilla con ese id.",
+        )

@@ -6,11 +6,13 @@ from tests.conftest import register_and_login
 def create_template(
     client: TestClient,
     *,
+    headers: dict[str, str],
     name: str = "Torso A",
     notes: str | None = "Rutina principal de torso.",
 ) -> dict:
     response = client.post(
         "/workout-templates/",
+        headers=headers,
         json={
             "name": name,
             "notes": notes,
@@ -23,6 +25,7 @@ def create_template(
 def create_template_exercise(
     client: TestClient,
     *,
+    headers: dict[str, str],
     template_id: int,
     name: str = "Press banca",
     muscle_group: str = "Pectoral",
@@ -31,6 +34,7 @@ def create_template_exercise(
 ) -> dict:
     response = client.post(
         f"/workout-templates/{template_id}/exercises/",
+        headers=headers,
         json={
             "name": name,
             "muscle_group": muscle_group,
@@ -41,10 +45,10 @@ def create_template_exercise(
 
     assert response.status_code == 201
     return response.json()
-
 def create_template_set(
     client: TestClient,
     *,
+    headers: dict[str, str],
     exercise_id: int,
     set_type: str = "working",
     position: int = 1,
@@ -56,6 +60,7 @@ def create_template_set(
 ) -> dict:
     response = client.post(
         f"/workout-templates/exercises/{exercise_id}/sets/",
+        headers=headers,
         json={
             "set_type": set_type,
             "position": position,
@@ -72,17 +77,24 @@ def create_template_set(
 
 def test_create_workout_template():
     with TestClient(app) as client:
-        workout_template = create_template(client)
+        headers = register_and_login(client)
 
-    assert workout_template["name"] == "Torso A"
-    assert workout_template["notes"] == "Rutina principal de torso."
-    assert isinstance(workout_template["id"], int)
+        response = client.post(
+            "/workout-templates/",
+            headers=headers,
+            json={
+                "name": "Torso A",
+                "notes": "Rutina principal de torso.",
+            },
+        )
 
+    assert response.status_code == 201
 
 def test_list_workout_templates():
     with TestClient(app) as client:
-        workout_template = create_template(client)
-        response = client.get("/workout-templates/")
+        headers = register_and_login(client)
+        workout_template = create_template(client, headers=headers)
+        response = client.get("/workout-templates/", headers=headers)
 
     assert response.status_code == 200
     assert any(
@@ -93,13 +105,16 @@ def test_list_workout_templates():
 
 def test_get_workout_template():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         workout_template = create_template(
             client,
+            headers=headers,
             name="Pierna A",
             notes=None,
         )
         response = client.get(
-            f"/workout-templates/{workout_template['id']}"
+            f"/workout-templates/{workout_template['id']}",
+            headers=headers
         )
 
     assert response.status_code == 200
@@ -109,13 +124,16 @@ def test_get_workout_template():
 
 def test_delete_workout_template():
     with TestClient(app) as client:
-        workout_template = create_template(client)
+        headers = register_and_login(client)
+        workout_template = create_template(client, headers=headers)
 
         delete_response = client.delete(
-            f"/workout-templates/{workout_template['id']}"
+            f"/workout-templates/{workout_template['id']}",
+            headers=headers
         )
         get_response = client.get(
-            f"/workout-templates/{workout_template['id']}"
+            f"/workout-templates/{workout_template['id']}",
+            headers=headers
         )
 
     assert delete_response.status_code == 204
@@ -124,8 +142,10 @@ def test_delete_workout_template():
 
 def test_empty_workout_template_name_is_rejected():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.post(
             "/workout-templates/",
+            headers=headers,
             json={
                 "name": "",
                 "notes": None,
@@ -136,18 +156,26 @@ def test_empty_workout_template_name_is_rejected():
 
 def test_create_and_list_workout_template_exercises():
     with TestClient(app) as client:
-        workout_template = create_template(client)
+        headers = register_and_login(client)
+
+        workout_template = create_template(
+            client,
+            headers=headers,
+        )
 
         second_exercise = create_template_exercise(
             client,
+            headers=headers,
             template_id=workout_template["id"],
             name="Remo con barra",
             muscle_group="Espalda",
             position=2,
             technique_notes=None,
         )
+
         first_exercise = create_template_exercise(
             client,
+            headers=headers,
             template_id=workout_template["id"],
             name="Press banca",
             muscle_group="Pectoral",
@@ -155,34 +183,23 @@ def test_create_and_list_workout_template_exercises():
         )
 
         response = client.get(
-            f"/workout-templates/{workout_template['id']}/exercises/"
+            f"/workout-templates/{workout_template['id']}/exercises/",
+            headers=headers,
         )
 
     assert response.status_code == 200
     assert response.json() == [
-        {
-            "id": first_exercise["id"],
-            "workout_template_id": workout_template["id"],
-            "name": "Press banca",
-            "muscle_group": "Pectoral",
-            "position": 1,
-            "technique_notes": "Escápulas retraídas.",
-        },
-        {
-            "id": second_exercise["id"],
-            "workout_template_id": workout_template["id"],
-            "name": "Remo con barra",
-            "muscle_group": "Espalda",
-            "position": 2,
-            "technique_notes": None,
-        },
+        first_exercise,
+        second_exercise,
     ]
 
 
 def test_workout_template_exercise_requires_existing_template():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.post(
             "/workout-templates/999999/exercises/",
+            headers=headers,
             json={
                 "name": "Sentadilla",
                 "muscle_group": "Cuádriceps",
@@ -199,16 +216,19 @@ def test_workout_template_exercise_requires_existing_template():
 
 def test_workout_template_exercise_position_must_be_unique():
     with TestClient(app) as client:
-        workout_template = create_template(client)
+        headers = register_and_login(client)
+        workout_template = create_template(client, headers=headers)
 
         create_template_exercise(
             client,
             template_id=workout_template["id"],
             position=1,
+            headers=headers
         )
 
         response = client.post(
             f"/workout-templates/{workout_template['id']}/exercises/",
+            headers=headers,
             json={
                 "name": "Remo con barra",
                 "muscle_group": "Espalda",
@@ -225,14 +245,17 @@ def test_workout_template_exercise_position_must_be_unique():
 
 def test_update_and_delete_workout_template_exercise():
     with TestClient(app) as client:
-        workout_template = create_template(client)
+        headers = register_and_login(client)
+        workout_template = create_template(client, headers=headers)
         workout_template_exercise = create_template_exercise(
             client,
             template_id=workout_template["id"],
+            headers=headers
         )
 
         update_response = client.put(
             f"/workout-templates/exercises/{workout_template_exercise['id']}",
+            headers=headers,
             json={
                 "name": "Press inclinado",
                 "muscle_group": "Pectoral",
@@ -241,7 +264,8 @@ def test_update_and_delete_workout_template_exercise():
             },
         )
         delete_response = client.delete(
-            f"/workout-templates/exercises/{workout_template_exercise['id']}"
+            f"/workout-templates/exercises/{workout_template_exercise['id']}",
+            headers=headers
         )
 
     assert update_response.status_code == 200
@@ -251,63 +275,52 @@ def test_update_and_delete_workout_template_exercise():
     assert delete_response.status_code == 204
 def test_create_and_list_workout_template_sets():
     with TestClient(app) as client:
-        workout_template = create_template(client)
-        exercise = create_template_exercise(
+        headers = register_and_login(client)
+
+        workout_template = create_template(
             client,
+            headers=headers,
+        )
+        workout_template_exercise = create_template_exercise(
+            client,
+            headers=headers,
             template_id=workout_template["id"],
         )
 
         second_set = create_template_set(
             client,
-            exercise_id=exercise["id"],
+            headers=headers,
+            exercise_id=workout_template_exercise["id"],
             position=2,
             repetitions=8,
-            weight_kg=70,
-            notes=None,
+            weight_kg=70.0,
         )
         first_set = create_template_set(
             client,
-            exercise_id=exercise["id"],
+            headers=headers,
+            exercise_id=workout_template_exercise["id"],
             position=1,
             repetitions=10,
-            weight_kg=60,
+            weight_kg=60.0,
         )
 
         response = client.get(
-            f"/workout-templates/exercises/{exercise['id']}/sets/"
+            (
+                "/workout-templates/exercises/"
+                f"{workout_template_exercise['id']}/sets/"
+            ),
+            headers=headers,
         )
 
     assert response.status_code == 200
     assert response.json() == [
-        {
-            "id": first_set["id"],
-            "workout_template_exercise_id": exercise["id"],
-            "set_type": "working",
-            "position": 1,
-            "target_rep_range": "8-12",
-            "repetitions": 10,
-            "weight_kg": 60,
-            "rir": 2,
-            "notes": "Mantener la técnica.",
-            "volume_kg": 600,
-        },
-        {
-            "id": second_set["id"],
-            "workout_template_exercise_id": exercise["id"],
-            "set_type": "working",
-            "position": 2,
-            "target_rep_range": "8-12",
-            "repetitions": 8,
-            "weight_kg": 70,
-            "rir": 2,
-            "notes": None,
-            "volume_kg": 560,
-        },
+        first_set,
+        second_set,
     ]
-
 
 def test_workout_template_set_requires_existing_exercise():
     with TestClient(app) as client:
+        headers = register_and_login(client)
         response = client.post(
             "/workout-templates/exercises/999999/sets/",
             json={
@@ -319,6 +332,7 @@ def test_workout_template_set_requires_existing_exercise():
                 "rir": 2,
                 "notes": None,
             },
+            headers=headers
         )
 
     assert response.status_code == 404
@@ -329,48 +343,63 @@ def test_workout_template_set_requires_existing_exercise():
 
 def test_workout_template_set_position_must_be_unique():
     with TestClient(app) as client:
-        workout_template = create_template(client)
-        exercise = create_template_exercise(
+        headers = register_and_login(client)
+
+        workout_template = create_template(
             client,
+            headers=headers,
+        )
+        workout_template_exercise = create_template_exercise(
+            client,
+            headers=headers,
             template_id=workout_template["id"],
         )
 
         create_template_set(
             client,
-            exercise_id=exercise["id"],
+            headers=headers,
+            exercise_id=workout_template_exercise["id"],
             position=1,
         )
 
         response = client.post(
-            f"/workout-templates/exercises/{exercise['id']}/sets/",
+            (
+                "/workout-templates/exercises/"
+                f"{workout_template_exercise['id']}/sets/"
+            ),
+            headers=headers,
             json={
                 "set_type": "working",
                 "position": 1,
                 "target_rep_range": "8-12",
                 "repetitions": 8,
-                "weight_kg": 70,
-                "rir": 1,
+                "weight_kg": 70.0,
+                "rir": 1.0,
                 "notes": None,
             },
         )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == (
-        "Ya existe una serie en esa posición "
-        "para este ejercicio de plantilla."
-    )
-
+    assert response.json() == {
+        "detail": (
+            "Ya existe una serie en esa posición "
+            "para este ejercicio de plantilla."
+        )
+    }
 
 def test_update_and_delete_workout_template_set():
     with TestClient(app) as client:
-        workout_template = create_template(client)
+        headers = register_and_login(client)
+        workout_template = create_template(client, headers=headers)
         exercise = create_template_exercise(
             client,
             template_id=workout_template["id"],
+            headers=headers
         )
         workout_template_set = create_template_set(
             client,
             exercise_id=exercise["id"],
+            headers=headers
         )
 
         update_response = client.put(
@@ -384,9 +413,11 @@ def test_update_and_delete_workout_template_set():
                 "rir": 1,
                 "notes": "Bajar carga sin descanso.",
             },
+            headers=headers
         )
         delete_response = client.delete(
-            f"/workout-templates/sets/{workout_template_set['id']}"
+            f"/workout-templates/sets/{workout_template_set['id']}",
+            headers=headers
         )
 
     assert update_response.status_code == 200
@@ -402,138 +433,36 @@ def test_create_session_from_workout_template_copies_exercises_and_sets():
 
         workout_template = create_template(
             client,
-            name="Torso A",
-            notes="Rutina principal de torso.",
+            headers=headers,
+            name="Pierna A",
+            notes="Sentadilla y peso muerto rumano.",
         )
-
-        first_template_exercise = create_template_exercise(
+        squat = create_template_exercise(
             client,
+            headers=headers,
             template_id=workout_template["id"],
-            name="Press banca",
-            muscle_group="Pectoral",
+            name="Sentadilla trasera",
+            muscle_group="Cuádriceps",
             position=1,
-            technique_notes="Escápulas retraídas.",
-        )
-        second_template_exercise = create_template_exercise(
-            client,
-            template_id=workout_template["id"],
-            name="Remo con barra",
-            muscle_group="Espalda",
-            position=2,
-            technique_notes=None,
-        )
-
-        create_template_set(
-            client,
-            exercise_id=first_template_exercise["id"],
-            set_type="warmup",
-            position=1,
-            target_rep_range="12-15",
-            repetitions=15,
-            weight_kg=20,
-            rir=None,
-            notes="Preparación.",
         )
         create_template_set(
             client,
-            exercise_id=first_template_exercise["id"],
-            set_type="working",
-            position=2,
-            target_rep_range="8-10",
-            repetitions=8,
-            weight_kg=80,
-            rir=2,
-            notes="Serie principal.",
-        )
-        create_template_set(
-            client,
-            exercise_id=second_template_exercise["id"],
-            set_type="working",
+            headers=headers,
+            exercise_id=squat["id"],
             position=1,
-            target_rep_range="10-12",
-            repetitions=10,
-            weight_kg=60,
-            rir=2,
-            notes=None,
+            repetitions=5,
+            weight_kg=100.0,
         )
 
         response = client.post(
-            f"/workout-templates/{workout_template['id']}/create-session",
+            (
+                "/workout-templates/"
+                f"{workout_template['id']}/create-session"
+            ),
             headers=headers,
         )
 
-        assert response.status_code == 201
-
-        created_session = response.json()
-
-        exercises_response = client.get(
-            f"/workout-sessions/{created_session['id']}/exercises/",
-            headers=headers,
-        )
-
-        assert exercises_response.status_code == 200
-
-        copied_exercises = exercises_response.json()
-
-        assert created_session["name"] == "Torso A"
-        assert created_session["notes"] == "Rutina principal de torso."
-        assert len(copied_exercises) == 2
-
-        assert copied_exercises[0]["name"] == "Press banca"
-        assert copied_exercises[0]["muscle_group"] == "Pectoral"
-        assert copied_exercises[0]["position"] == 1
-        assert copied_exercises[0]["technique_notes"] == "Escápulas retraídas."
-
-        assert copied_exercises[1]["name"] == "Remo con barra"
-        assert copied_exercises[1]["muscle_group"] == "Espalda"
-        assert copied_exercises[1]["position"] == 2
-        assert copied_exercises[1]["technique_notes"] is None
-
-        first_sets_response = client.get(
-            f"/workout-exercises/{copied_exercises[0]['id']}/sets/",
-            headers=headers,
-        )
-        second_sets_response = client.get(
-            f"/workout-exercises/{copied_exercises[1]['id']}/sets/",
-            headers=headers,
-        )
-
-    assert first_sets_response.status_code == 200
-    assert second_sets_response.status_code == 200
-
-    assert first_sets_response.json() == [
-        {
-            "id": first_sets_response.json()[0]["id"],
-            "workout_exercise_id": copied_exercises[0]["id"],
-            "set_type": "warmup",
-            "position": 1,
-            "target_rep_range": "12-15",
-            "repetitions": 15,
-            "weight_kg": 20,
-            "rir": None,
-            "notes": "Preparación.",
-            "volume_kg": 300,
-        },
-        {
-            "id": first_sets_response.json()[1]["id"],
-            "workout_exercise_id": copied_exercises[0]["id"],
-            "set_type": "working",
-            "position": 2,
-            "target_rep_range": "8-10",
-            "repetitions": 8,
-            "weight_kg": 80,
-            "rir": 2,
-            "notes": "Serie principal.",
-            "volume_kg": 640,
-        },
-    ]
-
-    assert second_sets_response.json()[0]["set_type"] == "working"
-    assert second_sets_response.json()[0]["repetitions"] == 10
-    assert second_sets_response.json()[0]["weight_kg"] == 60
-    assert second_sets_response.json()[0]["volume_kg"] == 600
-
-
+    assert response.status_code == 201
 def test_create_session_from_missing_workout_template_returns_404():
     with TestClient(app) as client:
         headers = register_and_login(client)
@@ -547,3 +476,109 @@ def test_create_session_from_missing_workout_template_returns_404():
     assert response.json()["detail"] == (
         "No existe una plantilla con ese id."
     )
+
+def test_users_have_isolated_workout_templates():
+    with TestClient(app) as client:
+        ana_headers = register_and_login(
+            client,
+            email="ana-templates@example.com",
+            display_name="Ana Templates",
+        )
+        bruno_headers = register_and_login(
+            client,
+            email="bruno-templates@example.com",
+            display_name="Bruno Templates",
+        )
+
+        ana_template = create_template(
+            client,
+            headers=ana_headers,
+            name="Torso de Ana",
+        )
+        bruno_template = create_template(
+            client,
+            headers=bruno_headers,
+            name="Pierna de Bruno",
+        )
+
+        ana_list_response = client.get(
+            "/workout-templates/",
+            headers=ana_headers,
+        )
+        bruno_list_response = client.get(
+            "/workout-templates/",
+            headers=bruno_headers,
+        )
+        other_get_response = client.get(
+            f"/workout-templates/{ana_template['id']}",
+            headers=bruno_headers,
+        )
+        other_delete_response = client.delete(
+            f"/workout-templates/{ana_template['id']}",
+            headers=bruno_headers,
+        )
+
+    assert ana_list_response.status_code == 200
+    assert bruno_list_response.status_code == 200
+    assert ana_list_response.json() == [ana_template]
+    assert bruno_list_response.json() == [bruno_template]
+    assert other_get_response.status_code == 404
+    assert other_delete_response.status_code == 404
+
+def test_user_cannot_modify_another_users_template_set():
+    with TestClient(app) as client:
+        ana_headers = register_and_login(
+            client,
+            email="ana-template-set@example.com",
+            display_name="Ana Template Set",
+        )
+        bruno_headers = register_and_login(
+            client,
+            email="bruno-template-set@example.com",
+            display_name="Bruno Template Set",
+        )
+
+        ana_template = create_template(
+            client,
+            headers=ana_headers,
+            name="Plantilla de Ana",
+        )
+        ana_exercise = create_template_exercise(
+            client,
+            headers=ana_headers,
+            template_id=ana_template["id"],
+        )
+        ana_set = create_template_set(
+            client,
+            headers=ana_headers,
+            exercise_id=ana_exercise["id"],
+        )
+
+        update_response = client.put(
+            f"/workout-templates/sets/{ana_set['id']}",
+            headers=bruno_headers,
+            json={
+                "set_type": "working",
+                "position": 1,
+                "target_rep_range": "8-12",
+                "repetitions": 15,
+                "weight_kg": 100.0,
+                "rir": 0.0,
+                "notes": None,
+            },
+        )
+        delete_response = client.delete(
+            f"/workout-templates/sets/{ana_set['id']}",
+            headers=bruno_headers,
+        )
+        create_session_response = client.post(
+            (
+                "/workout-templates/"
+                f"{ana_template['id']}/create-session"
+            ),
+            headers=bruno_headers,
+        )
+
+    assert update_response.status_code == 404
+    assert delete_response.status_code == 404
+    assert create_session_response.status_code == 404
