@@ -666,6 +666,83 @@ def migrate_body_composition_goals_table(
         "RENAME TO body_composition_goals"
     )
 
+def migrate_nutrition_days_table(
+    connection: sqlite3.Connection,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(nutrition_days)"
+        ).fetchall()
+    }
+
+    if not columns:
+        raise RuntimeError(
+            "No existe la tabla nutrition_days para migrar."
+        )
+
+    if "user_id" in columns:
+        return
+
+    legacy_days_count = connection.execute(
+        "SELECT COUNT(*) FROM nutrition_days"
+    ).fetchone()[0]
+
+    users = connection.execute(
+        "SELECT id FROM users ORDER BY id LIMIT 2"
+    ).fetchall()
+
+    if legacy_days_count > 0 and len(users) != 1:
+        raise RuntimeError(
+            "No se pueden atribuir registros nutricionales "
+            "heredados: debe existir exactamente un usuario. "
+            "Resuelve su propietario antes de migrar."
+        )
+
+    legacy_user_id = users[0]["id"] if users else None
+
+    connection.execute(
+        """
+        CREATE TABLE nutrition_days_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE,
+            UNIQUE (user_id, date)
+        )
+        """
+    )
+
+    if legacy_days_count:
+        connection.execute(
+            """
+            INSERT INTO nutrition_days_new (
+                id,
+                user_id,
+                date,
+                notes,
+                created_at
+            )
+            SELECT
+                id,
+                ?,
+                date,
+                notes,
+                created_at
+            FROM nutrition_days
+            """,
+            (legacy_user_id,),
+        )
+
+    connection.execute("DROP TABLE nutrition_days")
+    connection.execute(
+        "ALTER TABLE nutrition_days_new RENAME TO nutrition_days"
+    )
+
 def initialize_database() -> None:
 
     """Crea las tablas necesarias si todavía no existen."""
@@ -859,9 +936,14 @@ def initialize_database() -> None:
             """
             CREATE TABLE IF NOT EXISTS nutrition_days (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
                 notes TEXT,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+                UNIQUE (user_id, date)
             )
             """
         )
@@ -904,6 +986,71 @@ def initialize_database() -> None:
             """
         )
 
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS food_library (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                calories_per_100g REAL NOT NULL
+                    CHECK (calories_per_100g >= 0),
+                protein_per_100g REAL NOT NULL
+                    CHECK (protein_per_100g >= 0),
+                carbs_per_100g REAL NOT NULL
+                    CHECK (carbs_per_100g >= 0),
+                fat_per_100g REAL NOT NULL
+                    CHECK (fat_per_100g >= 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS meal_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
+            )
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS meal_template_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                meal_template_id INTEGER NOT NULL,
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                quantity_g REAL NOT NULL CHECK (quantity_g > 0),
+                calories_per_100g REAL NOT NULL
+                    CHECK (calories_per_100g >= 0),
+                protein_per_100g REAL NOT NULL
+                    CHECK (protein_per_100g >= 0),
+                carbs_per_100g REAL NOT NULL
+                    CHECK (carbs_per_100g >= 0),
+                fat_per_100g REAL NOT NULL
+                    CHECK (fat_per_100g >= 0),
+                position INTEGER NOT NULL CHECK (position > 0),
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (meal_template_id)
+                    REFERENCES meal_templates(id)
+                    ON DELETE CASCADE,
+                UNIQUE (meal_template_id, position)
+            )
+            """
+        )
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS workout_templates (
@@ -1038,6 +1185,39 @@ def initialize_database() -> None:
         )
 
         connection.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS planned_workouts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        scheduled_date TEXT NOT NULL,
+                        workout_template_id INTEGER,
+                        name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                        notes TEXT,
+                        status TEXT NOT NULL DEFAULT 'planned'
+                            CHECK (
+                                status IN (
+                                    'planned',
+                                    'completed',
+                                    'skipped'
+                                )
+                            ),
+                        workout_session_id INTEGER UNIQUE,
+                        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id)
+                            REFERENCES users(id)
+                            ON DELETE CASCADE,
+                        FOREIGN KEY (workout_template_id)
+                            REFERENCES workout_templates(id)
+                            ON DELETE SET NULL,
+                        FOREIGN KEY (workout_session_id)
+                            REFERENCES workout_sessions(id)
+                            ON DELETE SET NULL
+                    )
+                    """
+                )
+        
+        connection.execute(
             """
             CREATE INDEX IF NOT EXISTS
                 idx_planned_workouts_user_date
@@ -1055,33 +1235,46 @@ def initialize_database() -> None:
 
         connection.execute(
             """
-            CREATE TABLE IF NOT EXISTS planned_workouts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                scheduled_date TEXT NOT NULL,
-                workout_template_id INTEGER,
-                name TEXT NOT NULL CHECK (length(trim(name)) > 0),
-                notes TEXT,
-                status TEXT NOT NULL DEFAULT 'planned'
-                    CHECK (
-                        status IN (
-                            'planned',
-                            'completed',
-                            'skipped'
-                        )
-                    ),
-                workout_session_id INTEGER UNIQUE,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id)
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-                FOREIGN KEY (workout_template_id)
-                    REFERENCES workout_templates(id)
-                    ON DELETE SET NULL,
-                FOREIGN KEY (workout_session_id)
-                    REFERENCES workout_sessions(id)
-                    ON DELETE SET NULL
-            )
+            CREATE INDEX IF NOT EXISTS idx_food_library_user_name
+            ON food_library(user_id, name)
             """
         )
+
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_meal_templates_user_name
+            ON meal_templates(user_id, name)
+            """
+        )
+
+
+        migration_connection = get_connection()
+
+        try:
+            migration_connection.execute("PRAGMA foreign_keys = OFF")
+
+            if migration_connection.execute(
+                "PRAGMA foreign_keys"
+            ).fetchone()[0] != 0:
+                raise RuntimeError(
+                    "No se pudieron desactivar las claves foráneas "
+                    "para migrar nutrition_days."
+                )
+
+            with migration_connection:
+                migrate_nutrition_days_table(migration_connection)
+
+                violations = migration_connection.execute(
+                    "PRAGMA foreign_key_check"
+                ).fetchall()
+
+                if violations:
+                    raise RuntimeError(
+                        "La migración de nutrition_days dejaría "
+                        f"claves foráneas inválidas: {violations}"
+                    )
+        finally:
+            migration_connection.execute("PRAGMA foreign_keys = ON")
+            migration_connection.close()
+
+            

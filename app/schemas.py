@@ -681,7 +681,7 @@ class CalendarActivityResponse(BaseModel):
     start_date: date
     end_date: date
     days: list[CalendarActivityDayResponse]
-    
+
 class FitnessGoalUpsert(BaseModel):
     target_value: float = Field(gt=0, le=1_000_000)
 
@@ -863,3 +863,25 @@ class ExerciseCatalogItemResponse(BaseModel):
     variants: list[str]
     instructions: list[str]
     default_rep_range: str
+
+class FoodLibraryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    calories_per_100g: float = Field(ge=0, le=50000)
+    protein_per_100g: float = Field(ge=0, le=100)
+    carbs_per_100g: float = Field(ge=0, le=100)
+    fat_per_100g: float = Field(ge=0, le=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class FoodLibraryUpdate(FoodLibraryCreate):
+    pass
+
+
+class FoodLibraryResponse(BaseModel):
+    id: int
+    name: str
+    calories_per_100g: float
+    protein_per_100g: float
+    carbs_per_100g: float
+    fat_per_100g: float
+    notes: str | None

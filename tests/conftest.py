@@ -36,6 +36,10 @@ def clean_database():
 
         connection.execute("DELETE FROM users")
 
+        connection.execute("DELETE FROM meal_template_items")
+        connection.execute("DELETE FROM meal_templates")
+        connection.execute("DELETE FROM food_library")
+
     yield
 
     initialize_database()

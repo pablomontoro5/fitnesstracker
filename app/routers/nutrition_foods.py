@@ -1,20 +1,24 @@
 import sqlite3
 
-
-from fastapi import APIRouter, HTTPException, Response, status
-
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db import get_connection
+from app.dependencies import get_current_user
 from app.schemas import (
     NutritionFoodCreate,
     NutritionFoodResponse,
     NutritionFoodUpdate,
+    UserResponse,
 )
 
 
-router = APIRouter(
-    tags=["nutrition foods"],
-)
+router = APIRouter(tags=["nutrition foods"])
+
+
+FOOD_COLUMNS = """
+    id, nutrition_meal_id, name, quantity_g, calories,
+    protein_g, carbs_g, fat_g, position, notes
+"""
 
 
 def row_to_nutrition_food(row: sqlite3.Row) -> NutritionFoodResponse:
@@ -32,18 +36,21 @@ def row_to_nutrition_food(row: sqlite3.Row) -> NutritionFoodResponse:
     )
 
 
-def ensure_nutrition_meal_exists(meal_id: int) -> None:
-    with get_connection() as connection:
-        nutrition_meal = connection.execute(
-            """
-            SELECT id
-            FROM nutrition_meals
-            WHERE id = ?
-            """,
-            (meal_id,),
-        ).fetchone()
-
-    if nutrition_meal is None:
+def ensure_owned_nutrition_meal(
+    connection: sqlite3.Connection,
+    meal_id: int,
+    user_id: int,
+) -> None:
+    row = connection.execute(
+        """
+        SELECT m.id
+        FROM nutrition_meals AS m
+        JOIN nutrition_days AS d ON d.id = m.nutrition_day_id
+        WHERE m.id = ? AND d.user_id = ?
+        """,
+        (meal_id, user_id),
+    ).fetchone()
+    if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe una comida con ese id.",
@@ -58,29 +65,29 @@ def ensure_nutrition_meal_exists(meal_id: int) -> None:
 def create_nutrition_food(
     meal_id: int,
     nutrition_food: NutritionFoodCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> NutritionFoodResponse:
-    ensure_nutrition_meal_exists(meal_id)
+    name = nutrition_food.name.strip()
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="El nombre del alimento no puede estar vacío.",
+        )
 
     try:
         with get_connection() as connection:
+            ensure_owned_nutrition_meal(connection, meal_id, current_user.id)
             cursor = connection.execute(
                 """
                 INSERT INTO nutrition_foods (
-                    nutrition_meal_id,
-                    name,
-                    quantity_g,
-                    calories,
-                    protein_g,
-                    carbs_g,
-                    fat_g,
-                    position,
-                    notes
+                    nutrition_meal_id, name, quantity_g, calories,
+                    protein_g, carbs_g, fat_g, position, notes
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     meal_id,
-                    nutrition_food.name.strip(),
+                    name,
                     nutrition_food.quantity_g,
                     nutrition_food.calories,
                     nutrition_food.protein_g,
@@ -90,26 +97,13 @@ def create_nutrition_food(
                     nutrition_food.notes,
                 ),
             )
-
             row = connection.execute(
-                """
-                SELECT
-                    id,
-                    nutrition_meal_id,
-                    name,
-                    quantity_g,
-                    calories,
-                    protein_g,
-                    carbs_g,
-                    fat_g,
-                    position,
-                    notes
-                FROM nutrition_foods
-                WHERE id = ?
-                """,
+                f"SELECT {FOOD_COLUMNS} FROM nutrition_foods WHERE id = ?",
                 (cursor.lastrowid,),
             ).fetchone()
     except sqlite3.IntegrityError as error:
+        if "UNIQUE constraint failed" not in str(error):
+            raise
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un alimento en esa posición para esta comida.",
@@ -124,26 +118,16 @@ def create_nutrition_food(
 )
 def list_nutrition_foods(
     meal_id: int,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> list[NutritionFoodResponse]:
-    ensure_nutrition_meal_exists(meal_id)
-
     with get_connection() as connection:
+        ensure_owned_nutrition_meal(connection, meal_id, current_user.id)
         rows = connection.execute(
-            """
-            SELECT
-                id,
-                nutrition_meal_id,
-                name,
-                quantity_g,
-                calories,
-                protein_g,
-                carbs_g,
-                fat_g,
-                position,
-                notes
+            f"""
+            SELECT {FOOD_COLUMNS}
             FROM nutrition_foods
             WHERE nutrition_meal_id = ?
-            ORDER BY position ASC
+            ORDER BY position ASC, id ASC
             """,
             (meal_id,),
         ).fetchall()
@@ -155,25 +139,22 @@ def list_nutrition_foods(
     "/nutrition-foods/{food_id}",
     response_model=NutritionFoodResponse,
 )
-def get_nutrition_food(food_id: int) -> NutritionFoodResponse:
+def get_nutrition_food(
+    food_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> NutritionFoodResponse:
     with get_connection() as connection:
         row = connection.execute(
             """
-            SELECT
-                id,
-                nutrition_meal_id,
-                name,
-                quantity_g,
-                calories,
-                protein_g,
-                carbs_g,
-                fat_g,
-                position,
-                notes
-            FROM nutrition_foods
-            WHERE id = ?
+            SELECT f.id, f.nutrition_meal_id, f.name, f.quantity_g,
+                   f.calories, f.protein_g, f.carbs_g, f.fat_g,
+                   f.position, f.notes
+            FROM nutrition_foods AS f
+            JOIN nutrition_meals AS m ON m.id = f.nutrition_meal_id
+            JOIN nutrition_days AS d ON d.id = m.nutrition_day_id
+            WHERE f.id = ? AND d.user_id = ?
             """,
-            (food_id,),
+            (food_id, current_user.id),
         ).fetchone()
 
     if row is None:
@@ -181,7 +162,6 @@ def get_nutrition_food(food_id: int) -> NutritionFoodResponse:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe un alimento con ese id.",
         )
-
     return row_to_nutrition_food(row)
 
 
@@ -192,25 +172,33 @@ def get_nutrition_food(food_id: int) -> NutritionFoodResponse:
 def update_nutrition_food(
     food_id: int,
     nutrition_food: NutritionFoodUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> NutritionFoodResponse:
+    name = nutrition_food.name.strip()
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="El nombre del alimento no puede estar vacío.",
+        )
+
     try:
         with get_connection() as connection:
             cursor = connection.execute(
                 """
                 UPDATE nutrition_foods
-                SET
-                    name = ?,
-                    quantity_g = ?,
-                    calories = ?,
-                    protein_g = ?,
-                    carbs_g = ?,
-                    fat_g = ?,
-                    position = ?,
-                    notes = ?
+                SET name = ?, quantity_g = ?, calories = ?,
+                    protein_g = ?, carbs_g = ?, fat_g = ?,
+                    position = ?, notes = ?
                 WHERE id = ?
+                  AND nutrition_meal_id IN (
+                      SELECT m.id
+                      FROM nutrition_meals AS m
+                      JOIN nutrition_days AS d ON d.id = m.nutrition_day_id
+                      WHERE d.user_id = ?
+                  )
                 """,
                 (
-                    nutrition_food.name.strip(),
+                    name,
                     nutrition_food.quantity_g,
                     nutrition_food.calories,
                     nutrition_food.protein_g,
@@ -219,43 +207,24 @@ def update_nutrition_food(
                     nutrition_food.position,
                     nutrition_food.notes,
                     food_id,
+                    current_user.id,
                 ),
             )
-
             if cursor.rowcount == 0:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="No existe un alimento con ese id.",
                 )
-
             row = connection.execute(
-                """
-                SELECT
-                    id,
-                    nutrition_meal_id,
-                    name,
-                    quantity_g,
-                    calories,
-                    protein_g,
-                    carbs_g,
-                    fat_g,
-                    position,
-                    notes
-                FROM nutrition_foods
-                WHERE id = ?
-                """,
+                f"SELECT {FOOD_COLUMNS} FROM nutrition_foods WHERE id = ?",
                 (food_id,),
             ).fetchone()
     except sqlite3.IntegrityError as error:
-        if "UNIQUE constraint failed" in str(error):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Ya existe un alimento en esa posición para esta comida.",
-            ) from error
-
+        if "UNIQUE constraint failed" not in str(error):
+            raise
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"No se pudo actualizar el alimento: {error}",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ya existe un alimento en esa posición para esta comida.",
         ) from error
 
     return row_to_nutrition_food(row)
@@ -263,22 +232,31 @@ def update_nutrition_food(
 
 @router.delete(
     "/nutrition-foods/{food_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
 )
-def delete_nutrition_food(food_id: int) -> Response:
+def delete_nutrition_food(
+    food_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM nutrition_foods
             WHERE id = ?
+              AND nutrition_meal_id IN (
+                  SELECT m.id
+                  FROM nutrition_meals AS m
+                  JOIN nutrition_days AS d ON d.id = m.nutrition_day_id
+                  WHERE d.user_id = ?
+              )
             """,
-            (food_id,),
+            (food_id, current_user.id),
         )
-
-    if cursor.rowcount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No existe un alimento con ese id.",
-        )
+        if cursor.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existe un alimento con ese id.",
+            )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

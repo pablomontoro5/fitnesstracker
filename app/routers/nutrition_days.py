@@ -1,15 +1,15 @@
 import sqlite3
 from datetime import date
 
-
-from fastapi import APIRouter, HTTPException, Response, status
-
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db import get_connection
+from app.dependencies import get_current_user
 from app.schemas import (
     NutritionDayCreate,
     NutritionDayResponse,
     NutritionDayUpdate,
+    UserResponse,
 )
 
 
@@ -34,15 +34,17 @@ def row_to_nutrition_day(row: sqlite3.Row) -> NutritionDayResponse:
 )
 def create_nutrition_day(
     nutrition_day: NutritionDayCreate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> NutritionDayResponse:
     try:
         with get_connection() as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO nutrition_days (date, notes)
-                VALUES (?, ?)
+                INSERT INTO nutrition_days (user_id, date, notes)
+                VALUES (?, ?, ?)
                 """,
                 (
+                    current_user.id,
                     nutrition_day.date.isoformat(),
                     nutrition_day.notes,
                 ),
@@ -52,9 +54,9 @@ def create_nutrition_day(
                 """
                 SELECT id, date, notes
                 FROM nutrition_days
-                WHERE id = ?
+                WHERE id = ? AND user_id = ?
                 """,
-                (cursor.lastrowid,),
+                (cursor.lastrowid, current_user.id),
             ).fetchone()
     except sqlite3.IntegrityError as error:
         raise HTTPException(
@@ -69,14 +71,18 @@ def create_nutrition_day(
     "/",
     response_model=list[NutritionDayResponse],
 )
-def list_nutrition_days() -> list[NutritionDayResponse]:
+def list_nutrition_days(
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[NutritionDayResponse]:
     with get_connection() as connection:
         rows = connection.execute(
             """
             SELECT id, date, notes
             FROM nutrition_days
+            WHERE user_id = ?
             ORDER BY date DESC
-            """
+            """,
+            (current_user.id,),
         ).fetchall()
 
     return [row_to_nutrition_day(row) for row in rows]
@@ -86,15 +92,18 @@ def list_nutrition_days() -> list[NutritionDayResponse]:
     "/{day_date}",
     response_model=NutritionDayResponse,
 )
-def get_nutrition_day(day_date: date) -> NutritionDayResponse:
+def get_nutrition_day(
+    day_date: date,
+    current_user: UserResponse = Depends(get_current_user),
+) -> NutritionDayResponse:
     with get_connection() as connection:
         row = connection.execute(
             """
             SELECT id, date, notes
             FROM nutrition_days
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (day_date.isoformat(),),
+            (day_date.isoformat(), current_user.id),
         ).fetchone()
 
     if row is None:
@@ -113,17 +122,19 @@ def get_nutrition_day(day_date: date) -> NutritionDayResponse:
 def update_nutrition_day(
     day_date: date,
     nutrition_day: NutritionDayUpdate,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> NutritionDayResponse:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             UPDATE nutrition_days
             SET notes = ?
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
             (
                 nutrition_day.notes,
                 day_date.isoformat(),
+                current_user.id,
             ),
         )
 
@@ -137,9 +148,9 @@ def update_nutrition_day(
             """
             SELECT id, date, notes
             FROM nutrition_days
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (day_date.isoformat(),),
+            (day_date.isoformat(), current_user.id),
         ).fetchone()
 
     return row_to_nutrition_day(row)
@@ -147,22 +158,26 @@ def update_nutrition_day(
 
 @router.delete(
     "/{day_date}",
+    status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
 )
-def delete_nutrition_day(day_date: date) -> Response:
+def delete_nutrition_day(
+    day_date: date,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             DELETE FROM nutrition_days
-            WHERE date = ?
+            WHERE date = ? AND user_id = ?
             """,
-            (day_date.isoformat(),),
+            (day_date.isoformat(), current_user.id),
         )
 
-    if cursor.rowcount == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No existe un registro nutricional para esta fecha.",
-        )
+        if cursor.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No existe un registro nutricional para esta fecha.",
+            )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
