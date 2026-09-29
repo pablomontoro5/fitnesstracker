@@ -15,6 +15,8 @@ from app.routers import (
     exercise_catalog,
     exports,
     goals,
+    food_library,
+    meal_templates,
     nutrition_days,
     nutrition_foods,
     nutrition_meals,
@@ -68,6 +70,8 @@ app.include_router(auth.router)
 app.include_router(exercise_catalog.router)
 app.include_router(planned_workouts.router)
 app.include_router(calendar.router)
+app.include_router(food_library.router)
+app.include_router(meal_templates.router)
 app.mount(
     "/static",
     StaticFiles(directory=FRONTEND_DIR, html=True),
