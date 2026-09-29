@@ -130,42 +130,45 @@ def create_recovery_log(
 def create_nutrition_day(
     client: TestClient,
     *,
+    headers: dict[str, str],
     date_value: str,
 ) -> dict:
     response = client.post(
         "/nutrition-days/",
+        headers=headers,
         json={
             "date": date_value,
             "notes": None,
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
     return response.json()
-
 
 def create_nutrition_meal(
     client: TestClient,
     *,
+    headers: dict[str, str],
     day_id: int,
     name: str = "Comida",
     position: int = 1,
 ) -> dict:
     response = client.post(
         f"/nutrition-days/{day_id}/meals/",
+        headers=headers,
         json={
             "name": name,
             "position": position,
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
     return response.json()
-
 
 def create_nutrition_food(
     client: TestClient,
     *,
+    headers: dict[str, str],
     meal_id: int,
     name: str = "Alimento",
     calories: float,
@@ -176,6 +179,7 @@ def create_nutrition_food(
 ) -> dict:
     response = client.post(
         f"/nutrition-meals/{meal_id}/foods/",
+        headers=headers,
         json={
             "name": name,
             "quantity_g": 100,
@@ -188,9 +192,8 @@ def create_nutrition_food(
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
     return response.json()
-
 
 def test_goals_require_authentication():
     with TestClient(app) as client:
@@ -554,16 +557,19 @@ def test_nutrition_goal_progress_aggregates_foods_and_goals():
 
         nutrition_day = create_nutrition_day(
             client,
+            headers=headers,
             date_value=target_date,
         )
         breakfast = create_nutrition_meal(
             client,
+            headers=headers,
             day_id=nutrition_day["id"],
             name="Desayuno",
             position=1,
         )
         dinner = create_nutrition_meal(
             client,
+            headers=headers,
             day_id=nutrition_day["id"],
             name="Cena",
             position=2,
@@ -571,6 +577,7 @@ def test_nutrition_goal_progress_aggregates_foods_and_goals():
 
         create_nutrition_food(
             client,
+            headers=headers,
             meal_id=breakfast["id"],
             name="Avena",
             calories=400,
@@ -580,6 +587,7 @@ def test_nutrition_goal_progress_aggregates_foods_and_goals():
         )
         create_nutrition_food(
             client,
+            headers=headers,
             meal_id=dinner["id"],
             name="Pollo con arroz",
             calories=1900,
@@ -640,14 +648,17 @@ def test_nutrition_goal_progress_only_uses_requested_date():
 
         selected_day = create_nutrition_day(
             client,
+            headers=headers,
             date_value="2026-09-11",
         )
         selected_meal = create_nutrition_meal(
             client,
+            headers=headers,
             day_id=selected_day["id"],
         )
         create_nutrition_food(
             client,
+            headers=headers,
             meal_id=selected_meal["id"],
             calories=500,
             protein_g=20,
@@ -657,14 +668,17 @@ def test_nutrition_goal_progress_only_uses_requested_date():
 
         other_day = create_nutrition_day(
             client,
+            headers=headers,
             date_value="2026-09-12",
         )
         other_meal = create_nutrition_meal(
             client,
+            headers=headers,
             day_id=other_day["id"],
         )
         create_nutrition_food(
             client,
+            headers=headers,
             meal_id=other_meal["id"],
             calories=1500,
             protein_g=70,
@@ -1253,3 +1267,77 @@ def test_users_have_isolated_body_composition_goals_and_progress():
     assert bruno_progress_response.json()[0]["current_value"] == 95
     assert bruno_delete_response.status_code == 204
     assert ana_list_after_delete_response.json() == [ana_goal]
+
+def test_nutrition_goal_progress_is_isolated_by_user():
+    target_date = "2026-09-11"
+
+    with TestClient(app) as client:
+        ana_headers, _ = register_and_login(
+            client,
+            email="ana-nutrition-progress@example.com",
+            display_name="Ana",
+        )
+        bruno_headers, _ = register_and_login(
+            client,
+            email="bruno-nutrition-progress@example.com",
+            display_name="Bruno",
+        )
+
+        ana_day = create_nutrition_day(
+            client,
+            headers=ana_headers,
+            date_value=target_date,
+        )
+        ana_meal = create_nutrition_meal(
+            client,
+            headers=ana_headers,
+            day_id=ana_day["id"],
+        )
+        create_nutrition_food(
+            client,
+            headers=ana_headers,
+            meal_id=ana_meal["id"],
+            calories=400,
+            protein_g=20,
+            carbs_g=50,
+            fat_g=10,
+        )
+
+        bruno_day = create_nutrition_day(
+            client,
+            headers=bruno_headers,
+            date_value=target_date,
+        )
+        bruno_meal = create_nutrition_meal(
+            client,
+            headers=bruno_headers,
+            day_id=bruno_day["id"],
+        )
+        create_nutrition_food(
+            client,
+            headers=bruno_headers,
+            meal_id=bruno_meal["id"],
+            calories=900,
+            protein_g=45,
+            carbs_g=100,
+            fat_g=25,
+        )
+
+        ana_response = client.get(
+            "/goals/nutrition-progress",
+            headers=ana_headers,
+            params={"target_date": target_date},
+        )
+        bruno_response = client.get(
+            "/goals/nutrition-progress",
+            headers=bruno_headers,
+            params={"target_date": target_date},
+        )
+
+    assert ana_response.status_code == 200
+    assert bruno_response.status_code == 200
+
+    assert ana_response.json()["calories"]["current_value"] == 400
+    assert ana_response.json()["protein_g"]["current_value"] == 20
+    assert bruno_response.json()["calories"]["current_value"] == 900
+    assert bruno_response.json()["protein_g"]["current_value"] == 45

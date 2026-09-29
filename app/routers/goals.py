@@ -296,6 +296,7 @@ NUTRITION_GOAL_TYPES = {
 def get_nutrition_totals(
     connection: sqlite3.Connection,
     target_date: date,
+    user_id: int,
 ) -> dict[str, float]:
     row = connection.execute(
         """
@@ -309,9 +310,9 @@ def get_nutrition_totals(
             ON nutrition_meals.nutrition_day_id = nutrition_days.id
         LEFT JOIN nutrition_foods
             ON nutrition_foods.nutrition_meal_id = nutrition_meals.id
-        WHERE nutrition_days.date = ?
+        WHERE nutrition_days.date = ? AND nutrition_days.user_id = ?
         """,
-        (target_date.isoformat(),),
+        (target_date.isoformat(), user_id),
     ).fetchone()
 
     return {
@@ -355,8 +356,11 @@ def build_nutrition_goals_progress(
     user_id: int,
 ) -> NutritionGoalsProgressResponse:
     with get_connection() as connection:
-        totals = get_nutrition_totals(connection, target_date)
-
+        totals = get_nutrition_totals(
+            connection,
+            target_date,
+            user_id,
+        )
         rows = connection.execute(
             """
             SELECT goal_type, target_value
@@ -430,6 +434,7 @@ def get_nutrition_goals_progress(
     return build_nutrition_goals_progress(
         target_date=target_date,
         user_id=current_user.id,
+
     )
 
 @router.get(

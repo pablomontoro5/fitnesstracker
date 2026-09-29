@@ -157,12 +157,19 @@ def test_create_data_export_includes_nested_tracking_data(tmp_path):
 
         nutrition_day_cursor = connection.execute(
             """
-            INSERT INTO nutrition_days (date, notes)
-            VALUES (?, ?)
+            INSERT INTO nutrition_days (
+                user_id,
+                date,
+                notes
+            )
+            VALUES (?, ?, ?)
             """,
-            ("2026-09-07", "Día equilibrado."),
+            (
+                user_id,
+                "2026-09-07",
+                "Día equilibrado.",
+            ),
         )
-
         meal_cursor = connection.execute(
             """
             INSERT INTO nutrition_meals (nutrition_day_id, name, position)
