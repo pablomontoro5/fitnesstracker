@@ -4,6 +4,7 @@ const state = {
   meals: [],
   selectedMeal: null,
   foods: [],
+  daysLoadStatus: "loading",
 };
 
 const nutritionGoalConfig = {
@@ -35,6 +36,7 @@ const elements = {
     "#refresh-nutrition-days-button",
   ),
   nutritionDayCount: document.querySelector("#nutrition-day-count"),
+  nutritionDayFilter: document.querySelector("#nutrition-day-filter"),
   nutritionDaysList: document.querySelector("#nutrition-days-list"),
   nutritionDayTemplate: document.querySelector("#nutrition-day-template"),
 
@@ -141,6 +143,26 @@ async function request(path, options = {}) {
   }
 
   return body;
+}
+
+function setListError(element, className, message, retry) {
+  element.className = `${className} empty-state`;
+  element.replaceChildren();
+
+  const content = document.createElement("div");
+  content.className = "list-error-action";
+
+  const text = document.createElement("p");
+  text.textContent = message;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary-button";
+  button.textContent = "Reintentar";
+  button.addEventListener("click", retry);
+
+  content.append(text, button);
+  element.append(content);
 }
 
 
@@ -293,21 +315,35 @@ function resetSelectedDay() {
 
 
 function renderNutritionDays() {
-  elements.nutritionDayCount.textContent = String(state.nutritionDays.length);
+  if (state.daysLoadStatus !== "success") return;
+  const query = elements.nutritionDayFilter.value.trim().toLocaleLowerCase("es");
+  const filteredDays = state.nutritionDays.filter((day) => {
+    const searchableText = [
+      day.date,
+      formatDate(day.date),
+      day.notes || "",
+    ].join(" ").toLocaleLowerCase("es");
+
+    return searchableText.includes(query);
+  });
+
+  elements.nutritionDayCount.textContent = String(filteredDays.length);
   elements.nutritionDaysList.innerHTML = "";
 
-  if (state.nutritionDays.length === 0) {
+  if (filteredDays.length === 0) {
     setListEmpty(
       elements.nutritionDaysList,
       "nutrition-days-list",
-      "Todavía no hay días nutricionales registrados.",
+      state.nutritionDays.length === 0
+        ? "Todavía no hay días nutricionales registrados."
+        : "No hay días que coincidan con el filtro.",
     );
     return;
   }
 
   elements.nutritionDaysList.className = "nutrition-days-list";
 
-  for (const nutritionDay of state.nutritionDays) {
+  for (const nutritionDay of filteredDays) {
     const fragment = elements.nutritionDayTemplate.content.cloneNode(true);
     const card = fragment.querySelector(".nutrition-day-card");
     const button = fragment.querySelector(".nutrition-day-select-button");
@@ -408,39 +444,63 @@ function renderFoods() {
 }
 
 
-async function loadNutritionDays() {
-  elements.refreshNutritionDaysButton.disabled = true;
-  elements.refreshNutritionDaysButton.textContent = "…";
+async function loadNutritionMeals(dayId) {
+  setListEmpty(
+    elements.nutritionMealsList,
+    "nutrition-meals-list",
+    "Cargando comidas…",
+  );
 
   try {
-    state.nutritionDays = await request("/nutrition-days/");
-    renderNutritionDays();
+    const meals = await request(`/nutrition-days/${dayId}/meals/`);
+
+    if (state.selectedDay?.id !== dayId) return;
+
+    state.meals = meals;
+    renderMeals();
   } catch (error) {
-    setListEmpty(
-      elements.nutritionDaysList,
-      "nutrition-days-list",
-      "No se pudieron cargar los días nutricionales.",
+    if (state.selectedDay?.id !== dayId) return;
+
+    setListError(
+      elements.nutritionMealsList,
+      "nutrition-meals-list",
+      "No se pudieron cargar las comidas.",
+      () => loadNutritionMeals(dayId),
     );
     showStatus(error.message, "error");
-  } finally {
-    elements.refreshNutritionDaysButton.disabled = false;
-    elements.refreshNutritionDaysButton.textContent = "↻";
   }
 }
 
 
-async function loadNutritionMeals(dayId) {
-  state.meals = await request(`/nutrition-days/${dayId}/meals/`);
-  renderMeals();
-}
-
-
 async function loadNutritionFoods(mealId) {
-  state.foods = await request(`/nutrition-meals/${mealId}/foods/`);
-  renderFoods();
+  setListEmpty(
+    elements.nutritionFoodsList,
+    "nutrition-foods-list",
+    "Cargando alimentos…",
+  );
 
-  if (state.selectedDay) {
-    await loadNutritionGoalProgress(state.selectedDay.date);
+  try {
+    const foods = await request(`/nutrition-meals/${mealId}/foods/`);
+
+    // Evita mostrar alimentos de otra comida si se cambia de selección.
+    if (state.selectedMeal?.id !== mealId) return;
+
+    state.foods = foods;
+    renderFoods();
+
+    if (state.selectedDay) {
+      await loadNutritionGoalProgress(state.selectedDay.date);
+    }
+  } catch (error) {
+    if (state.selectedMeal?.id !== mealId) return;
+
+    setListError(
+      elements.nutritionFoodsList,
+      "nutrition-foods-list",
+      "No se pudieron cargar los alimentos.",
+      () => loadNutritionFoods(mealId),
+    );
+    showStatus(error.message, "error");
   }
 }
 
@@ -452,6 +512,7 @@ async function selectNutritionDay(nutritionDay) {
   elements.nutritionContent.classList.remove("hidden");
 
   resetSelectedMeal();
+  state.meals=[];
 
   try {
     await Promise.all([
@@ -472,6 +533,8 @@ async function selectNutritionMeal(meal) {
   elements.nutritionFoodEmptyState.classList.add("hidden");
   elements.nutritionFoodContent.classList.remove("hidden");
 
+  state.foods = [];
+  renderTotals();
   try {
     await loadNutritionFoods(meal.id);
     renderMeals();
@@ -671,6 +734,38 @@ async function deleteSelectedMeal() {
   }
 }
 
+async function loadNutritionDays() {
+
+  state.daysLoadStatus = "loading";
+  elements.nutritionDayFilter.disabled = true;
+  setListEmpty(
+    elements.nutritionDaysList,
+    "nutrition-days-list",
+    "Cargando días nutricionales…",
+  );
+  elements.refreshNutritionDaysButton.disabled = true;
+  elements.refreshNutritionDaysButton.textContent = "…";
+
+  try {
+    state.nutritionDays = await request("/nutrition-days/");
+    state.daysLoadStatus = "success";
+    elements.nutritionDayFilter.disabled = false;
+    renderNutritionDays();
+  } catch (error) {
+    state.daysLoadStatus = "error";
+    setListError(
+      elements.nutritionDaysList,
+      "nutrition-days-list",
+      "No se pudieron cargar los días nutricionales.",
+      loadNutritionDays,
+    );
+    showStatus(error.message, "error");
+  } finally {
+    elements.refreshNutritionDaysButton.disabled = false;
+    elements.refreshNutritionDaysButton.textContent = "↻";
+  }
+}
+
 
 function configureEventListeners() {
   elements.nutritionDayForm.addEventListener(
@@ -697,6 +792,7 @@ function configureEventListeners() {
     "click",
     deleteSelectedMeal,
   );
+  elements.nutritionDayFilter.addEventListener("input", renderNutritionDays);
 }
 
 

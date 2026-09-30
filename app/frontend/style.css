@@ -2702,3 +2702,18 @@ a.history-button:hover {
   font-size: 0.84rem;
   line-height: 1.45;
 }
+
+.list-filter-label {
+  max-width: 420px;
+  margin: 0.85rem 0;
+}
+
+.list-error-action {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+}
+
+.list-error-action p {
+  margin: 0;
+}
