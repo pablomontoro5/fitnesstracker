@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers.goals import build_goals_progress
+from app.schemas import BodyCompositionGoalDirection
 
 
 def register_and_login(
