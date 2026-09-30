@@ -17,7 +17,7 @@ async function downloadDataExport() {
   downloadExportButton.textContent = "Generando exportación…";
 
   try {
-    const response = await fetch("/exports/fitness-tracker.json");
+    const response = await apiFetch("/exports/fitness-tracker.json");
 
     if (!response.ok) {
       throw new Error(
@@ -48,6 +48,33 @@ async function downloadDataExport() {
 }
 
 
-downloadExportButton.addEventListener("click", async () => {
-  await downloadDataExport();
-});
+async function initializeHome() {
+  if (!getAccessToken()) {
+    window.location.replace("/static/login/?next=%2F");
+    return;
+  }
+
+  try {
+    const response = await apiFetch("/auth/me");
+
+    if (response.status === 401) {
+      // apiFetch ya limpia el token y redirige al login.
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error("No se pudo verificar la sesión.");
+    }
+
+    document.body.style.visibility = "visible";
+
+    downloadExportButton.addEventListener("click", downloadDataExport);
+  } catch (error) {
+    // No mostramos el panel si ni siquiera pudimos comprobar la sesión.
+    document.body.textContent =
+      `${error.message} Comprueba la conexión y recarga la página.`;
+    document.body.style.visibility = "visible";
+  }
+}
+
+initializeHome();;
