@@ -57,7 +57,7 @@ function showStatus(message, type = "success") {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -645,13 +645,19 @@ async function toggleSessionDetail(session, card, container, button) {
 async function loadHistory() {
   elements.refreshHistoryButton.disabled = true;
   elements.refreshHistoryButton.textContent = "…";
+  renderListLoading(elements.historyList, "sessions-list", "Cargando historial…");
 
   try {
     state.sessions = await request("/workout-sessions/");
     state.detailsBySessionId.clear();
     renderSessions();
   } catch (error) {
-    setListEmpty("No se pudo cargar el historial.");
+    renderListError(
+      elements.historyList,
+      "sessions-list",
+      "No se pudo cargar el historial.",
+      loadHistory,
+    );
     showStatus(error.message, "error");
   } finally {
     elements.refreshHistoryButton.disabled = false;

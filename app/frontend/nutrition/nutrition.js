@@ -120,7 +120,7 @@ function showStatus(message, type = "success") {
 
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),

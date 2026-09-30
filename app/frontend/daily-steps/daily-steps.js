@@ -57,7 +57,7 @@ function showStatus(message, type = "success") {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -145,14 +145,18 @@ function renderDailyLogs() {
 }
 
 async function loadDailyLogs() {
+  renderListLoading(elements.dailyLogsList, "daily-logs-list", "Cargando registros…");
+
   try {
     state.dailyLogs = await request("/daily-logs/");
     renderDailyLogs();
   } catch (error) {
     showStatus(error.message, "error");
-    setListEmpty(
+    renderListError(
       elements.dailyLogsList,
+      "daily-logs-list",
       "No se pudieron cargar los registros diarios.",
+      loadDailyLogs,
     );
   }
 }

@@ -112,7 +112,7 @@ function renderPreview() {
 
 
 async function requestBodyMetrics() {
-  const response = await fetch("/body-metrics/");
+  const response = await apiFetch("/body-metrics/");
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -128,7 +128,7 @@ async function requestBodyMetrics() {
 
 
 async function createBodyMetric(payload) {
-  const response = await fetch("/body-metrics/", {
+  const response = await apiFetch("/body-metrics/", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -151,7 +151,7 @@ async function createBodyMetric(payload) {
 
 
 async function updateBodyMetric(metricId, payload) {
-  const response = await fetch(`/body-metrics/${metricId}`, {
+  const response = await apiFetch(`/body-metrics/${metricId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -174,7 +174,7 @@ async function updateBodyMetric(metricId, payload) {
 
 
 async function deleteBodyMetric(metricId) {
-  const response = await fetch(`/body-metrics/${metricId}`, {
+  const response = await apiFetch(`/body-metrics/${metricId}`, {
     method: "DELETE",
   });
 
@@ -192,6 +192,7 @@ async function deleteBodyMetric(metricId) {
 
 
 function renderBodyMetrics(metrics) {
+  elements.metricsList.className = "body-metrics-list";
   elements.metricsList.innerHTML = "";
   elements.metricsCount.textContent = metrics.length;
 
@@ -266,15 +267,22 @@ function renderBodyMetrics(metrics) {
 
 
 async function loadBodyMetrics() {
+  renderListLoading(
+    elements.metricsList,
+    "body-metrics-list",
+    "Cargando mediciones…",
+  );
+
   try {
     const metrics = await requestBodyMetrics();
     renderBodyMetrics(metrics);
   } catch (error) {
-    elements.metricsList.innerHTML = `
-      <div class="empty-state large-empty-state">
-        No se pudo cargar el historial de mediciones.
-      </div>
-    `;
+    renderListError(
+      elements.metricsList,
+      "body-metrics-list",
+      "No se pudo cargar el historial de mediciones.",
+      loadBodyMetrics,
+    );
     showStatus(error.message, "error");
   }
 }

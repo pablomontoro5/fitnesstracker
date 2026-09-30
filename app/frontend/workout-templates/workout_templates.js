@@ -105,7 +105,7 @@ function showStatus(message, type = "success") {
 
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -303,14 +303,18 @@ function renderSets() {
 
 
 async function loadTemplates() {
+  renderListLoading(elements.templatesList, "templates-list", "Cargando plantillas…");
+
   try {
     state.templates = await request("/workout-templates/");
     renderTemplates();
   } catch (error) {
     showStatus(error.message, "error");
-    setListEmpty(
+    renderListError(
       elements.templatesList,
+      "templates-list",
       "No se pudieron cargar las plantillas.",
+      loadTemplates,
     );
   }
 }

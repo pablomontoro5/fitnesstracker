@@ -50,3 +50,9 @@ async function apiFetch(url, options = {}) {
 
   return response;
 }
+
+
+function logout() {
+  clearAccessToken();
+  window.location.replace("/static/login/");
+}

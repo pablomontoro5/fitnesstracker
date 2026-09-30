@@ -215,7 +215,7 @@ async function requestStatistics(startDate, endDate) {
     end_date: endDate,
   });
 
-  const response = await fetch(`/statistics/summary?${params}`);
+  const response = await apiFetch(`/statistics/summary?${params}`);
 
   const body = await response.json().catch(() => null);
 
@@ -236,7 +236,7 @@ async function requestCharts(startDate, endDate) {
     end_date: endDate,
   });
 
-  const response = await fetch(`/statistics/charts?${params}`);
+  const response = await apiFetch(`/statistics/charts?${params}`);
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -255,7 +255,7 @@ async function requestConsistency(startDate, endDate) {
     end_date: endDate,
   });
 
-  const response = await fetch(`/statistics/consistency?${params}`);
+  const response = await apiFetch(`/statistics/consistency?${params}`);
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -277,7 +277,7 @@ async function requestBodyCompositionProgress(startDate, endDate) {
     end_date: endDate,
   });
 
-  const response = await fetch(`/body-metrics/progress?${params}`);
+  const response = await apiFetch(`/body-metrics/progress?${params}`);
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -1077,7 +1077,7 @@ function showExerciseProgressStatus(message, type = "success") {
 }
 
 async function requestExerciseNames() {
-  const response = await fetch("/workouts/exercise-names");
+  const response = await apiFetch("/workouts/exercise-names");
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {
@@ -1097,7 +1097,7 @@ async function requestExerciseProgress(exerciseName) {
   const params = new URLSearchParams({
     exercise_name: exerciseName,
   });
-  const response = await fetch(`/workouts/progress?${params}`);
+  const response = await apiFetch(`/workouts/progress?${params}`);
   const body = await response.json().catch(() => null);
 
   if (!response.ok) {

@@ -69,6 +69,7 @@ async function initializeHome() {
     document.body.style.visibility = "visible";
 
     downloadExportButton.addEventListener("click", downloadDataExport);
+    document.querySelector("#logout-button").addEventListener("click", logout);
   } catch (error) {
     // No mostramos el panel si ni siquiera pudimos comprobar la sesión.
     document.body.textContent =
@@ -77,4 +78,4 @@ async function initializeHome() {
   }
 }
 
-initializeHome();;
+initializeHome();

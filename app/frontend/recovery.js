@@ -77,7 +77,7 @@ function showStatus(message, type = "success") {
 
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -332,11 +332,18 @@ function renderRecoveryLogs() {
 
 
 async function loadRecoveryLogs() {
+  renderListLoading(elements.list, "recovery-list", "Cargando registros…");
+
   try {
     state.recoveryLogs = await request("/recovery-logs/");
     renderRecoveryLogs();
   } catch (error) {
-    setListEmpty("No se pudieron cargar los registros de recuperación.");
+    renderListError(
+      elements.list,
+      "recovery-list",
+      "No se pudieron cargar los registros de recuperación.",
+      loadRecoveryLogs,
+    );
     showStatus(error.message, "error");
   }
 }

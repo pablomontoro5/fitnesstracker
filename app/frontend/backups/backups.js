@@ -28,7 +28,7 @@ async function downloadDatabaseBackup() {
   downloadBackupButton.disabled = true;
 
   try {
-    const response = await fetch("/backups/database", {
+    const response = await apiFetch("/backups/database", {
       method: "POST",
     });
 
@@ -88,7 +88,7 @@ async function restoreDatabase(event) {
   restoreButton.disabled = true;
 
   try {
-    const response = await fetch("/restores/database", {
+    const response = await apiFetch("/restores/database", {
       method: "POST",
       body: formData,
     });

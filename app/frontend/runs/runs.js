@@ -105,7 +105,7 @@ function showStatus(message, type = "success") {
 
 
 async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -303,12 +303,18 @@ function selectRun(run) {
 async function loadRuns() {
   elements.refreshRunsButton.disabled = true;
   elements.refreshRunsButton.textContent = "…";
+  renderListLoading(elements.runsList, "runs-list", "Cargando carreras…");
 
   try {
     state.runs = await request("/runs/");
     renderRuns();
   } catch (error) {
-    setListEmpty("No se pudieron cargar las carreras.");
+    renderListError(
+      elements.runsList,
+      "runs-list",
+      "No se pudieron cargar las carreras.",
+      loadRuns,
+    );
     showStatus(error.message, "error");
   } finally {
     elements.refreshRunsButton.disabled = false;

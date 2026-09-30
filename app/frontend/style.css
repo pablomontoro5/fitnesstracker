@@ -2717,3 +2717,10 @@ a.history-button:hover {
 .list-error-action p {
   margin: 0;
 }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
