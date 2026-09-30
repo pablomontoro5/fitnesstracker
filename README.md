@@ -188,7 +188,9 @@ fitness-tracker/
 │   │   └── restores.py
 │   └── frontend/
 │       ├── index.html                 # Panel principal
-│       ├── home.js                    # Exportación JSON desde Inicio
+│       ├── home.js                    # Verificación de sesión, logout y exportación JSON
+│       ├── auth.js                    # Token, apiFetch y logout compartidos
+│       ├── list-states.js             # Estados de carga y error con «Reintentar»
 │       ├── style.css                  # Estilos compartidos
 │       ├── backups/
 │       │   ├── index.html
@@ -364,7 +366,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos
   principales/secundarios e indicaciones técnicas.
 - [ ] Crear biblioteca de alimentos, comidas frecuentes y plantillas de comida.
-- [ ] Mejorar filtros, estados vacíos, carga y mensajes de error entre
+- [x] Mejorar filtros, estados vacíos, carga y mensajes de error entre
   frontend y backend.
 ### Fase 3 — Privacidad completa y despliegue
 
@@ -380,7 +382,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
   backups administrativos protegidos.
 - [ ] Diseñar restauración segura por usuario, sin sobrescribir datos de otras
   cuentas.
-- [ ] Añadir control de sesión en frontend: login, logout, expiración de token
+- [x] Añadir control de sesión en frontend: login, logout, expiración de token
   y envío consistente de `Authorization: Bearer ...`.
 - [ ] Añadir recuperación/cambio de contraseña.
 - [ ] Migrar a PostgreSQL para despliegue con concurrencia y usuarios reales.
