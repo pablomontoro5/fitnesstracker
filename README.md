@@ -87,9 +87,9 @@ Registrar en un único lugar datos que normalmente quedan repartidos entre notas
 
 ### Datos y copias de seguridad
 
-- Exportar los datos de la aplicación a JSON.
-- Descargar una copia completa de la base SQLite.
-- Restaurar una copia SQLite desde la interfaz.
+- Exportar a JSON los datos de la cuenta autenticada (cada usuario solo recibe los suyos).
+- Descargar una copia completa de la base SQLite (solo administradores).
+- Restaurar una copia SQLite desde la interfaz (solo administradores).
 - Validar integridad SQLite, tablas necesarias y columnas obligatorias antes de restaurar.
 - Crear automáticamente un backup de seguridad antes de reemplazar los datos activos.
 
@@ -318,9 +318,9 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 | `GET` | `/goals/` | Listar objetivos configurados |
 | `GET` | `/goals/progress` | Consultar progreso de objetivos |
 | `DELETE` | `/goals/{goal_type}` | Eliminar un objetivo |
-| `POST` | `/exports/json` | Descargar todos los datos en JSON |
-| `POST` | `/backups/database` | Descargar una copia SQLite |
-| `POST` | `/restores/database` | Restaurar una copia SQLite validada |
+| `GET` | `/exports/fitness-tracker.json` | Descargar en JSON los datos de la cuenta autenticada |
+| `POST` | `/backups/database` | Descargar una copia SQLite completa (administrador) |
+| `POST` | `/restores/database` | Restaurar una copia SQLite validada (administrador) |
 
 Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuestas de la API.
 
@@ -376,9 +376,9 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
   entrenamientos, carreras, métricas corporales y estadísticas.
 - [ ] Añadir `user_id` a nutrición: días, comidas y alimentos.
 - [ ] Añadir `user_id` a plantillas y a sus ejercicios/series.
-- [ ] Convertir exportación JSON en una exportación exclusiva de la cuenta
+- [x] Convertir exportación JSON en una exportación exclusiva de la cuenta
   autenticada.
-- [ ] Sustituir el backup SQLite completo por exportaciones por usuario o
+- [x] Sustituir el backup SQLite completo por exportaciones por usuario o
   backups administrativos protegidos.
 - [ ] Diseñar restauración segura por usuario, sin sobrescribir datos de otras
   cuentas.
@@ -451,13 +451,24 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
-### 5. Abrir la aplicación
+### 5. Configurar variables de entorno
+
+| Variable | Obligatoria | Descripción |
+| --- | --- | --- |
+| `FITNESS_TRACKER_JWT_SECRET` | Sí | Clave para firmar los tokens. Usa 32 bytes o más. |
+| `FITNESS_TRACKER_ADMIN_EMAILS` | No | Emails de administradores, separados por comas. Solo ellos pueden descargar copias SQLite y restaurarlas. Si no se define, nadie puede. |
+
+Registra primero la cuenta de administrador: el registro es abierto y no
+verifica el email, así que quien registre antes un email listado como
+administrador obtendrá ese rol.
+
+### 6. Abrir la aplicación
 
 - Aplicación: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
 - Swagger UI: [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
 - ReDoc: [http://127.0.0.1:8001/redoc](http://127.0.0.1:8001/redoc)
 
-### 6. Ejecutar pruebas
+### 7. Ejecutar pruebas
 
 ```bash
 python -m pytest -q
@@ -471,9 +482,12 @@ python -m pytest -q
   para pasos, recuperación, objetivos, entrenamientos, carreras, métricas
   corporales y estadísticas.
 - Nutrición y plantillas de entrenamiento todavía no tienen propiedad por usuario.
-- Las exportaciones JSON, copias SQLite y restauraciones siguen operando sobre la
-  base de datos completa; no deben exponerse a usuarios no administradores hasta
-  rediseñarse como operaciones aisladas por cuenta.
+- La exportación JSON exige sesión y solo incluye los datos de la cuenta; no
+  incluye aún recuperación, objetivos, plantillas, calendario ni biblioteca de
+  alimentos.
+- Las copias SQLite y las restauraciones operan sobre la base de datos completa
+  (todas las cuentas y sus hashes de contraseña), por lo que solo pueden usarlas
+  administradores. La restauración por usuario sigue pendiente.
 - La persistencia actual usa SQLite local; no hay sincronización en la nube ni
   despliegue multiusuario productivo.
 - Los pasos, entrenamientos, carreras y datos nutricionales se introducen manualmente.
