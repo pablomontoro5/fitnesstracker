@@ -1,5 +1,7 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
+from app.dependencies import require_admin
+from app.schemas import UserResponse
 from app.services.restores import restore_database
 
 
@@ -15,7 +17,9 @@ router = APIRouter(
 )
 def restore_database_backup(
     file: UploadFile = File(...),
+    _admin: UserResponse = Depends(require_admin),
 ) -> dict[str, str]:
+    # Sustituye la base completa, usuarios incluidos: solo administradores.
     if not file.filename or not file.filename.lower().endswith(".db"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

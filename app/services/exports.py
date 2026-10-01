@@ -13,9 +13,11 @@ def row_to_dict(row) -> dict:
 
 
 def create_data_export(
+    user_id: int,
     exports_dir: Path | None = None,
     now: datetime | None = None,
 ) -> Path:
+    """Exporta únicamente los datos de la cuenta indicada."""
     export_directory = exports_dir or EXPORTS_DIR
     export_directory.mkdir(parents=True, exist_ok=True)
 
@@ -26,8 +28,10 @@ def create_data_export(
                 """
                 SELECT id, date, steps, notes
                 FROM daily_logs
+                WHERE user_id = ?
                 ORDER BY date ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -37,8 +41,10 @@ def create_data_export(
                 """
                 SELECT id, date, weight_kg, height_cm, bmi, notes
                 FROM body_metrics
+                WHERE user_id = ?
                 ORDER BY date ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -54,8 +60,10 @@ def create_data_export(
                     average_pace_seconds_km,
                     notes
                 FROM runs
+                WHERE user_id = ?
                 ORDER BY date ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -65,8 +73,10 @@ def create_data_export(
                 """
                 SELECT id, date, name, notes
                 FROM workout_sessions
+                WHERE user_id = ?
                 ORDER BY date ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -82,8 +92,14 @@ def create_data_export(
                     position,
                     technique_notes
                 FROM workout_exercises
+                WHERE workout_session_id IN (
+                    SELECT id
+                    FROM workout_sessions
+                    WHERE user_id = ?
+                )
                 ORDER BY workout_session_id ASC, position ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -102,8 +118,16 @@ def create_data_export(
                     rir,
                     notes
                 FROM workout_sets
+                WHERE workout_exercise_id IN (
+                    SELECT exercise.id
+                    FROM workout_exercises AS exercise
+                    JOIN workout_sessions AS session
+                        ON session.id = exercise.workout_session_id
+                    WHERE session.user_id = ?
+                )
                 ORDER BY workout_exercise_id ASC, position ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -113,8 +137,10 @@ def create_data_export(
                 """
                 SELECT id, date, notes
                 FROM nutrition_days
+                WHERE user_id = ?
                 ORDER BY date ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -124,8 +150,14 @@ def create_data_export(
                 """
                 SELECT id, nutrition_day_id, name, position
                 FROM nutrition_meals
+                WHERE nutrition_day_id IN (
+                    SELECT id
+                    FROM nutrition_days
+                    WHERE user_id = ?
+                )
                 ORDER BY nutrition_day_id ASC, position ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -145,8 +177,16 @@ def create_data_export(
                     position,
                     notes
                 FROM nutrition_foods
+                WHERE nutrition_meal_id IN (
+                    SELECT meal.id
+                    FROM nutrition_meals AS meal
+                    JOIN nutrition_days AS day
+                        ON day.id = meal.nutrition_day_id
+                    WHERE day.user_id = ?
+                )
                 ORDER BY nutrition_meal_id ASC, position ASC, id ASC
-                """
+                """,
+                (user_id,),
             ).fetchall()
         ]
 
@@ -229,8 +269,11 @@ def create_data_export(
     }
 
     timestamp = (now or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
+    # El id de usuario evita que dos exportaciones simultáneas compartan
+    # fichero y que una cuenta reciba los datos de otra.
     export_path = (
-        export_directory / f"fitness_tracker_export_{timestamp}.json"
+        export_directory
+        / f"fitness_tracker_export_{timestamp}_user{user_id}.json"
     )
 
     with export_path.open("w", encoding="utf-8") as export_file:

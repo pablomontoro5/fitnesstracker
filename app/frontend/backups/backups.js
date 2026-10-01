@@ -75,7 +75,7 @@ async function restoreDatabase(event) {
   }
 
   const confirmed = window.confirm(
-    "Vas a reemplazar todos los datos actuales por los datos de esta copia. " +
+    "Vas a reemplazar los datos de TODAS las cuentas por los de esta copia. " +
       "Antes se creará una copia de seguridad automática. ¿Quieres continuar?"
   );
 
