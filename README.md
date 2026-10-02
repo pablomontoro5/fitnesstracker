@@ -2,7 +2,7 @@
 
 **Fitness Tracker** es una aplicación web personal para centralizar el seguimiento diario de actividad, entrenamientos de gimnasio, running, alimentación, composición corporal y objetivos de actividad.
 
-El proyecto sigue una arquitectura incremental: backend modular con FastAPI, persistencia local con SQLite, API documentada automáticamente, pruebas con Pytest y un frontend responsive en HTML, CSS y JavaScript. La aplicación está pensada inicialmente para un único usuario y uso local, con posibilidad de evolucionar más adelante a PWA o a un cliente móvil conectado a la misma API.
+El proyecto sigue una arquitectura incremental: backend modular con FastAPI, persistencia local con SQLite, API documentada automáticamente, pruebas con Pytest y un frontend responsive en HTML, CSS y JavaScript. La aplicación admite varias cuentas con datos aislados por usuario y registro por invitación, y está pensada para desplegarse en un servidor propio. Más adelante podrá evolucionar a PWA o a un cliente móvil conectado a la misma API.
 
 ---
 
@@ -149,7 +149,8 @@ Con la aplicación en ejecución, las vistas principales están disponibles en:
 | `/static/nutrition/` | Registro de días, comidas y alimentos |
 | `/static/statistics/` | Resúmenes y gráficas por periodo |
 | `/static/goals/` | Configuración y seguimiento de objetivos de actividad |
-| `/static/backups/` | Descarga y restauración de copias SQLite |
+| `/static/login/` | Inicio de sesión y registro (con código de invitación) |
+| `/static/backups/` | Descarga y restauración de copias SQLite (solo administradores) |
 | `/docs` | Documentación interactiva de la API |
 | `/redoc` | Documentación alternativa de la API |
 
@@ -267,9 +268,12 @@ Las sugerencias son opcionales: los campos se mantienen editables para poder reg
 | `workout_template_exercises` | `id`, `workout_template_id`, `name`, `muscle_group`, `position`, `technique_notes`, `created_at` |
 | `workout_template_sets` | `id`, `workout_template_exercise_id`, `set_type`, `position`, `target_rep_range`, `repetitions`, `weight_kg`, `rir`, `notes`, `created_at` |
 | `fitness_goals` | `id`, `goal_type`, `target_value`, `created_at`, `updated_at` |
+| `users` | `id`, `email`, `display_name`, `password_hash`, `is_active`, `created_at` |
+| `invitations` | `id`, `code_hash`, `created_at`, `expires_at`, `used_at`, `used_by_user_id` |
 
 ### Convenciones importantes
 
+- Las entidades de datos incluyen `user_id` (las tablas hijas se aíslan a través de su padre); las columnas de la tabla anterior son las principales, no todas.
 - `weight_kg`, `height_cm`, `distance_km` y las cargas de gimnasio son valores numéricos.
 - `duration_seconds` y `average_pace_seconds_km` permiten cálculos y ordenación fiables de las carreras.
 - `rir` representa *reps in reserve* y puede ser decimal o nulo.
@@ -297,6 +301,8 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 
 | Método | Endpoint | Propósito |
 | --- | --- | --- |
+| `POST` | `/auth/register`, `/auth/login` | Crear cuenta (con invitación) e iniciar sesión |
+| `GET` | `/auth/me` | Datos de la cuenta autenticada |
 | `GET` / `POST` | `/daily-logs/` | Consultar o crear registros de pasos |
 | `GET` / `PUT` / `DELETE` | `/daily-logs/{log_date}` | Consultar, editar o borrar un registro diario |
 | `GET` / `POST` | `/body-metrics/` | Consultar o registrar peso, altura e IMC |
@@ -318,6 +324,7 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 | `GET` | `/goals/` | Listar objetivos configurados |
 | `GET` | `/goals/progress` | Consultar progreso de objetivos |
 | `DELETE` | `/goals/{goal_type}` | Eliminar un objetivo |
+| `*` | `/recovery-logs`, `/calendar`, `/planned-workouts`, `/food-library`, `/meal-templates`, `/exercise-catalog` | Recuperación, calendario, planificación, biblioteca de alimentos, plantillas de comida y catálogo de ejercicios |
 | `GET` | `/exports/fitness-tracker.json` | Descargar en JSON los datos de la cuenta autenticada |
 | `POST` | `/backups/database` | Descargar una copia SQLite completa (administrador) |
 | `POST` | `/restores/database` | Restaurar una copia SQLite validada (administrador) |
@@ -344,7 +351,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Añadir exportación JSON, backup SQLite y restauración validada.
 - [x] Añadir objetivos de pasos, entrenamientos y running.
 
-## Fase 2 — Seguimiento avanzado
+### Fase 2 — Seguimiento avanzado
 
 - [x] Añadir resumen de actividad y gráficas temporales de pasos, peso y
   kilómetros de running por periodo.
@@ -362,20 +369,23 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Añadir medias móviles y comparativas entre periodos.
 - [x] Ampliar gráficas de IMC, composición corporal, volumen de entrenamiento
   y ritmo de running.
-- [ ] Añadir calendario de actividad y planificación de sesiones.
+- [x] API de calendario de actividad y planificación de sesiones.
+- [ ] Interfaz del calendario y la planificación de sesiones.
 - [x] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos
   principales/secundarios e indicaciones técnicas.
-- [ ] Crear biblioteca de alimentos, comidas frecuentes y plantillas de comida.
+- [x] API de biblioteca de alimentos, comidas frecuentes y plantillas de comida.
+- [ ] Interfaz de la biblioteca de alimentos y las plantillas de comida.
 - [x] Mejorar filtros, estados vacíos, carga y mensajes de error entre
   frontend y backend.
+
 ### Fase 3 — Privacidad completa y despliegue
 
 - [x] Registro, login y autenticación mediante tokens.
 - [x] Hash seguro de contraseñas.
 - [x] Aislamiento por usuario de pasos, recuperación, objetivos,
   entrenamientos, carreras, métricas corporales y estadísticas.
-- [ ] Añadir `user_id` a nutrición: días, comidas y alimentos.
-- [ ] Añadir `user_id` a plantillas y a sus ejercicios/series.
+- [x] Añadir `user_id` a nutrición: días, comidas y alimentos.
+- [x] Añadir `user_id` a plantillas y a sus ejercicios/series.
 - [x] Convertir exportación JSON en una exportación exclusiva de la cuenta
   autenticada.
 - [x] Sustituir el backup SQLite completo por exportaciones por usuario o
@@ -385,8 +395,12 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Añadir control de sesión en frontend: login, logout, expiración de token
   y envío consistente de `Authorization: Bearer ...`.
 - [ ] Añadir recuperación/cambio de contraseña.
-- [ ] Migrar a PostgreSQL para despliegue con concurrencia y usuarios reales.
-- [ ] Configurar variables de entorno, CORS restrictivo, HTTPS, logs y CI/CD.
+- [x] Registro por invitación, límite de intentos y secreto JWT validado.
+- [x] SQLite en modo WAL con copias de seguridad portables.
+- [ ] Configurar CORS restrictivo, HTTPS (Caddy), logs y CI/CD.
+- [ ] Desplegar en un servidor (Docker + Caddy) con copia nocturna fuera del servidor.
+- [ ] Migrar a PostgreSQL solo si crece el número de usuarios o la concurrencia.
+
 ### Fase 4 — Móvil y experiencia PWA
 
 - [ ] Añadir `manifest.webmanifest`, iconos y configuración de instalación.
@@ -448,7 +462,7 @@ python -m pip install -r requirements.txt
 ### 4. Ejecutar la aplicación
 
 ```bash
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload --port 8001
 ```
 
 ### 5. Configurar variables de entorno
@@ -513,15 +527,14 @@ python -m pytest -q
 - La API dispone de cuentas, autenticación mediante token y aislamiento por usuario
   para pasos, recuperación, objetivos, entrenamientos, carreras, métricas
   corporales y estadísticas.
-- Nutrición y plantillas de entrenamiento todavía no tienen propiedad por usuario.
 - La exportación JSON exige sesión y solo incluye los datos de la cuenta; no
   incluye aún recuperación, objetivos, plantillas, calendario ni biblioteca de
   alimentos.
 - Las copias SQLite y las restauraciones operan sobre la base de datos completa
   (todas las cuentas y sus hashes de contraseña), por lo que solo pueden usarlas
   administradores. La restauración por usuario sigue pendiente.
-- La persistencia actual usa SQLite local; no hay sincronización en la nube ni
-  despliegue multiusuario productivo.
+- La persistencia es SQLite en un único servidor (adecuado para pocos usuarios);
+  no hay sincronización en la nube ni varias réplicas.
 - Los pasos, entrenamientos, carreras y datos nutricionales se introducen manualmente.
 - No hay integración actual con relojes, Apple Health, Health Connect ni dispositivos de actividad.
 - Los mapas, rutas GPS e importación GPX aún no están implementados.
