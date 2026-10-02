@@ -455,12 +455,44 @@ python -m uvicorn app.main:app --reload
 
 | Variable | Obligatoria | Descripción |
 | --- | --- | --- |
-| `FITNESS_TRACKER_JWT_SECRET` | Sí | Clave para firmar los tokens. Usa 32 bytes o más. |
+| `FITNESS_TRACKER_JWT_SECRET` | Sí | Clave para firmar los tokens. **Mínimo 32 bytes**: el servidor no arranca con una más corta. Genera una con `python -c "import secrets; print(secrets.token_hex(32))"`. |
 | `FITNESS_TRACKER_ADMIN_EMAILS` | No | Emails de administradores, separados por comas. Solo ellos pueden descargar copias SQLite y restaurarlas. Si no se define, nadie puede. |
+| `FITNESS_TRACKER_REGISTRATION_MODE` | No | `invite` (por defecto): para registrarse hace falta un código de invitación. `open`: registro abierto, útil solo en desarrollo local. |
 
-Registra primero la cuenta de administrador: el registro es abierto y no
-verifica el email, así que quien registre antes un email listado como
-administrador obtendrá ese rol.
+### Registro por invitación
+
+Por defecto nadie puede crear una cuenta sin un código de un solo uso, que se
+genera **en el servidor**:
+
+```bash
+python -m app.cli create-invite --days 7
+```
+
+El código se muestra una sola vez (en la base de datos solo se guarda su hash),
+caduca a los 7 días y se pega en el campo «Código de invitación» del registro.
+Para crear la primera cuenta de administrador, genera una invitación y regístrate
+con el email que pusiste en `FITNESS_TRACKER_ADMIN_EMAILS`. Así nadie puede
+adelantarse y quedarse con ese rol.
+
+En desarrollo local puedes saltarte las invitaciones con
+`export FITNESS_TRACKER_REGISTRATION_MODE=open`.
+
+### Límite de intentos
+
+- Login: 5 contraseñas incorrectas por cuenta y dirección IP, y 20 por IP, cada
+  15 minutos. Después responde `429` con la cabecera `Retry-After`.
+- Registro: 10 intentos por IP y hora.
+- El contador está en memoria y vale para **un solo proceso** (un único
+  `uvicorn`). Si algún día ejecutas varios workers, cada uno llevará su cuenta.
+- Detrás de un proxy (Caddy, Nginx) arranca uvicorn con
+  `--proxy-headers --forwarded-allow-ips="<IP del proxy>"` para que cuente la IP
+  real del cliente y no la del proxy.
+
+### Base de datos
+
+SQLite funciona en modo WAL, así que junto a `data/fitness_tracker.db` verás
+los archivos `-wal` y `-shm`; no los borres con la app en marcha. Las copias de
+seguridad se generan como un único archivo `.db` portable.
 
 ### 6. Abrir la aplicación
 
