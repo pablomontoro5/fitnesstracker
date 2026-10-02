@@ -1270,6 +1270,11 @@ def initialize_database() -> None:
         )
 
 
+        # Cierra la transacción abierta por las migraciones anteriores:
+        # la conexión siguiente necesita escribir y SQLite solo admite
+        # un escritor a la vez.
+        connection.commit()
+
         migration_connection = get_connection()
 
         try:

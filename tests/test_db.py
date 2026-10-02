@@ -272,6 +272,10 @@ def test_initialize_database_upgrades_empty_legacy_tables_without_users(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT, notes TEXT, created_at TEXT
         );
+        CREATE TABLE nutrition_days (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL UNIQUE, notes TEXT, created_at TEXT
+        );
         """
     )
     legacy.commit()
@@ -280,7 +284,12 @@ def test_initialize_database_upgrades_empty_legacy_tables_without_users(
     db.initialize_database()
 
     with db.get_connection() as connection:
-        for table in ("body_metrics", "runs", "workout_templates"):
+        for table in (
+            "body_metrics",
+            "runs",
+            "workout_templates",
+            "nutrition_days",
+        ):
             columns = {
                 row["name"]
                 for row in connection.execute(f"PRAGMA table_info({table})")
