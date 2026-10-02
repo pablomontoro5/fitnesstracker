@@ -241,3 +241,48 @@ def test_body_metrics_date_is_unique_per_user():
                     *body_metric_values,
                 ),
             )    
+
+def test_initialize_database_upgrades_empty_legacy_tables_without_users(
+    tmp_path, monkeypatch
+):
+    """Una base antigua y vacía (sin usuarios) debe poder arrancar."""
+    import sqlite3
+
+    import app.db as db
+
+    database_path = tmp_path / "legacy.db"
+    monkeypatch.setattr(db, "DATABASE_PATH", database_path)
+
+    legacy = sqlite3.connect(database_path)
+    legacy.executescript(
+        """
+        CREATE TABLE body_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL, weight_kg REAL, height_cm REAL, bmi REAL,
+            body_fat_percentage REAL, waist_cm REAL, hip_cm REAL,
+            chest_cm REAL, arm_cm REAL, thigh_cm REAL, notes TEXT,
+            created_at TEXT
+        );
+        CREATE TABLE runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT, distance_km REAL, duration_seconds INTEGER,
+            average_pace_seconds_km REAL, notes TEXT, created_at TEXT
+        );
+        CREATE TABLE workout_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT, notes TEXT, created_at TEXT
+        );
+        """
+    )
+    legacy.commit()
+    legacy.close()
+
+    db.initialize_database()
+
+    with db.get_connection() as connection:
+        for table in ("body_metrics", "runs", "workout_templates"):
+            columns = {
+                row["name"]
+                for row in connection.execute(f"PRAGMA table_info({table})")
+            }
+            assert "user_id" in columns, table

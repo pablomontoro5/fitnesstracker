@@ -371,8 +371,9 @@ def migrate_body_metrics_table(connection: sqlite3.Connection) -> None:
         ),
     )
 
-    if legacy_user_id is None:
-        return
+    # Sin usuarios la tabla antigua está vacía (si tuviera filas,
+    # get_legacy_user_id habría fallado): se rehace igualmente con el
+    # esquema nuevo para que existan user_id y sus índices.
 
     connection.execute(
         """
@@ -466,8 +467,9 @@ def migrate_runs_table(connection: sqlite3.Connection) -> None:
         ),
     )
 
-    if legacy_user_id is None:
-        return
+    # Sin usuarios la tabla antigua está vacía (si tuviera filas,
+    # get_legacy_user_id habría fallado): se rehace igualmente con el
+    # esquema nuevo para que existan user_id y sus índices.
 
     connection.execute(
         """
@@ -538,8 +540,9 @@ def migrate_workout_templates_table(
         ),
     )
 
-    if legacy_user_id is None:
-        return
+    # Sin usuarios la tabla antigua está vacía (si tuviera filas,
+    # get_legacy_user_id habría fallado): se rehace igualmente con el
+    # esquema nuevo para que existan user_id y sus índices.
 
     connection.execute(
         """
@@ -604,8 +607,9 @@ def migrate_body_composition_goals_table(
         ),
     )
 
-    if legacy_user_id is None:
-        return
+    # Sin usuarios la tabla antigua está vacía (si tuviera filas,
+    # get_legacy_user_id habría fallado): se rehace igualmente con el
+    # esquema nuevo para que existan user_id y sus índices.
 
     connection.execute(
         f"""
