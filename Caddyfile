@@ -1,0 +1,21 @@
+# {$DOMAIN} es el dominio de .env. Caddy obtiene y renueva el certificado
+# HTTPS solo, siempre que el dominio apunte ya a este servidor y los
+# puertos 80 y 443 estén abiertos.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Las restauraciones suben un archivo .db completo.
+	request_body {
+		max_size 100MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy app:8000
+}

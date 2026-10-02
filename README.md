@@ -508,6 +508,22 @@ SQLite funciona en modo WAL, así que junto a `data/fitness_tracker.db` verás
 los archivos `-wal` y `-shm`; no los borres con la app en marcha. Las copias de
 seguridad se generan como un único archivo `.db` portable.
 
+### Despliegue en un servidor
+
+El repositorio incluye `Dockerfile`, `docker-compose.yml` (aplicación + Caddy con
+HTTPS automático), un script de copias nocturnas cifradas y una guía completa en
+[`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+```bash
+cp .env.example .env        # rellena DOMAIN, JWT secret y email de administrador
+docker compose up -d --build
+docker compose exec app python -m app.cli create-invite
+```
+
+Las copias de seguridad también se pueden crear desde la línea de comandos:
+`python -m app.cli backup [--output-dir DIR | --stdout]` (copia portable y
+verificada).
+
 ### 6. Abrir la aplicación
 
 - Aplicación: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
