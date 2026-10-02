@@ -295,3 +295,45 @@ def test_initialize_database_upgrades_empty_legacy_tables_without_users(
                 for row in connection.execute(f"PRAGMA table_info({table})")
             }
             assert "user_id" in columns, table
+
+
+def test_initialize_database_recovers_from_interrupted_migration(
+    tmp_path, monkeypatch
+):
+    """Un intento fallido puede dejar tablas *_new; no debe bloquear."""
+    import sqlite3
+
+    import app.db as db
+
+    database_path = tmp_path / "interrupted.db"
+    monkeypatch.setattr(db, "DATABASE_PATH", database_path)
+
+    legacy = sqlite3.connect(database_path)
+    legacy.executescript(
+        """
+        CREATE TABLE body_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL, weight_kg REAL, height_cm REAL, bmi REAL,
+            body_fat_percentage REAL, waist_cm REAL, hip_cm REAL,
+            chest_cm REAL, arm_cm REAL, thigh_cm REAL, notes TEXT,
+            created_at TEXT
+        );
+        CREATE TABLE body_metrics_new (id INTEGER PRIMARY KEY);
+        """
+    )
+    legacy.commit()
+    legacy.close()
+
+    db.initialize_database()
+
+    with db.get_connection() as connection:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(body_metrics)")
+        }
+        leftovers = connection.execute(
+            "SELECT name FROM sqlite_master WHERE name LIKE '%\\_new' ESCAPE '\\'"
+        ).fetchall()
+
+    assert "user_id" in columns
+    assert leftovers == []

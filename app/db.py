@@ -106,6 +106,9 @@ def migrate_fitness_goals_table(
 
     legacy_user_id = first_user_row["id"]
 
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS fitness_goals_new")
+
     connection.execute(
         f"""
         CREATE TABLE fitness_goals_new (
@@ -184,6 +187,9 @@ def migrate_daily_logs_table(connection: sqlite3.Connection) -> None:
 
     legacy_user_id = first_user_row["id"]
 
+
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS daily_logs_new")
 
     connection.execute(
         """
@@ -268,6 +274,9 @@ def migrate_daily_recovery_logs_table(
         return
 
     legacy_user_id = first_user_row["id"]
+
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS daily_recovery_logs_new")
 
     connection.execute(
         """
@@ -375,6 +384,9 @@ def migrate_body_metrics_table(connection: sqlite3.Connection) -> None:
     # get_legacy_user_id habría fallado): se rehace igualmente con el
     # esquema nuevo para que existan user_id y sus índices.
 
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS body_metrics_new")
+
     connection.execute(
         """
         CREATE TABLE body_metrics_new (
@@ -471,6 +483,9 @@ def migrate_runs_table(connection: sqlite3.Connection) -> None:
     # get_legacy_user_id habría fallado): se rehace igualmente con el
     # esquema nuevo para que existan user_id y sus índices.
 
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS runs_new")
+
     connection.execute(
         """
         CREATE TABLE runs_new (
@@ -544,6 +559,9 @@ def migrate_workout_templates_table(
     # get_legacy_user_id habría fallado): se rehace igualmente con el
     # esquema nuevo para que existan user_id y sus índices.
 
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS workout_templates_new")
+
     connection.execute(
         """
         CREATE TABLE workout_templates_new (
@@ -610,6 +628,9 @@ def migrate_body_composition_goals_table(
     # Sin usuarios la tabla antigua está vacía (si tuviera filas,
     # get_legacy_user_id habría fallado): se rehace igualmente con el
     # esquema nuevo para que existan user_id y sus índices.
+
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS body_composition_goals_new")
 
     connection.execute(
         f"""
@@ -707,6 +728,9 @@ def migrate_nutrition_days_table(
         )
 
     legacy_user_id = users[0]["id"] if users else None
+
+    # Restos de un intento anterior interrumpido.
+    connection.execute("DROP TABLE IF EXISTS nutrition_days_new")
 
     connection.execute(
         """
