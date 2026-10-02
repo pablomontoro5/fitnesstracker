@@ -1,15 +1,23 @@
 import os
 
 os.environ["FITNESS_TRACKER_TESTING"] = "1"
-os.environ["FITNESS_TRACKER_JWT_SECRET"] = "test-only-secret"
+os.environ["FITNESS_TRACKER_JWT_SECRET"] = (
+    "test-only-secret-that-is-at-least-32-bytes-long"
+)
+# Los tests registran usuarios sin código; los de invitaciones lo cambian.
+os.environ["FITNESS_TRACKER_REGISTRATION_MODE"] = "open"
 os.environ["FITNESS_TRACKER_ACCESS_TOKEN_MINUTES"] = "60"
 
 import pytest
 
 from app.db import get_connection, initialize_database
+from app.rate_limit import reset_rate_limits
+
+
 @pytest.fixture(autouse=True)
 def clean_database():
     initialize_database()
+    reset_rate_limits()
 
     with get_connection() as connection:
         connection.execute("DELETE FROM fitness_goals")
@@ -34,6 +42,7 @@ def clean_database():
         connection.execute("DELETE FROM daily_logs")
         connection.execute("DELETE FROM runs")
 
+        connection.execute("DELETE FROM invitations")
         connection.execute("DELETE FROM users")
 
         connection.execute("DELETE FROM meal_template_items")

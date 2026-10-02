@@ -6,6 +6,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.db import initialize_database
+from app.invitations import get_registration_mode
+from app.security import get_jwt_secret
 from app.routers import (
     auth,
     backups,
@@ -38,6 +40,10 @@ FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Falla al arrancar, no en la primera petición, si la configuración
+    # es insegura o inválida.
+    get_jwt_secret()
+    get_registration_mode()
     initialize_database()
     yield
 

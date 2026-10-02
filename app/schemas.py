@@ -718,6 +718,7 @@ class UserRegister(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     display_name: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=12, max_length=128)
+    invite_code: str | None = Field(default=None, max_length=128)
 
 
 class UserLogin(BaseModel):

@@ -89,6 +89,10 @@ registerForm.addEventListener("submit", async (event) => {
     .trim();
   const email = document.querySelector("#register-email").value.trim();
   const password = document.querySelector("#register-password").value;
+  const inviteCode = document
+    .querySelector("#register-invite-code")
+    .value
+    .trim();
 
   registerSubmitButton.disabled = true;
 
@@ -102,6 +106,7 @@ registerForm.addEventListener("submit", async (event) => {
         email,
         display_name: displayName,
         password,
+        invite_code: inviteCode || null,
       }),
     });
 

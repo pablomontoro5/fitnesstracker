@@ -768,6 +768,21 @@ def initialize_database() -> None:
         )
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS invitations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code_hash TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                used_by_user_id INTEGER,
+                FOREIGN KEY (used_by_user_id)
+                    REFERENCES users (id)
+                    ON DELETE SET NULL
+            )
+            """
+        )
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS daily_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,

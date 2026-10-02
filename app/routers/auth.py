@@ -1,9 +1,21 @@
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.db import get_connection
+from app.invitations import (
+    consume_invitation,
+    find_valid_invitation_id,
+    get_registration_mode,
+)
+from app.rate_limit import (
+    LOGIN_FAILURES_PER_ACCOUNT,
+    LOGIN_FAILURES_PER_IP,
+    REGISTER_ATTEMPTS_PER_IP,
+    get_client_ip,
+    too_many_requests,
+)
 from app.schemas import (
     AccessTokenResponse,
     UserLogin,
@@ -73,12 +85,27 @@ def get_current_user(
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def register_user(user: UserRegister) -> UserResponse:
+def register_user(user: UserRegister, request: Request) -> UserResponse:
+    client_ip = get_client_ip(request)
+    retry_after = REGISTER_ATTEMPTS_PER_IP.retry_after(client_ip)
+
+    if retry_after:
+        raise too_many_requests(retry_after)
+
+    REGISTER_ATTEMPTS_PER_IP.record(client_ip)
+
     email = user.email.strip().lower()
     display_name = user.display_name.strip()
+    requires_invitation = get_registration_mode() == "invite"
 
     try:
         with get_connection() as connection:
+            invitation_id = (
+                find_valid_invitation_id(connection, user.invite_code)
+                if requires_invitation
+                else None
+            )
+
             cursor = connection.execute(
                 """
                 INSERT INTO users (email, display_name, password_hash)
@@ -90,6 +117,13 @@ def register_user(user: UserRegister) -> UserResponse:
                     hash_password(user.password),
                 ),
             )
+
+            if invitation_id is not None:
+                consume_invitation(
+                    connection,
+                    invitation_id,
+                    cursor.lastrowid,
+                )
 
             row = connection.execute(
                 """
@@ -112,8 +146,19 @@ def register_user(user: UserRegister) -> UserResponse:
     "/login",
     response_model=AccessTokenResponse,
 )
-def login_user(user: UserLogin) -> AccessTokenResponse:
+def login_user(user: UserLogin, request: Request) -> AccessTokenResponse:
     email = user.email.strip().lower()
+    client_ip = get_client_ip(request)
+    account_key = f"{client_ip}|{email}"
+
+    for limiter, key in (
+        (LOGIN_FAILURES_PER_ACCOUNT, account_key),
+        (LOGIN_FAILURES_PER_IP, client_ip),
+    ):
+        retry_after = limiter.retry_after(key)
+
+        if retry_after:
+            raise too_many_requests(retry_after)
 
     with get_connection() as connection:
         row = connection.execute(
@@ -132,7 +177,11 @@ def login_user(user: UserLogin) -> AccessTokenResponse:
     )
 
     if row is None or not verify_password(user.password, row["password_hash"]):
+        LOGIN_FAILURES_PER_ACCOUNT.record(account_key)
+        LOGIN_FAILURES_PER_IP.record(client_ip)
         raise invalid_credentials
+
+    LOGIN_FAILURES_PER_ACCOUNT.reset(account_key)
 
     if not bool(row["is_active"]):
         raise HTTPException(

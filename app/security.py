@@ -7,6 +7,7 @@ from pwdlib import PasswordHash
 
 
 JWT_SECRET_ENV = "FITNESS_TRACKER_JWT_SECRET"
+MIN_JWT_SECRET_BYTES = 32
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_MINUTES_ENV = "FITNESS_TRACKER_ACCESS_TOKEN_MINUTES"
 DEFAULT_ACCESS_TOKEN_MINUTES = 60
@@ -21,6 +22,13 @@ def get_jwt_secret() -> str:
     if not secret:
         raise RuntimeError(
             f"La variable de entorno {JWT_SECRET_ENV} debe estar configurada."
+        )
+
+    if len(secret.encode("utf-8")) < MIN_JWT_SECRET_BYTES:
+        raise RuntimeError(
+            f"{JWT_SECRET_ENV} debe tener al menos {MIN_JWT_SECRET_BYTES} "
+            "bytes. Genera una con: "
+            'python -c "import secrets; print(secrets.token_hex(32))"'
         )
 
     return secret
