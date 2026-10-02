@@ -18,8 +18,17 @@ def create_database_backup(
     timestamp = (now or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
     backup_path = backup_directory / f"fitness_tracker_backup_{timestamp}.db"
 
-    with sqlite3.connect(DATABASE_PATH) as source_connection:
-        with sqlite3.connect(backup_path) as destination_connection:
-            source_connection.backup(destination_connection)
+    source_connection = sqlite3.connect(DATABASE_PATH)
+    destination_connection = sqlite3.connect(backup_path)
+
+    try:
+        source_connection.backup(destination_connection)
+        # .backup() hereda el modo WAL de la base activa. La copia debe ser
+        # un único archivo portable y restaurable.
+        destination_connection.execute("PRAGMA journal_mode = DELETE")
+        destination_connection.commit()
+    finally:
+        destination_connection.close()
+        source_connection.close()
 
     return backup_path

@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 from datetime import datetime
 from io import BytesIO
 
@@ -27,10 +28,16 @@ def create_test_user_id(connection) -> int:
     return cursor.lastrowid
 
 
-def create_valid_database(database_path, user_id: int):
-    with sqlite3.connect(DATABASE_PATH) as source_connection:
-        with sqlite3.connect(database_path) as destination_connection:
+def copy_database_like_a_backup(database_path) -> None:
+    """Copia la base activa igual que lo hace la app: un único archivo."""
+    with closing(sqlite3.connect(DATABASE_PATH)) as source_connection:
+        with closing(sqlite3.connect(database_path)) as destination_connection:
             source_connection.backup(destination_connection)
+            destination_connection.execute("PRAGMA journal_mode = DELETE")
+
+
+def create_valid_database(database_path, user_id: int):
+    copy_database_like_a_backup(database_path)
 
     with sqlite3.connect(database_path) as connection:
         connection.execute(
@@ -168,10 +175,9 @@ def test_restore_database_rejects_database_with_missing_columns(
 ):
     incompatible_database_path = tmp_path / "incompatible.db"
 
-    with sqlite3.connect(incompatible_database_path) as connection:
-        with sqlite3.connect(DATABASE_PATH) as source_connection:
-            source_connection.backup(connection)
+    copy_database_like_a_backup(incompatible_database_path)
 
+    with sqlite3.connect(incompatible_database_path) as connection:
         connection.execute(
             """
             DROP TABLE workout_templates
@@ -205,3 +211,29 @@ def test_restore_database_rejects_database_with_missing_columns(
         raise AssertionError("Se esperaba que la restauración fallara.")
 
     assert not (tmp_path / "backups").exists()
+
+
+def test_restore_accepts_a_database_file_in_wal_mode(tmp_path):
+    wal_path = tmp_path / "wal.db"
+
+    with closing(sqlite3.connect(DATABASE_PATH)) as source_connection:
+        with closing(sqlite3.connect(wal_path)) as destination_connection:
+            source_connection.backup(destination_connection)
+            destination_connection.execute("PRAGMA journal_mode = WAL")
+            destination_connection.commit()
+
+    # Cabecera con modo WAL (2): la deserialización directa fallaba.
+    assert wal_path.read_bytes()[18] == 2
+
+    upload = UploadFile(
+        filename="wal.db",
+        file=BytesIO(wal_path.read_bytes()),
+    )
+
+    backup_path = restore_database(
+        upload=upload,
+        backups_dir=tmp_path / "backups",
+        now=datetime(2026, 9, 8, 12, 0, 0),
+    )
+
+    assert backup_path.exists()

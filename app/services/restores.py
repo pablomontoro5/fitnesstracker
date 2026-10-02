@@ -1,4 +1,5 @@
 import sqlite3
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -213,15 +214,26 @@ def _get_uploaded_database_connection(
     upload: UploadFile,
 ) -> sqlite3.Connection:
     uploaded_database = sqlite3.connect(":memory:")
+    content = upload.file.read()
 
-    try:
-        uploaded_database.deserialize(upload.file.read())
-        return uploaded_database
-    except sqlite3.DatabaseError as error:
-        uploaded_database.close()
-        raise ValueError(
-            "El archivo subido no es una base de datos SQLite válida."
-        ) from error
+    # Se pasa por un archivo temporal porque deserializar directamente en
+    # memoria falla con bases en modo WAL.
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary_path = Path(temporary_directory) / "uploaded.db"
+        temporary_path.write_bytes(content)
+        disk_database = sqlite3.connect(temporary_path)
+
+        try:
+            disk_database.execute("PRAGMA journal_mode = DELETE")
+            disk_database.backup(uploaded_database)
+            return uploaded_database
+        except sqlite3.DatabaseError as error:
+            uploaded_database.close()
+            raise ValueError(
+                "El archivo subido no es una base de datos SQLite válida."
+            ) from error
+        finally:
+            disk_database.close()
 
 
 def restore_database(

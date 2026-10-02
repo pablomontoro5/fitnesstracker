@@ -64,6 +64,9 @@ def get_connection() -> sqlite3.Connection:
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON;")
+    # WAL permite leer mientras se escribe y evita bloqueos entre peticiones.
+    # Es idempotente y se reaplica por si una restauración cambia el modo.
+    connection.execute("PRAGMA journal_mode = WAL;")
 
     return connection
 

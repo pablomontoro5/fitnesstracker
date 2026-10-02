@@ -66,3 +66,17 @@ def test_create_database_backup_copies_database(tmp_path):
         ).fetchone()
 
     assert row == ("2026-09-06", 12345, "Registro de prueba.")
+
+
+def test_database_backup_is_a_portable_single_file(tmp_path):
+    # La base activa usa WAL, pero la copia debe poder abrirse sola.
+    with get_connection() as connection:
+        assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+
+    backup_path = create_database_backup(backups_dir=tmp_path)
+
+    # Byte 18 de la cabecera: 1 = rollback journal, 2 = WAL.
+    assert backup_path.read_bytes()[18] == 1
+    assert sorted(path.name for path in tmp_path.iterdir()) == [
+        backup_path.name
+    ]
