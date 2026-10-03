@@ -7,6 +7,25 @@ from app.db import DATA_DIR, get_connection
 
 EXPORTS_DIR = DATA_DIR / "exports"
 
+# Versión del formato. La restauración por cuenta la comprueba.
+EXPORT_FORMAT_VERSION = 2
+
+
+def fetch_rows(connection, query: str, params: tuple) -> list[dict]:
+    return [row_to_dict(row) for row in connection.execute(query, params)]
+
+
+def group_children(rows: list[dict], parent_key: str) -> dict[int, list[dict]]:
+    """Agrupa filas hijas por su id de padre, quitando la clave del padre."""
+    grouped: dict[int, list[dict]] = {}
+
+    for row in rows:
+        grouped.setdefault(row[parent_key], []).append(
+            {key: value for key, value in row.items() if key != parent_key}
+        )
+
+    return grouped
+
 
 def row_to_dict(row) -> dict:
     return dict(row)
@@ -39,7 +58,10 @@ def create_data_export(
             row_to_dict(row)
             for row in connection.execute(
                 """
-                SELECT id, date, weight_kg, height_cm, bmi, notes
+                SELECT
+                    id, date, weight_kg, height_cm, bmi,
+                    body_fat_percentage, waist_cm, hip_cm,
+                    chest_cm, arm_cm, thigh_cm, notes
                 FROM body_metrics
                 WHERE user_id = ?
                 ORDER BY date ASC, id ASC
@@ -190,6 +212,156 @@ def create_data_export(
             ).fetchall()
         ]
 
+        recovery_logs = fetch_rows(
+            connection,
+            """
+            SELECT id, date, sleep_minutes, sleep_quality, is_rest_day, notes
+            FROM daily_recovery_logs
+            WHERE user_id = ?
+            ORDER BY date ASC, id ASC
+            """,
+            (user_id,),
+        )
+
+        fitness_goals = fetch_rows(
+            connection,
+            """
+            SELECT id, goal_type, target_value
+            FROM fitness_goals
+            WHERE user_id = ?
+            ORDER BY id ASC
+            """,
+            (user_id,),
+        )
+
+        body_composition_goals = fetch_rows(
+            connection,
+            """
+            SELECT
+                id, metric_type, target_value, direction,
+                start_value, started_at
+            FROM body_composition_goals
+            WHERE user_id = ?
+            ORDER BY id ASC
+            """,
+            (user_id,),
+        )
+
+        workout_templates = fetch_rows(
+            connection,
+            """
+            SELECT id, name, notes
+            FROM workout_templates
+            WHERE user_id = ?
+            ORDER BY id ASC
+            """,
+            (user_id,),
+        )
+
+        template_exercises = fetch_rows(
+            connection,
+            """
+            SELECT
+                id, workout_template_id, name, muscle_group,
+                position, technique_notes
+            FROM workout_template_exercises
+            WHERE workout_template_id IN (
+                SELECT id FROM workout_templates WHERE user_id = ?
+            )
+            ORDER BY workout_template_id ASC, position ASC, id ASC
+            """,
+            (user_id,),
+        )
+
+        template_sets = fetch_rows(
+            connection,
+            """
+            SELECT
+                id, workout_template_exercise_id, set_type, position,
+                target_rep_range, repetitions, weight_kg, rir, notes
+            FROM workout_template_sets
+            WHERE workout_template_exercise_id IN (
+                SELECT exercise.id
+                FROM workout_template_exercises AS exercise
+                JOIN workout_templates AS template
+                    ON template.id = exercise.workout_template_id
+                WHERE template.user_id = ?
+            )
+            ORDER BY workout_template_exercise_id ASC, position ASC, id ASC
+            """,
+            (user_id,),
+        )
+
+        planned_workouts = fetch_rows(
+            connection,
+            """
+            SELECT
+                id, scheduled_date, workout_template_id, name, notes,
+                status, workout_session_id
+            FROM planned_workouts
+            WHERE user_id = ?
+            ORDER BY scheduled_date ASC, id ASC
+            """,
+            (user_id,),
+        )
+
+        food_library = fetch_rows(
+            connection,
+            """
+            SELECT
+                id, name, calories_per_100g, protein_per_100g,
+                carbs_per_100g, fat_per_100g, notes
+            FROM food_library
+            WHERE user_id = ?
+            ORDER BY name ASC, id ASC
+            """,
+            (user_id,),
+        )
+
+        meal_templates = fetch_rows(
+            connection,
+            """
+            SELECT id, name, notes
+            FROM meal_templates
+            WHERE user_id = ?
+            ORDER BY name ASC, id ASC
+            """,
+            (user_id,),
+        )
+
+        meal_template_items = fetch_rows(
+            connection,
+            """
+            SELECT
+                id, meal_template_id, name, quantity_g,
+                calories_per_100g, protein_per_100g, carbs_per_100g,
+                fat_per_100g, position, notes
+            FROM meal_template_items
+            WHERE meal_template_id IN (
+                SELECT id FROM meal_templates WHERE user_id = ?
+            )
+            ORDER BY meal_template_id ASC, position ASC, id ASC
+            """,
+            (user_id,),
+        )
+
+    sets_by_template_exercise_id = group_children(
+        template_sets,
+        "workout_template_exercise_id",
+    )
+    template_exercises_by_template_id = group_children(
+        [
+            exercise
+            | {"sets": sets_by_template_exercise_id.get(exercise["id"], [])}
+            for exercise in template_exercises
+        ],
+        "workout_template_id",
+    )
+    items_by_meal_template_id = group_children(
+        meal_template_items,
+        "meal_template_id",
+    )
+
     sets_by_exercise_id = {}
     for workout_set in workout_sets:
         sets_by_exercise_id.setdefault(
@@ -244,6 +416,7 @@ def create_data_export(
         )
 
     export_data = {
+        "format_version": EXPORT_FORMAT_VERSION,
         "exported_at": (now or datetime.now()).isoformat(timespec="seconds"),
         "daily_logs": daily_logs,
         "body_metrics": body_metrics,
@@ -265,6 +438,26 @@ def create_data_export(
                 )
             }
             for nutrition_day in nutrition_days
+        ],
+        "recovery_logs": recovery_logs,
+        "fitness_goals": fitness_goals,
+        "body_composition_goals": body_composition_goals,
+        "workout_templates": [
+            template
+            | {
+                "exercises": template_exercises_by_template_id.get(
+                    template["id"],
+                    [],
+                )
+            }
+            for template in workout_templates
+        ],
+        "planned_workouts": planned_workouts,
+        "food_library": food_library,
+        "meal_templates": [
+            meal_template
+            | {"items": items_by_meal_template_id.get(meal_template["id"], [])}
+            for meal_template in meal_templates
         ],
     }
 
