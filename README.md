@@ -268,8 +268,9 @@ Las sugerencias son opcionales: los campos se mantienen editables para poder reg
 | `workout_template_exercises` | `id`, `workout_template_id`, `name`, `muscle_group`, `position`, `technique_notes`, `created_at` |
 | `workout_template_sets` | `id`, `workout_template_exercise_id`, `set_type`, `position`, `target_rep_range`, `repetitions`, `weight_kg`, `rir`, `notes`, `created_at` |
 | `fitness_goals` | `id`, `goal_type`, `target_value`, `created_at`, `updated_at` |
-| `users` | `id`, `email`, `display_name`, `password_hash`, `is_active`, `created_at` |
+| `users` | `id`, `email`, `display_name`, `password_hash`, `is_active`, `created_at`, `token_version` |
 | `invitations` | `id`, `code_hash`, `created_at`, `expires_at`, `used_at`, `used_by_user_id` |
+| `password_resets` | `id`, `user_id`, `code_hash`, `created_at`, `expires_at`, `used_at` |
 
 ### Convenciones importantes
 
@@ -303,6 +304,9 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 | --- | --- | --- |
 | `POST` | `/auth/register`, `/auth/login` | Crear cuenta (con invitación) e iniciar sesión |
 | `GET` | `/auth/me` | Datos de la cuenta autenticada |
+| `DELETE` | `/auth/me` | Borrar la cuenta y todos sus datos (pide la contraseña) |
+| `POST` | `/auth/change-password` | Cambiar la contraseña (cierra las demás sesiones) |
+| `POST` | `/auth/reset-password` | Restablecer la contraseña con un código de recuperación |
 | `GET` / `POST` | `/daily-logs/` | Consultar o crear registros de pasos |
 | `GET` / `PUT` / `DELETE` | `/daily-logs/{log_date}` | Consultar, editar o borrar un registro diario |
 | `GET` / `POST` | `/body-metrics/` | Consultar o registrar peso, altura e IMC |
@@ -394,7 +398,9 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
   cuentas.
 - [x] Añadir control de sesión en frontend: login, logout, expiración de token
   y envío consistente de `Authorization: Bearer ...`.
-- [ ] Añadir recuperación/cambio de contraseña.
+- [x] Recuperación de contraseña con código del administrador, cambio de
+  contraseña y borrado de cuenta.
+- [ ] Recuperación de contraseña por correo electrónico.
 - [x] Registro por invitación, límite de intentos y secreto JWT validado.
 - [x] SQLite en modo WAL con copias de seguridad portables.
 - [ ] Configurar CORS restrictivo, HTTPS (Caddy), logs y CI/CD.
@@ -491,11 +497,33 @@ adelantarse y quedarse con ese rol.
 En desarrollo local puedes saltarte las invitaciones con
 `export FITNESS_TRACKER_REGISTRATION_MODE=open`.
 
+### Recuperación de contraseña
+
+Sin servicio de correo: quien olvide su contraseña se lo pide al administrador,
+que genera un código **en el servidor**:
+
+```bash
+python -m app.cli create-reset-code --email persona@ejemplo.com --minutes 60
+```
+
+El código es de un solo uso, caduca (60 minutos por defecto) y anula cualquier
+código anterior de esa cuenta. Se entrega por un canal privado y se escribe en
+«He olvidado mi contraseña» de la pantalla de acceso. Al restablecer, y también
+al cambiar la contraseña desde «Mi cuenta», se cierran las sesiones abiertas.
+
+Desde `/static/account/` cada usuario puede cambiar su contraseña y **borrar su
+cuenta**: se eliminan sus datos (también de las tablas dependientes) y no se puede
+deshacer. Las copias de seguridad ya generadas conservan esos datos hasta que
+se eliminan por antigüedad.
+
 ### Límite de intentos
 
 - Login: 5 contraseñas incorrectas por cuenta y dirección IP, y 20 por IP, cada
   15 minutos. Después responde `429` con la cabecera `Retry-After`.
 - Registro: 10 intentos por IP y hora.
+- Cambiar la contraseña o borrar la cuenta con la contraseña actual incorrecta: 5
+  intentos por usuario cada 15 minutos. Recuperación con código: 10 intentos por
+  IP cada 15 minutos.
 - El contador está en memoria y vale para **un solo proceso** (un único
   `uvicorn`). Si algún día ejecutas varios workers, cada uno llevará su cuenta.
 - Detrás de un proxy (Caddy, Nginx) arranca uvicorn con

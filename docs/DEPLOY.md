@@ -220,6 +220,7 @@ vez y después una vez al mes.
 | Ver registros | `docker compose logs -f app` |
 | Reiniciar | `docker compose restart app` |
 | Nuevo código de invitación | `docker compose exec app python -m app.cli create-invite` |
+| Código de recuperación de contraseña | `docker compose exec app python -m app.cli create-reset-code --email persona@ejemplo.com` |
 | Copia manual | `sudo deploy/backup.sh` |
 | Estado | `docker compose ps` |
 
@@ -263,15 +264,19 @@ como en el punto anterior. Las cuentas y datos vuelven con ella.
 
 - Un solo servidor y un solo proceso (el limitador de intentos está en memoria).
   Si el servidor se cae, la web no está disponible hasta reiniciarlo.
-- No hay recuperación de contraseña ni borrado de cuenta desde la interfaz:
-  hoy hay que atender esas peticiones a mano. Es lo siguiente que conviene
-  añadir antes de tener muchos usuarios.
+- La recuperación de contraseña no usa correo: la persona te pide un código y tú
+  lo generas con el comando de la tabla anterior (válido 60 minutos, un solo uso).
+  Entrégalo por un canal privado y comprueba que quien lo pide es quien dice ser.
 - La documentación interactiva (`/docs`, `/redoc`) es pública. No expone datos,
   pero si no la quieres, se puede desactivar o proteger.
 - La restauración sustituye la base de datos **completa** (todas las cuentas).
+  Al restaurar una copia reaparecen las cuentas que se borraron después de ella:
+  si hubo solicitudes de borrado, vuelve a aplicarlas.
 - **Datos personales:** la app guarda datos de salud y actividad. Con usuarios
   reales, informa de qué datos guardas, para qué y cómo pueden pedir su borrado
-  (RGPD). Esto no es asesoramiento legal.
+  (RGPD). Esto no es asesoramiento legal. Cada usuario puede borrar su cuenta
+  desde «Mi cuenta»; los datos borrados siguen en las copias de seguridad cifradas
+  hasta que caducan (`RETENTION_DAYS`, 14 días por defecto).
 
 ## Problemas frecuentes
 
