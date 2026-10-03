@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: calendario de actividad y planificación de sesiones."
+  />
+  <title>Calendario · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Planificación</p>
+        <h2>Calendario</h2>
+        <p>
+          Consulta tu actividad día a día y planifica sesiones a partir de tus
+          plantillas de entrenamiento.
+        </p>
+      </div>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+
+    <div class="calendar-layout">
+      <section class="panel">
+        <div class="calendar-toolbar">
+          <button
+            id="previous-month-button"
+            class="icon-button"
+            type="button"
+            title="Mes anterior"
+            aria-label="Mes anterior"
+          >
+            ‹
+          </button>
+
+          <h2 id="month-title" class="calendar-month-title" aria-live="polite">
+          </h2>
+
+          <button
+            id="next-month-button"
+            class="icon-button"
+            type="button"
+            title="Mes siguiente"
+            aria-label="Mes siguiente"
+          >
+            ›
+          </button>
+
+          <button id="today-button" class="secondary-button" type="button">
+            Hoy
+          </button>
+        </div>
+
+        <div id="calendar-error" class="empty-state hidden"></div>
+
+        <div
+          class="calendar-weekdays"
+          aria-hidden="true"
+        >
+          <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span>
+          <span>Vie</span><span>Sáb</span><span>Dom</span>
+        </div>
+
+        <div id="calendar-grid" class="calendar-grid" role="grid"></div>
+
+        <p class="calendar-legend">
+          <span><i class="legend-dot workout"></i> Entrenamiento</span>
+          <span><i class="legend-dot run"></i> Running</span>
+          <span><i class="legend-dot rest"></i> Descanso</span>
+          <span><i class="legend-dot planned"></i> Planificada</span>
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Detalle del día</p>
+            <h2 id="day-title">Selecciona un día</h2>
+          </div>
+        </div>
+
+        <div id="day-summary" class="day-summary"></div>
+
+        <h3>Sesiones planificadas</h3>
+        <div id="planned-list" class="planned-list empty-state">
+          Selecciona un día para ver sus sesiones.
+        </div>
+
+        <form id="planned-form" class="form-grid">
+          <h3 class="full-width">Planificar una sesión</h3>
+
+          <label class="full-width">
+            Plantilla <span class="optional">opcional</span>
+            <select id="planned-template" name="workout_template_id">
+              <option value="">Sin plantilla</option>
+            </select>
+          </label>
+
+          <label class="full-width">
+            Nombre <span class="optional">si no usas plantilla</span>
+            <input
+              id="planned-name"
+              name="name"
+              type="text"
+              maxlength="100"
+              placeholder="Ej.: Pierna"
+            />
+          </label>
+
+          <label class="full-width">
+            Notas <span class="optional">opcional</span>
+            <textarea
+              name="notes"
+              maxlength="1000"
+              rows="2"
+            ></textarea>
+          </label>
+
+          <button class="primary-button full-width" type="submit">
+            Planificar en este día
+          </button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/auth.js"></script>
+  <script src="/static/list-states.js"></script>
+  <script src="/static/calendar/calendar.js" type="module"></script>
+</body>
+</html>

@@ -148,6 +148,7 @@ Con la aplicación en ejecución, las vistas principales están disponibles en:
 | `/static/runs/` | Registro e historial de running |
 | `/static/nutrition/` | Registro de días, comidas y alimentos |
 | `/static/statistics/` | Resúmenes y gráficas por periodo |
+| `/static/calendar/` | Calendario mensual de actividad y planificación de sesiones |
 | `/static/goals/` | Configuración y seguimiento de objetivos de actividad |
 | `/static/login/` | Inicio de sesión y registro (con código de invitación) |
 | `/static/backups/` | Descarga y restauración de copias SQLite (solo administradores) |
@@ -196,6 +197,9 @@ fitness-tracker/
 │       ├── backups/
 │       │   ├── index.html
 │       │   └── backups.js
+│       ├── calendar/
+│       │   ├── index.html
+│       │   └── calendar.js
 │       ├── daily-steps/
 │       │   ├── index.html
 │       │   └── daily-steps.js
@@ -374,7 +378,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Ampliar gráficas de IMC, composición corporal, volumen de entrenamiento
   y ritmo de running.
 - [x] API de calendario de actividad y planificación de sesiones.
-- [ ] Interfaz del calendario y la planificación de sesiones.
+- [x] Interfaz del calendario y la planificación de sesiones.
 - [x] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos
   principales/secundarios e indicaciones técnicas.
 - [x] API de biblioteca de alimentos, comidas frecuentes y plantillas de comida.
@@ -573,9 +577,8 @@ python -m pytest -q
 - La API dispone de cuentas, autenticación mediante token y aislamiento por usuario
   para pasos, recuperación, objetivos, entrenamientos, carreras, métricas
   corporales y estadísticas.
-- La exportación JSON exige sesión y solo incluye los datos de la cuenta; no
-  incluye aún recuperación, objetivos, plantillas, calendario ni biblioteca de
-  alimentos.
+- La exportación JSON exige sesión e incluye todos los datos de la cuenta (y
+  solo los suyos).
 - Las copias SQLite y las restauraciones operan sobre la base de datos completa
   (todas las cuentas y sus hashes de contraseña), por lo que solo pueden usarlas
   administradores. La restauración por usuario sigue pendiente.
