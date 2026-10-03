@@ -149,6 +149,7 @@ Con la aplicación en ejecución, las vistas principales están disponibles en:
 | `/static/nutrition/` | Registro de días, comidas y alimentos |
 | `/static/statistics/` | Resúmenes y gráficas por periodo |
 | `/static/calendar/` | Calendario mensual de actividad y planificación de sesiones |
+| `/static/food-library/` | Biblioteca de alimentos y plantillas de comida (también se usan desde `/static/nutrition/`) |
 | `/static/goals/` | Configuración y seguimiento de objetivos de actividad |
 | `/static/login/` | Inicio de sesión y registro (con código de invitación) |
 | `/static/backups/` | Descarga y restauración de copias SQLite (solo administradores) |
@@ -203,6 +204,9 @@ fitness-tracker/
 │       ├── daily-steps/
 │       │   ├── index.html
 │       │   └── daily-steps.js
+│       ├── food-library/
+│       │   ├── index.html
+│       │   └── food-library.js
 │       ├── goals/
 │       │   ├── index.html
 │       │   └── goals.js
@@ -382,7 +386,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Ampliar el catálogo de ejercicios con equipamiento, variantes, músculos
   principales/secundarios e indicaciones técnicas.
 - [x] API de biblioteca de alimentos, comidas frecuentes y plantillas de comida.
-- [ ] Interfaz de la biblioteca de alimentos y las plantillas de comida.
+- [x] Interfaz de la biblioteca de alimentos y las plantillas de comida.
 - [x] Mejorar filtros, estados vacíos, carga y mensajes de error entre
   frontend y backend.
 
