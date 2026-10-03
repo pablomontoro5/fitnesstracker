@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import UploadFile
 
-from app.db import DATABASE_PATH
+from app.db import DATABASE_PATH, initialize_database
 from app.services.backups import create_database_backup
 
 
@@ -255,6 +255,10 @@ def restore_database(
 
         with sqlite3.connect(DATABASE_PATH) as current_database:
             uploaded_database.backup(current_database)
+
+        # Una copia antigua puede no tener las columnas o tablas más
+        # recientes: se completan igual que al arrancar la aplicación.
+        initialize_database()
 
         return backup_path
     finally:

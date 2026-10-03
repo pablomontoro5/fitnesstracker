@@ -1,6 +1,6 @@
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.db import get_connection
@@ -9,22 +9,32 @@ from app.invitations import (
     find_valid_invitation_id,
     get_registration_mode,
 )
+from app.password_resets import (
+    consume_password_reset,
+    find_valid_reset_id,
+    invalid_reset,
+)
 from app.rate_limit import (
     LOGIN_FAILURES_PER_ACCOUNT,
     LOGIN_FAILURES_PER_IP,
+    PASSWORD_FAILURES_PER_USER,
     REGISTER_ATTEMPTS_PER_IP,
+    RESET_ATTEMPTS_PER_IP,
     get_client_ip,
     too_many_requests,
 )
 from app.schemas import (
     AccessTokenResponse,
+    AccountDelete,
+    PasswordChange,
+    PasswordReset,
     UserLogin,
     UserRegister,
     UserResponse,
 )
 from app.security import (
     create_access_token,
-    get_user_id_from_token,
+    get_token_claims,
     hash_password,
     verify_password,
 )
@@ -58,19 +68,26 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id = get_user_id_from_token(credentials.credentials)
+    user_id, token_version = get_token_claims(credentials.credentials)
 
     with get_connection() as connection:
         row = connection.execute(
             """
-            SELECT id, email, display_name, is_active, created_at
+            SELECT id, email, display_name, is_active, created_at,
+                   token_version
             FROM users
             WHERE id = ?
             """,
             (user_id,),
         ).fetchone()
 
-    if row is None or not bool(row["is_active"]):
+    # Cambiar o restablecer la contraseña sube token_version y deja de
+    # valer cualquier token emitido antes.
+    if (
+        row is None
+        or not bool(row["is_active"])
+        or row["token_version"] != token_version
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="La cuenta no está disponible.",
@@ -163,7 +180,7 @@ def login_user(user: UserLogin, request: Request) -> AccessTokenResponse:
     with get_connection() as connection:
         row = connection.execute(
             """
-            SELECT id, password_hash, is_active
+            SELECT id, password_hash, is_active, token_version
             FROM users
             WHERE email = ?
             """,
@@ -191,7 +208,7 @@ def login_user(user: UserLogin, request: Request) -> AccessTokenResponse:
         )
 
     return AccessTokenResponse(
-        access_token=create_access_token(row["id"]),
+        access_token=create_access_token(row["id"], row["token_version"]),
     )
 
 
@@ -203,3 +220,160 @@ def get_current_authenticated_user(
     current_user: UserResponse = Depends(get_current_user),
 ) -> UserResponse:
     return current_user
+
+
+def check_password_attempts(user_id: int) -> str:
+    key = f"user:{user_id}"
+    retry_after = PASSWORD_FAILURES_PER_USER.retry_after(key)
+
+    if retry_after:
+        raise too_many_requests(retry_after)
+
+    return key
+
+
+def get_verified_password_row(
+    connection: sqlite3.Connection,
+    user_id: int,
+    password: str,
+) -> sqlite3.Row:
+    """Comprueba la contraseña actual; cuenta los fallos para limitarlos."""
+    key = check_password_attempts(user_id)
+
+    row = connection.execute(
+        """
+        SELECT id, password_hash, token_version
+        FROM users
+        WHERE id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+
+    if row is None or not verify_password(password, row["password_hash"]):
+        PASSWORD_FAILURES_PER_USER.record(key)
+
+        # 400 y no 401: un 401 haría que el frontend cerrara la sesión.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña actual no es correcta.",
+        )
+
+    PASSWORD_FAILURES_PER_USER.reset(key)
+
+    return row
+
+
+@router.post(
+    "/change-password",
+    response_model=AccessTokenResponse,
+)
+def change_password(
+    payload: PasswordChange,
+    current_user: UserResponse = Depends(get_current_user),
+) -> AccessTokenResponse:
+    if payload.new_password == payload.current_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La nueva contraseña debe ser distinta de la actual.",
+        )
+
+    with get_connection() as connection:
+        row = get_verified_password_row(
+            connection,
+            current_user.id,
+            payload.current_password,
+        )
+        new_version = row["token_version"] + 1
+
+        connection.execute(
+            """
+            UPDATE users
+            SET password_hash = ?, token_version = ?
+            WHERE id = ?
+            """,
+            (hash_password(payload.new_password), new_version, row["id"]),
+        )
+
+    # Las demás sesiones se cierran; esta continúa con el token nuevo.
+    return AccessTokenResponse(
+        access_token=create_access_token(current_user.id, new_version),
+    )
+
+
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def reset_password(payload: PasswordReset, request: Request) -> Response:
+    client_ip = get_client_ip(request)
+    retry_after = RESET_ATTEMPTS_PER_IP.retry_after(client_ip)
+
+    if retry_after:
+        raise too_many_requests(retry_after)
+
+    RESET_ATTEMPTS_PER_IP.record(client_ip)
+
+    email = payload.email.strip().lower()
+
+    with get_connection() as connection:
+        user_row = connection.execute(
+            """
+            SELECT id, is_active, token_version
+            FROM users
+            WHERE email = ?
+            """,
+            (email,),
+        ).fetchone()
+
+        if user_row is None or not bool(user_row["is_active"]):
+            raise invalid_reset()
+
+        reset_id = find_valid_reset_id(
+            connection,
+            user_row["id"],
+            payload.code,
+        )
+
+        connection.execute(
+            """
+            UPDATE users
+            SET password_hash = ?, token_version = ?
+            WHERE id = ?
+            """,
+            (
+                hash_password(payload.new_password),
+                user_row["token_version"] + 1,
+                user_row["id"],
+            ),
+        )
+        consume_password_reset(connection, reset_id)
+
+    # Tras restablecer, un bloqueo por intentos fallidos ya no tiene sentido.
+    LOGIN_FAILURES_PER_ACCOUNT.reset(f"{client_ip}|{email}")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    "/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_account(
+    payload: AccountDelete,
+    current_user: UserResponse = Depends(get_current_user),
+) -> Response:
+    with get_connection() as connection:
+        get_verified_password_row(
+            connection,
+            current_user.id,
+            payload.password,
+        )
+
+        # Todas las tablas de datos dependen de users con ON DELETE CASCADE,
+        # así que se borra la cuenta y todo lo suyo.
+        connection.execute(
+            "DELETE FROM users WHERE id = ?",
+            (current_user.id,),
+        )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

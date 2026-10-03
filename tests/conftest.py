@@ -43,6 +43,7 @@ def clean_database():
         connection.execute("DELETE FROM runs")
 
         connection.execute("DELETE FROM invitations")
+        connection.execute("DELETE FROM password_resets")
         connection.execute("DELETE FROM users")
 
         connection.execute("DELETE FROM meal_template_items")

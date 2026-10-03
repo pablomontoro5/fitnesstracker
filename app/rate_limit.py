@@ -86,6 +86,9 @@ class RateLimiter:
 LOGIN_FAILURES_PER_ACCOUNT = RateLimiter(max_attempts=5, window_seconds=15 * 60)
 LOGIN_FAILURES_PER_IP = RateLimiter(max_attempts=20, window_seconds=15 * 60)
 REGISTER_ATTEMPTS_PER_IP = RateLimiter(max_attempts=10, window_seconds=60 * 60)
+# Contraseña actual incorrecta al cambiarla o al borrar la cuenta.
+PASSWORD_FAILURES_PER_USER = RateLimiter(max_attempts=5, window_seconds=15 * 60)
+RESET_ATTEMPTS_PER_IP = RateLimiter(max_attempts=10, window_seconds=15 * 60)
 
 
 def reset_rate_limits() -> None:
@@ -93,6 +96,8 @@ def reset_rate_limits() -> None:
         LOGIN_FAILURES_PER_ACCOUNT,
         LOGIN_FAILURES_PER_IP,
         REGISTER_ATTEMPTS_PER_IP,
+        PASSWORD_FAILURES_PER_USER,
+        RESET_ATTEMPTS_PER_IP,
     ):
         limiter.clear()
 

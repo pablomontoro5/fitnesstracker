@@ -63,7 +63,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return password_hash.verify(password, hashed_password)
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, token_version: int = 0) -> str:
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=get_access_token_minutes()
     )
@@ -71,6 +71,7 @@ def create_access_token(user_id: int) -> str:
     return jwt.encode(
         {
             "sub": str(user_id),
+            "tv": token_version,
             "exp": expires_at,
         },
         get_jwt_secret(),
@@ -78,7 +79,8 @@ def create_access_token(user_id: int) -> str:
     )
 
 
-def get_user_id_from_token(token: str) -> int:
+def get_token_claims(token: str) -> tuple[int, int]:
+    """Devuelve (id de usuario, versión del token) o lanza 401."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token de acceso inválido o caducado.",
@@ -92,10 +94,15 @@ def get_user_id_from_token(token: str) -> int:
             algorithms=[JWT_ALGORITHM],
         )
         subject = payload.get("sub")
+        token_version = payload.get("tv", 0)
 
-        if not isinstance(subject, str):
+        if not isinstance(subject, str) or not isinstance(token_version, int):
             raise credentials_exception
 
-        return int(subject)
+        return int(subject), token_version
     except (jwt.PyJWTError, TypeError, ValueError):
         raise credentials_exception
+
+
+def get_user_id_from_token(token: str) -> int:
+    return get_token_claims(token)[0]

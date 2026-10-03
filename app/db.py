@@ -70,6 +70,22 @@ def get_connection() -> sqlite3.Connection:
 
     return connection
 
+def add_users_token_version_column(
+    connection: sqlite3.Connection,
+) -> None:
+    """Contador que invalida los tokens al cambiar o restablecer la contraseña."""
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(users)").fetchall()
+    }
+
+    if "token_version" not in columns:
+        connection.execute(
+            "ALTER TABLE users "
+            "ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0"
+        )
+
+
 def migrate_fitness_goals_table(
     connection: sqlite3.Connection,
 ) -> None:
@@ -790,8 +806,31 @@ def initialize_database() -> None:
                 password_hash TEXT NOT NULL,
                 is_active INTEGER NOT NULL DEFAULT 1
                     CHECK (is_active IN (0, 1)),
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                token_version INTEGER NOT NULL DEFAULT 0
             )
+            """
+        )
+        add_users_token_version_column(connection)
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS password_resets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                code_hash TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used_at TEXT,
+                FOREIGN KEY (user_id)
+                    REFERENCES users (id)
+                    ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_password_resets_user_id
+            ON password_resets(user_id)
             """
         )
         connection.execute(
