@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.db import get_connection
+from app.logging_config import logger
 from app.invitations import (
     consume_invitation,
     find_valid_invitation_id,
@@ -151,10 +152,13 @@ def register_user(user: UserRegister, request: Request) -> UserResponse:
                 (cursor.lastrowid,),
             ).fetchone()
     except sqlite3.IntegrityError as error:
+        logger.info("Registro: email ya existente ip=%s", client_ip)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe una cuenta con ese email.",
         ) from error
+
+    logger.info("Registro: cuenta creada id=%s ip=%s", row["id"], client_ip)
 
     return row_to_user(row)
 
@@ -196,6 +200,11 @@ def login_user(user: UserLogin, request: Request) -> AccessTokenResponse:
     if row is None or not verify_password(user.password, row["password_hash"]):
         LOGIN_FAILURES_PER_ACCOUNT.record(account_key)
         LOGIN_FAILURES_PER_IP.record(client_ip)
+        logger.warning(
+            "Login fallido: cuenta=%s ip=%s",
+            "desconocida" if row is None else f"id={row['id']}",
+            client_ip,
+        )
         raise invalid_credentials
 
     LOGIN_FAILURES_PER_ACCOUNT.reset(account_key)
@@ -206,6 +215,8 @@ def login_user(user: UserLogin, request: Request) -> AccessTokenResponse:
             detail="La cuenta no está disponible.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    logger.info("Login correcto: id=%s ip=%s", row["id"], client_ip)
 
     return AccessTokenResponse(
         access_token=create_access_token(row["id"], row["token_version"]),
@@ -251,6 +262,7 @@ def get_verified_password_row(
 
     if row is None or not verify_password(password, row["password_hash"]):
         PASSWORD_FAILURES_PER_USER.record(key)
+        logger.warning("Contraseña actual incorrecta: id=%s", user_id)
 
         # 400 y no 401: un 401 haría que el frontend cerrara la sesión.
         raise HTTPException(
@@ -294,6 +306,8 @@ def change_password(
             (hash_password(payload.new_password), new_version, row["id"]),
         )
 
+    logger.info("Contraseña cambiada: id=%s", current_user.id)
+
     # Las demás sesiones se cierran; esta continúa con el token nuevo.
     return AccessTokenResponse(
         access_token=create_access_token(current_user.id, new_version),
@@ -326,13 +340,22 @@ def reset_password(payload: PasswordReset, request: Request) -> Response:
         ).fetchone()
 
         if user_row is None or not bool(user_row["is_active"]):
+            logger.warning("Recuperación fallida: cuenta inexistente ip=%s", client_ip)
             raise invalid_reset()
 
-        reset_id = find_valid_reset_id(
-            connection,
-            user_row["id"],
-            payload.code,
-        )
+        try:
+            reset_id = find_valid_reset_id(
+                connection,
+                user_row["id"],
+                payload.code,
+            )
+        except HTTPException:
+            logger.warning(
+                "Recuperación fallida: código inválido id=%s ip=%s",
+                user_row["id"],
+                client_ip,
+            )
+            raise
 
         connection.execute(
             """
@@ -347,6 +370,8 @@ def reset_password(payload: PasswordReset, request: Request) -> Response:
             ),
         )
         consume_password_reset(connection, reset_id)
+
+    logger.info("Contraseña restablecida con código: id=%s ip=%s", user_row["id"], client_ip)
 
     # Tras restablecer, un bloqueo por intentos fallidos ya no tiene sentido.
     LOGIN_FAILURES_PER_ACCOUNT.reset(f"{client_ip}|{email}")
@@ -375,5 +400,7 @@ def delete_account(
             "DELETE FROM users WHERE id = ?",
             (current_user.id,),
         )
+
+    logger.info("Cuenta eliminada: id=%s", current_user.id)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

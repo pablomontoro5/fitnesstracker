@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
+from app.logging_config import logger
 from app.dependencies import require_admin
 from app.schemas import UserResponse
 from app.services.restores import restore_database
@@ -29,12 +30,19 @@ def restore_database_backup(
     try:
         backup_path = restore_database(upload=file)
     except ValueError as error:
+        logger.warning("Restauración rechazada (admin id=%s): %s", _admin.id, error)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
         ) from error
     finally:
         file.file.close()
+
+    logger.warning(
+        "Base de datos restaurada por admin id=%s (copia previa: %s)",
+        _admin.id,
+        backup_path.name,
+    )
 
     return {
         "message": "Base de datos restaurada correctamente.",

@@ -267,8 +267,11 @@ como en el punto anterior. Las cuentas y datos vuelven con ella.
 - La recuperación de contraseña no usa correo: la persona te pide un código y tú
   lo generas con el comando de la tabla anterior (válido 60 minutos, un solo uso).
   Entrégalo por un canal privado y comprueba que quien lo pide es quien dice ser.
-- La documentación interactiva (`/docs`, `/redoc`) es pública. No expone datos,
-  pero si no la quieres, se puede desactivar o proteger.
+- La documentación interactiva (`/docs`, `/redoc`) está desactivada por defecto.
+  No pongas `FITNESS_TRACKER_ENABLE_DOCS` en producción.
+- Los registros (inicios de sesión, fallos, cambios de contraseña, borrados,
+  copias y restauraciones) salen por la salida estándar: `docker compose logs -f app`.
+  No incluyen emails, contraseñas, tokens ni códigos; las cuentas aparecen por id.
 - La restauración sustituye la base de datos **completa** (todas las cuentas).
   Al restaurar una copia reaparecen las cuentas que se borraron después de ella:
   si hubo solicitudes de borrado, vuelve a aplicarlas.

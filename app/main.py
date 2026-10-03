@@ -1,12 +1,14 @@
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.db import initialize_database
+from app.db import DATABASE_PATH, initialize_database
 from app.invitations import get_registration_mode
+from app.logging_config import configure_logging, logger
 from app.security import get_jwt_secret
 from app.routers import (
     auth,
@@ -38,13 +40,29 @@ from app.routers import (
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
 
 
+DOCS_ENV = "FITNESS_TRACKER_ENABLE_DOCS"
+
+
+def docs_enabled() -> bool:
+    """/docs y /redoc publican el mapa completo de la API: apagados salvo
+    que se pida expresamente (desarrollo)."""
+    return os.environ.get(DOCS_ENV, "").strip().lower() in {"1", "true", "yes"}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Falla al arrancar, no en la primera petición, si la configuración
     # es insegura o inválida.
+    configure_logging()
     get_jwt_secret()
-    get_registration_mode()
+    registration_mode = get_registration_mode()
     initialize_database()
+    logger.info(
+        "Arranque: registro=%s docs=%s base_de_datos=%s",
+        registration_mode,
+        "activadas" if docs_enabled() else "desactivadas",
+        DATABASE_PATH,
+    )
     yield
 
 
@@ -53,6 +71,9 @@ app = FastAPI(
     description="API para registrar actividad, gimnasio, running, nutrición, recuperación y métricas corporales.",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if docs_enabled() else None,
+    redoc_url="/redoc" if docs_enabled() else None,
+    openapi_url="/openapi.json" if docs_enabled() else None,
 )
 
 app.include_router(nutrition_meals.router)

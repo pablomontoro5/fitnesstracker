@@ -132,7 +132,7 @@ Registrar en un único lugar datos que normalmente quedan repartidos entre notas
 - Objetivos de nutrición y composición corporal.
 - PostgreSQL si se requiere despliegue multiusuario o mayor concurrencia.
 
-FastAPI ofrece documentación interactiva en `/docs` y documentación alternativa en `/redoc`.
+FastAPI ofrece documentación interactiva en `/docs` y `/redoc`, **desactivadas por defecto**: arranca con `FITNESS_TRACKER_ENABLE_DOCS=1` para verlas en desarrollo.
 
 ---
 
@@ -151,7 +151,7 @@ Con la aplicación en ejecución, las vistas principales están disponibles en:
 | `/static/goals/` | Configuración y seguimiento de objetivos de actividad |
 | `/static/login/` | Inicio de sesión y registro (con código de invitación) |
 | `/static/backups/` | Descarga y restauración de copias SQLite (solo administradores) |
-| `/docs` | Documentación interactiva de la API |
+| `/docs` | Documentación interactiva de la API (solo con `FITNESS_TRACKER_ENABLE_DOCS=1`) |
 | `/redoc` | Documentación alternativa de la API |
 
 Los archivos estáticos se sirven mediante FastAPI con `StaticFiles(..., html=True)`, por lo que cada módulo puede disponer de su propio `index.html` y JavaScript.
@@ -478,6 +478,8 @@ python -m uvicorn app.main:app --reload --port 8001
 | `FITNESS_TRACKER_JWT_SECRET` | Sí | Clave para firmar los tokens. **Mínimo 32 bytes**: el servidor no arranca con una más corta. Genera una con `python -c "import secrets; print(secrets.token_hex(32))"`. |
 | `FITNESS_TRACKER_ADMIN_EMAILS` | No | Emails de administradores, separados por comas. Solo ellos pueden descargar copias SQLite y restaurarlas. Si no se define, nadie puede. |
 | `FITNESS_TRACKER_REGISTRATION_MODE` | No | `invite` (por defecto): para registrarse hace falta un código de invitación. `open`: registro abierto, útil solo en desarrollo local. |
+| `FITNESS_TRACKER_ENABLE_DOCS` | No | `1` activa `/docs`, `/redoc` y `/openapi.json`. Apagadas por defecto; no las actives en producción. |
+| `FITNESS_TRACKER_LOG_LEVEL` | No | Nivel de los registros: `INFO` (por defecto), `WARNING`, `DEBUG`… |
 
 ### Registro por invitación
 
@@ -555,7 +557,7 @@ verificada).
 ### 6. Abrir la aplicación
 
 - Aplicación: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
-- Swagger UI: [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
+- Swagger UI (con `FITNESS_TRACKER_ENABLE_DOCS=1`): [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
 - ReDoc: [http://127.0.0.1:8001/redoc](http://127.0.0.1:8001/redoc)
 
 ### 7. Ejecutar pruebas
