@@ -2937,3 +2937,96 @@ a.history-button:hover {
     display: none;
   }
 }
+
+
+/* Biblioteca de alimentos y plantillas de comida */
+
+.library-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.library-list.empty-state {
+  display: block;
+}
+
+.library-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+}
+
+.library-card.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.library-card-info {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.library-card-info small {
+  color: var(--text-muted);
+}
+
+.library-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.library-select-button {
+  display: grid;
+  flex: 1;
+  gap: 0.15rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.library-select-button small {
+  color: var(--text-muted);
+}
+
+.library-grams-input {
+  width: 6rem;
+}
+
+.library-totals {
+  margin: 0.75rem 0 0;
+  font-weight: 700;
+}
+
+.library-picker {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface-muted);
+}
+
+.library-picker h3,
+.library-picker-help {
+  margin: 0;
+}
+
+.library-picker-help {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}

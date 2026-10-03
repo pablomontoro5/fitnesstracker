@@ -5,6 +5,8 @@ const state = {
   selectedMeal: null,
   foods: [],
   daysLoadStatus: "loading",
+  libraryFoods: [],
+  mealTemplates: [],
 };
 
 const nutritionGoalConfig = {
@@ -77,6 +79,12 @@ const elements = {
   nutritionFoodCount: document.querySelector("#nutrition-food-count"),
   nutritionFoodsList: document.querySelector("#nutrition-foods-list"),
   nutritionFoodTemplate: document.querySelector("#nutrition-food-template"),
+
+  libraryFoodForm: document.querySelector("#library-food-form"),
+  libraryFoodSelect: document.querySelector("#library-food-select"),
+  libraryFoodGrams: document.querySelector("#library-food-grams"),
+  libraryTemplateForm: document.querySelector("#library-template-form"),
+  libraryTemplateSelect: document.querySelector("#library-template-select"),
 };
 
 
@@ -767,7 +775,154 @@ async function loadNutritionDays() {
 }
 
 
+function roundToTwoDecimals(value) {
+  return Math.round(value * 100) / 100;
+}
+
+
+function fillSelect(select, items, emptyLabel) {
+  const options = items.map((item) => new Option(item.name, String(item.id)));
+
+  if (options.length === 0) {
+    options.push(new Option(emptyLabel, ""));
+  }
+
+  select.replaceChildren(...options);
+}
+
+
+async function loadLibrary() {
+  // La biblioteca es opcional: si falla, el registro manual sigue funcionando.
+  try {
+    const [foods, templates] = await Promise.all([
+      request("/food-library/"),
+      request("/meal-templates/"),
+    ]);
+
+    state.libraryFoods = foods;
+    state.mealTemplates = templates;
+  } catch (error) {
+    state.libraryFoods = [];
+    state.mealTemplates = [];
+    showStatus(`No se cargó la biblioteca: ${error.message}`, "error");
+  }
+
+  fillSelect(
+    elements.libraryFoodSelect,
+    state.libraryFoods,
+    "Tu biblioteca está vacía",
+  );
+  fillSelect(
+    elements.libraryTemplateSelect,
+    state.mealTemplates,
+    "No tienes plantillas de comida",
+  );
+}
+
+
+async function createNutritionFood(food) {
+  return request(`/nutrition-meals/${state.selectedMeal.id}/foods/`, {
+    method: "POST",
+    body: JSON.stringify(food),
+  });
+}
+
+
+async function handleAddLibraryFood(event) {
+  event.preventDefault();
+
+  const libraryFood = state.libraryFoods.find(
+    (food) => String(food.id) === elements.libraryFoodSelect.value,
+  );
+
+  if (!state.selectedMeal || !libraryFood) {
+    showStatus("Elige un alimento de la biblioteca.", "error");
+    return;
+  }
+
+  try {
+    const grams = getNumberValue(
+      elements.libraryFoodGrams,
+      "La cantidad",
+      0.01,
+    );
+    const factor = grams / 100;
+
+    await createNutritionFood({
+      name: libraryFood.name,
+      quantity_g: grams,
+      calories: roundToTwoDecimals(libraryFood.calories_per_100g * factor),
+      protein_g: roundToTwoDecimals(libraryFood.protein_per_100g * factor),
+      carbs_g: roundToTwoDecimals(libraryFood.carbs_per_100g * factor),
+      fat_g: roundToTwoDecimals(libraryFood.fat_per_100g * factor),
+      position: nextFoodPosition(),
+      notes: libraryFood.notes,
+    });
+
+    elements.libraryFoodGrams.value = "";
+    showStatus(`Alimento "${libraryFood.name}" añadido.`);
+    await loadNutritionFoods(state.selectedMeal.id);
+  } catch (error) {
+    showStatus(error.message, "error");
+  }
+}
+
+
+async function handleApplyMealTemplate(event) {
+  event.preventDefault();
+
+  const template = state.mealTemplates.find(
+    (item) => String(item.id) === elements.libraryTemplateSelect.value,
+  );
+
+  if (!state.selectedMeal || !template) {
+    showStatus("Elige una plantilla de comida.", "error");
+    return;
+  }
+
+  if (template.items.length === 0) {
+    showStatus("Esa plantilla todavía no tiene alimentos.", "error");
+    return;
+  }
+
+  let added = 0;
+
+  try {
+    // En orden y de uno en uno para conservar las posiciones.
+    for (const item of template.items) {
+      await createNutritionFood({
+        name: item.name,
+        quantity_g: item.grams,
+        calories: roundToTwoDecimals(item.calories),
+        protein_g: roundToTwoDecimals(item.protein),
+        carbs_g: roundToTwoDecimals(item.carbs),
+        fat_g: roundToTwoDecimals(item.fat),
+        position: nextFoodPosition() + added,
+        notes: null,
+      });
+      added += 1;
+    }
+
+    showStatus(`Plantilla "${template.name}" añadida (${added} alimentos).`);
+  } catch (error) {
+    showStatus(
+      `Se añadieron ${added} de ${template.items.length} alimentos: `
+      + error.message,
+      "error",
+    );
+  }
+
+  await loadNutritionFoods(state.selectedMeal.id);
+}
+
+
 function configureEventListeners() {
+  elements.libraryFoodForm.addEventListener("submit", handleAddLibraryFood);
+  elements.libraryTemplateForm.addEventListener(
+    "submit",
+    handleApplyMealTemplate,
+  );
+
   elements.nutritionDayForm.addEventListener(
     "submit",
     handleCreateNutritionDay,
@@ -799,6 +954,7 @@ function configureEventListeners() {
 async function initializeApp() {
   elements.nutritionDayDate.value = todayAsIsoDate();
   configureEventListeners();
+  loadLibrary();
   await loadNutritionDays();
 }
 

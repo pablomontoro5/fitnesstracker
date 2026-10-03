@@ -1,9 +1,8 @@
 """Plantillas de comidas privadas por usuario.
 
-Requiere meal_templates(id, user_id, name, notes, updated_at) y
-meal_template_items(id, template_id, food_id, grams). Los alimentos
-se obtienen de food_library(id, user_id, name, calories_per_100g,
-protein_per_100g, carbs_per_100g, fat_per_100g).
+Cada elemento guarda una copia (nombre y macros por 100 g) del alimento de la
+biblioteca en el momento de añadirlo: editar o borrar después el alimento no
+altera las plantillas ya creadas.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -16,18 +15,25 @@ router = APIRouter(prefix="/meal-templates", tags=["meal templates"])
 
 
 class TemplateData(BaseModel):
-    name: str = Field(min_length=1)
-    notes: str | None = None
+    name: str = Field(min_length=1, max_length=120)
+    notes: str | None = Field(default=None, max_length=1000)
 
 
 class ItemData(BaseModel):
     food_id: int = Field(gt=0)
-    grams: float = Field(gt=0)
+    grams: float = Field(gt=0, le=100_000)
 
 
-class ItemResponse(ItemData):
+class ItemUpdate(BaseModel):
+    grams: float = Field(gt=0, le=100_000)
+    # Si se indica, el elemento pasa a copiar los datos de ese alimento.
+    food_id: int | None = Field(default=None, gt=0)
+
+
+class ItemResponse(BaseModel):
     id: int
     name: str
+    grams: float
     calories: float
     protein: float
     carbs: float
@@ -62,7 +68,9 @@ def _template(db, template_id: int, user_id: int):
 
 def _food(db, food_id: int, user_id: int):
     row = db.execute(
-        "SELECT id FROM food_library WHERE id = ? AND user_id = ?",
+        """SELECT id, name, calories_per_100g, protein_per_100g,
+                  carbs_per_100g, fat_per_100g
+           FROM food_library WHERE id = ? AND user_id = ?""",
         (food_id, user_id),
     ).fetchone()
     if row is None:
@@ -74,24 +82,21 @@ def _response(db, template_id: int, user_id: int) -> TemplateResponse:
     template = _template(db, template_id, user_id)
     rows = db.execute(
         """
-        SELECT i.id, i.food_id, i.grams, f.name,
-               f.calories_per_100g, f.protein_per_100g,
-               f.carbs_per_100g, f.fat_per_100g
-        FROM meal_template_items AS i
-        JOIN food_library AS f ON f.id = i.food_id AND f.user_id = ?
-        WHERE i.template_id = ?
-        ORDER BY i.id
+        SELECT id, name, quantity_g, calories_per_100g, protein_per_100g,
+               carbs_per_100g, fat_per_100g
+        FROM meal_template_items
+        WHERE meal_template_id = ?
+        ORDER BY position, id
         """,
-        (user_id, template_id),
+        (template_id,),
     ).fetchall()
     items = [
         ItemResponse(
-            id=row["id"], food_id=row["food_id"], grams=row["grams"],
-            name=row["name"],
-            calories=row["calories_per_100g"] * row["grams"] / 100,
-            protein=row["protein_per_100g"] * row["grams"] / 100,
-            carbs=row["carbs_per_100g"] * row["grams"] / 100,
-            fat=row["fat_per_100g"] * row["grams"] / 100,
+            id=row["id"], name=row["name"], grams=row["quantity_g"],
+            calories=row["calories_per_100g"] * row["quantity_g"] / 100,
+            protein=row["protein_per_100g"] * row["quantity_g"] / 100,
+            carbs=row["carbs_per_100g"] * row["quantity_g"] / 100,
+            fat=row["fat_per_100g"] * row["quantity_g"] / 100,
         )
         for row in rows
     ]
@@ -149,7 +154,7 @@ def update_template(template_id: int, data: TemplateData, user=Depends(get_curre
 def delete_template(template_id: int, user=Depends(get_current_user)):
     with get_connection() as db:
         _template(db, template_id, user.id)
-        db.execute("DELETE FROM meal_template_items WHERE template_id = ?", (template_id,))
+        # Los elementos se borran en cascada.
         db.execute(
             "DELETE FROM meal_templates WHERE id = ? AND user_id = ?",
             (template_id, user.id),
@@ -161,25 +166,53 @@ def delete_template(template_id: int, user=Depends(get_current_user)):
 def add_item(template_id: int, data: ItemData, user=Depends(get_current_user)):
     with get_connection() as db:
         _template(db, template_id, user.id)
-        _food(db, data.food_id, user.id)
+        food = _food(db, data.food_id, user.id)
+        position = db.execute(
+            "SELECT COALESCE(MAX(position), 0) + 1 AS next_position "
+            "FROM meal_template_items WHERE meal_template_id = ?",
+            (template_id,),
+        ).fetchone()["next_position"]
         db.execute(
-            "INSERT INTO meal_template_items (template_id, food_id, grams) VALUES (?, ?, ?)",
-            (template_id, data.food_id, data.grams),
+            """INSERT INTO meal_template_items
+               (meal_template_id, name, quantity_g, calories_per_100g,
+                protein_per_100g, carbs_per_100g, fat_per_100g, position)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                template_id, food["name"], data.grams,
+                food["calories_per_100g"], food["protein_per_100g"],
+                food["carbs_per_100g"], food["fat_per_100g"], position,
+            ),
         )
         result = _response(db, template_id, user.id)
     return result
 
 
 @router.put("/{template_id}/items/{item_id}", response_model=TemplateResponse)
-def update_item(template_id: int, item_id: int, data: ItemData, user=Depends(get_current_user)):
+def update_item(template_id: int, item_id: int, data: ItemUpdate, user=Depends(get_current_user)):
     with get_connection() as db:
         _template(db, template_id, user.id)
-        _food(db, data.food_id, user.id)
-        cursor = db.execute(
-            """UPDATE meal_template_items SET food_id = ?, grams = ?
-               WHERE id = ? AND template_id = ?""",
-            (data.food_id, data.grams, item_id, template_id),
-        )
+
+        if data.food_id is None:
+            cursor = db.execute(
+                """UPDATE meal_template_items SET quantity_g = ?
+                   WHERE id = ? AND meal_template_id = ?""",
+                (data.grams, item_id, template_id),
+            )
+        else:
+            food = _food(db, data.food_id, user.id)
+            cursor = db.execute(
+                """UPDATE meal_template_items
+                   SET name = ?, quantity_g = ?, calories_per_100g = ?,
+                       protein_per_100g = ?, carbs_per_100g = ?,
+                       fat_per_100g = ?
+                   WHERE id = ? AND meal_template_id = ?""",
+                (
+                    food["name"], data.grams, food["calories_per_100g"],
+                    food["protein_per_100g"], food["carbs_per_100g"],
+                    food["fat_per_100g"], item_id, template_id,
+                ),
+            )
+
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Elemento no encontrado.")
         result = _response(db, template_id, user.id)
@@ -191,7 +224,7 @@ def delete_item(template_id: int, item_id: int, user=Depends(get_current_user)):
     with get_connection() as db:
         _template(db, template_id, user.id)
         cursor = db.execute(
-            "DELETE FROM meal_template_items WHERE id = ? AND template_id = ?",
+            "DELETE FROM meal_template_items WHERE id = ? AND meal_template_id = ?",
             (item_id, template_id),
         )
         if cursor.rowcount == 0:

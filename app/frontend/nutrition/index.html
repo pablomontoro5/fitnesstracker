@@ -285,6 +285,51 @@
         </div>
 
         <div id="nutrition-food-content" class="hidden">
+          <div class="library-picker">
+            <h3>Añadir desde tu biblioteca</h3>
+
+            <form id="library-food-form" class="form-grid">
+              <label>
+                Alimento
+                <select id="library-food-select"></select>
+              </label>
+
+              <label>
+                Gramos
+                <input
+                  id="library-food-grams"
+                  type="number"
+                  min="0.01"
+                  max="10000"
+                  step="0.01"
+                  required
+                />
+              </label>
+
+              <button class="secondary-button full-width" type="submit">
+                Añadir alimento de la biblioteca
+              </button>
+            </form>
+
+            <form id="library-template-form" class="form-grid">
+              <label class="full-width">
+                Plantilla de comida
+                <select id="library-template-select"></select>
+              </label>
+
+              <button class="secondary-button full-width" type="submit">
+                Añadir todos sus alimentos a esta comida
+              </button>
+            </form>
+
+            <p class="library-picker-help">
+              Gestiona tus alimentos y plantillas en
+              <a href="/static/food-library/">la biblioteca</a>.
+            </p>
+          </div>
+
+          <h3>O introduce un alimento a mano</h3>
+
           <form id="nutrition-food-form" class="form-grid nutrition-food-form">
             <label class="full-width">
               Alimento

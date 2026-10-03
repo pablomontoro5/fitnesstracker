@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Fitness Tracker: biblioteca de alimentos y plantillas de comida."
+  />
+  <title>Alimentos y plantillas · Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Health & Training Log</p>
+        <h1>Fitness Tracker</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <a class="back-link" href="/">&larr; Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Nutrición</p>
+        <h2>Biblioteca de alimentos y plantillas de comida</h2>
+        <p>
+          Guarda tus alimentos con sus valores por 100 g y combínalos en
+          plantillas de comida para añadirlos al instante en
+          <a href="/static/nutrition/">tu registro diario</a>.
+        </p>
+      </div>
+    </section>
+
+    <p id="status-message" class="status-message" aria-live="polite"></p>
+
+    <div class="app-grid">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Biblioteca</p>
+            <h2 id="food-form-title">Añadir alimento</h2>
+          </div>
+        </div>
+
+        <form id="food-form" class="form-grid">
+          <label class="full-width">
+            Nombre
+            <input
+              id="food-name"
+              type="text"
+              maxlength="120"
+              placeholder="Ej.: Avena"
+              required
+            />
+          </label>
+
+          <label>
+            Calorías por 100 g
+            <input
+              id="food-calories"
+              type="number"
+              min="0"
+              max="50000"
+              step="0.01"
+              required
+            />
+          </label>
+
+          <label>
+            Proteína por 100 g
+            <input
+              id="food-protein"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+            />
+          </label>
+
+          <label>
+            Carbohidratos por 100 g
+            <input
+              id="food-carbs"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+            />
+          </label>
+
+          <label>
+            Grasas por 100 g
+            <input
+              id="food-fat"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+            />
+          </label>
+
+          <label class="full-width">
+            Notas <span class="optional">opcional</span>
+            <textarea id="food-notes" maxlength="1000" rows="2"></textarea>
+          </label>
+
+          <button id="food-submit-button" class="primary-button" type="submit">
+            Guardar alimento
+          </button>
+          <button
+            id="food-cancel-button"
+            class="secondary-button hidden"
+            type="button"
+          >
+            Cancelar edición
+          </button>
+        </form>
+
+        <div class="list-header">
+          <h3>Mis alimentos</h3>
+          <span id="food-count" class="counter">0</span>
+        </div>
+
+        <input
+          id="food-filter"
+          type="search"
+          placeholder="Buscar alimento…"
+          aria-label="Buscar alimento"
+        />
+
+        <div id="foods-list" class="library-list empty-state">
+          Cargando alimentos…
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Plantillas de comida</p>
+            <h2>Mis plantillas</h2>
+          </div>
+        </div>
+
+        <form id="template-form" class="form-grid">
+          <label class="full-width">
+            Nueva plantilla
+            <input
+              id="template-name"
+              type="text"
+              maxlength="120"
+              placeholder="Ej.: Desayuno habitual"
+              required
+            />
+          </label>
+
+          <button class="primary-button full-width" type="submit">
+            Crear plantilla
+          </button>
+        </form>
+
+        <div class="list-header">
+          <h3>Plantillas guardadas</h3>
+          <span id="template-count" class="counter">0</span>
+        </div>
+
+        <div id="templates-list" class="library-list empty-state">
+          Cargando plantillas…
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Detalle</p>
+          <h2 id="template-title">Selecciona una plantilla</h2>
+        </div>
+
+        <button
+          id="delete-template-button"
+          class="danger-button hidden"
+          type="button"
+        >
+          Eliminar plantilla
+        </button>
+      </div>
+
+      <div id="template-empty-state" class="empty-state large-empty-state">
+        Selecciona una plantilla para ver y editar sus alimentos.
+      </div>
+
+      <div id="template-detail" class="hidden">
+        <form id="template-item-form" class="form-grid">
+          <label>
+            Alimento
+            <select id="template-item-food" required></select>
+          </label>
+
+          <label>
+            Gramos
+            <input
+              id="template-item-grams"
+              type="number"
+              min="0.01"
+              max="100000"
+              step="0.01"
+              required
+            />
+          </label>
+
+          <button class="primary-button full-width" type="submit">
+            Añadir a la plantilla
+          </button>
+        </form>
+
+        <div class="list-header">
+          <h3>Alimentos de la plantilla</h3>
+          <span id="template-item-count" class="counter">0</span>
+        </div>
+
+        <div id="template-items" class="library-list empty-state">
+          Esta plantilla aún no tiene alimentos.
+        </div>
+
+        <p id="template-totals" class="library-totals"></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/auth.js"></script>
+  <script src="/static/list-states.js"></script>
+  <script src="/static/food-library/food-library.js" type="module"></script>
+</body>
+</html>
