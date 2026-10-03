@@ -251,6 +251,14 @@ copia manual (`sudo deploy/backup.sh`) antes de actualizar si el cambio toca la 
 sesiones), regístrate como administrador con una invitación nueva y restaura la copia
 como en el punto anterior. Las cuentas y datos vuelven con ella.
 
+### Restaurar los datos de una sola persona
+
+Si solo hace falta recuperar a un usuario (borró algo por error), no restaures
+la base entera: esa persona sube su exportación JSON en **Mi cuenta → Restaurar
+desde una exportación**. Solo se sustituyen sus datos y nadie más se ve afectado.
+Una persona que no conserve su exportación no puede usar este método; para ella
+tendrías que extraer sus datos de una copia SQLite en un entorno aparte.
+
 ## 9. Lista de comprobación de seguridad
 
 - [ ] `.env` con permisos `600`, fuera de Git y con un secreto aleatorio de 64 caracteres.

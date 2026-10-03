@@ -237,6 +237,7 @@ fitness-tracker/
 │   ├── test_exports.py
 │   ├── test_exports_router.py
 │   ├── test_goals.py
+│   ├── test_account_restore.py
 │   ├── test_restores.py
 │   ├── test_restores_router.py
 │   ├── test_runs.py
@@ -339,6 +340,7 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 | `*` | `/recovery-logs`, `/calendar`, `/planned-workouts`, `/food-library`, `/meal-templates`, `/exercise-catalog` | Recuperación, calendario, planificación, biblioteca de alimentos, plantillas de comida y catálogo de ejercicios |
 | `GET` | `/exports/fitness-tracker.json` | Descargar en JSON **todos** los datos de la cuenta autenticada (seguimiento, recuperación, objetivos, plantillas, calendario, biblioteca de alimentos y plantillas de comida), con `format_version` |
 | `POST` | `/backups/database` | Descargar una copia SQLite completa (administrador) |
+| `POST` | `/restores/account` | Restaurar los datos de la cuenta autenticada desde su exportación JSON (pide contraseña; no toca otras cuentas) |
 | `POST` | `/restores/database` | Restaurar una copia SQLite validada (administrador) |
 
 Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuestas de la API.
@@ -402,7 +404,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
   autenticada.
 - [x] Sustituir el backup SQLite completo por exportaciones por usuario o
   backups administrativos protegidos.
-- [ ] Diseñar restauración segura por usuario, sin sobrescribir datos de otras
+- [x] Diseñar restauración segura por usuario, sin sobrescribir datos de otras
   cuentas.
 - [x] Añadir control de sesión en frontend: login, logout, expiración de token
   y envío consistente de `Authorization: Bearer ...`.
@@ -585,7 +587,10 @@ python -m pytest -q
   solo los suyos).
 - Las copias SQLite y las restauraciones operan sobre la base de datos completa
   (todas las cuentas y sus hashes de contraseña), por lo que solo pueden usarlas
-  administradores. La restauración por usuario sigue pendiente.
+  administradores. Cada persona puede restaurar **solo sus datos** desde su
+  exportación JSON (página «Mi cuenta»), sin afectar a las demás cuentas: las
+  secciones del archivo sustituyen a las actuales, las que no trae se dejan
+  como están y, si algo falla, no se cambia nada.
 - La persistencia es SQLite en un único servidor (adecuado para pocos usuarios);
   no hay sincronización en la nube ni varias réplicas.
 - Los pasos, entrenamientos, carreras y datos nutricionales se introducen manualmente.

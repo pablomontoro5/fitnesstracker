@@ -145,6 +145,49 @@ deleteAccountForm.addEventListener("submit", async (event) => {
 });
 
 
+const restoreAccountForm = document.querySelector("#restore-account-form");
+const restoreAccountButton = document.querySelector("#restore-account-button");
+
+restoreAccountForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  clearAccountStatus();
+
+  const formData = new FormData();
+  formData.append(
+    "file",
+    document.querySelector("#restore-account-file").files[0],
+  );
+  formData.append(
+    "password",
+    document.querySelector("#restore-account-password").value,
+  );
+
+  restoreAccountButton.disabled = true;
+
+  try {
+    // Sin Content-Type: el navegador añade el límite del multipart.
+    const response = await apiFetch("/restores/account", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    restoreAccountForm.reset();
+    showAccountStatus(
+      "Datos restaurados correctamente. Ya puedes consultarlos en la aplicación.",
+      "success",
+    );
+  } catch (error) {
+    showAccountStatus(error.message, "error");
+  } finally {
+    restoreAccountButton.disabled = false;
+  }
+});
+
+
 async function initializeAccount() {
   if (!getAccessToken()) {
     window.location.replace("/static/login/?next=%2Fstatic%2Faccount%2F");

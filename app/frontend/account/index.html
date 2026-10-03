@@ -111,6 +111,63 @@
       <article class="panel">
         <div class="panel-heading">
           <div>
+            <p class="eyebrow">Tus datos</p>
+            <h2>Restaurar desde una exportación</h2>
+          </div>
+        </div>
+
+        <p>
+          Sube un archivo JSON descargado con «Descargar exportación». Solo
+          afecta a tu cuenta: las demás cuentas no se tocan.
+        </p>
+        <p class="warning-text">
+          Las secciones que contenga el archivo sustituyen a las actuales
+          (por ejemplo, tus entrenamientos se reemplazan por los del archivo).
+          Descarga antes una exportación si quieres poder volver atrás.
+        </p>
+
+        <form id="restore-account-form" class="form-grid">
+          <label class="full-width">
+            Archivo de exportación (.json)
+            <input
+              id="restore-account-file"
+              type="file"
+              accept=".json,application/json"
+              required
+            />
+          </label>
+
+          <label class="full-width">
+            Contraseña
+            <input
+              id="restore-account-password"
+              type="password"
+              autocomplete="current-password"
+              maxlength="128"
+              required
+            />
+          </label>
+
+          <label class="full-width checkbox-label">
+            <input id="restore-account-confirm" type="checkbox" required />
+            Entiendo que se sustituirán mis datos actuales.
+          </label>
+
+          <div class="form-actions full-width">
+            <button
+              id="restore-account-button"
+              class="danger-button"
+              type="submit"
+            >
+              Restaurar mis datos
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
             <p class="eyebrow">Zona peligrosa</p>
             <h2>Borrar mi cuenta</h2>
           </div>
