@@ -82,6 +82,15 @@
             <button id="login-submit-button" class="primary-button" type="submit">
               Entrar
             </button>
+            <button
+              id="show-reset-button"
+              class="secondary-button"
+              type="button"
+              aria-controls="reset-section"
+              aria-expanded="false"
+            >
+              He olvidado mi contraseña
+            </button>
           </div>
         </form>
       </article>
@@ -154,6 +163,68 @@
           </div>
         </form>
       </article>
+    </section>
+
+    <section id="reset-section" class="panel" hidden>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Recuperar el acceso</p>
+          <h2>Restablecer contraseña</h2>
+        </div>
+      </div>
+
+      <p>
+        Pide un código de recuperación al administrador (te lo dará por un
+        canal privado). Es de un solo uso y caduca pronto.
+      </p>
+
+      <form id="reset-form" class="form-grid">
+        <label class="full-width">
+          Correo electrónico
+          <input
+            id="reset-email"
+            type="email"
+            autocomplete="email"
+            maxlength="254"
+            required
+          />
+        </label>
+
+        <label class="full-width">
+          Código de recuperación
+          <input
+            id="reset-code"
+            type="text"
+            autocomplete="off"
+            maxlength="128"
+            spellcheck="false"
+            required
+          />
+        </label>
+
+        <label class="full-width">
+          Contraseña nueva
+          <span class="optional">Mínimo 12 caracteres</span>
+          <input
+            id="reset-password"
+            type="password"
+            autocomplete="new-password"
+            minlength="12"
+            maxlength="128"
+            required
+          />
+        </label>
+
+        <div class="form-actions full-width">
+          <button
+            id="reset-submit-button"
+            class="primary-button"
+            type="submit"
+          >
+            Cambiar contraseña
+          </button>
+        </div>
+      </form>
     </section>
   </main>
 

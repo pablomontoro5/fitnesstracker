@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Gestiona tu cuenta de Fitness Tracker: contraseña y borrado de datos."
+  />
+  <title>Mi cuenta | Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body style="visibility: hidden;">
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Fitness Tracker</p>
+        <h1>Mi cuenta</h1>
+      </div>
+
+      <div class="header-actions">
+        <a class="docs-link" href="/">Volver al inicio</a>
+        <button id="logout-button" class="secondary-button" type="button">
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container auth-page">
+    <a class="back-link" href="/">← Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Tu cuenta</p>
+        <h2 id="account-name">Cargando…</h2>
+        <p id="account-details"></p>
+      </div>
+    </section>
+
+    <p
+      id="account-status"
+      class="status-message"
+      role="status"
+      aria-live="polite"
+    ></p>
+
+    <section class="auth-grid">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Seguridad</p>
+            <h2>Cambiar contraseña</h2>
+          </div>
+        </div>
+
+        <form id="change-password-form" class="form-grid">
+          <label class="full-width">
+            Contraseña actual
+            <input
+              id="current-password"
+              type="password"
+              autocomplete="current-password"
+              maxlength="128"
+              required
+            />
+          </label>
+
+          <label class="full-width">
+            Contraseña nueva
+            <span class="optional">Mínimo 12 caracteres</span>
+            <input
+              id="new-password"
+              type="password"
+              autocomplete="new-password"
+              minlength="12"
+              maxlength="128"
+              required
+            />
+          </label>
+
+          <label class="full-width">
+            Repite la contraseña nueva
+            <input
+              id="repeat-password"
+              type="password"
+              autocomplete="new-password"
+              minlength="12"
+              maxlength="128"
+              required
+            />
+          </label>
+
+          <p class="full-width">
+            Al cambiarla se cerrarán las sesiones abiertas en otros
+            dispositivos.
+          </p>
+
+          <div class="form-actions full-width">
+            <button
+              id="change-password-button"
+              class="primary-button"
+              type="submit"
+            >
+              Cambiar contraseña
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Zona peligrosa</p>
+            <h2>Borrar mi cuenta</h2>
+          </div>
+        </div>
+
+        <p class="warning-text">
+          Se borrarán tu cuenta y todos tus datos (pasos, entrenamientos,
+          running, nutrición, medidas, objetivos y plantillas). No se puede
+          deshacer.
+        </p>
+        <p>
+          Antes de borrarla puedes
+          <a href="/">descargar tus datos</a> con «Descargar exportación» del
+          panel principal.
+        </p>
+
+        <form id="delete-account-form" class="form-grid">
+          <label class="full-width">
+            Contraseña
+            <input
+              id="delete-password"
+              type="password"
+              autocomplete="current-password"
+              maxlength="128"
+              required
+            />
+          </label>
+
+          <label class="full-width checkbox-label">
+            <input id="delete-confirm" type="checkbox" required />
+            Entiendo que se borrarán todos mis datos y que no se puede
+            deshacer.
+          </label>
+
+          <div class="form-actions full-width">
+            <button
+              id="delete-account-button"
+              class="danger-button"
+              type="submit"
+            >
+              Borrar mi cuenta
+            </button>
+          </div>
+        </form>
+      </article>
+    </section>
+  </main>
+
+  <script src="/static/auth.js"></script>
+  <script src="/static/account/account.js"></script>
+</body>
+</html>
