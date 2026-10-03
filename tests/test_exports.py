@@ -302,6 +302,66 @@ def insert_full_user_data(connection, *, email: str, label: str) -> int:
         (meal_id, f"alimento-{label}", 100, 100, 5, 10, 1, 1, None),
     )
 
+    connection.execute(
+        "INSERT INTO daily_recovery_logs (user_id, date, sleep_minutes, "
+        "sleep_quality, is_rest_day, notes) VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, "2026-09-07", 450, 4, 1, f"recuperacion-{label}"),
+    )
+    connection.execute(
+        "INSERT INTO fitness_goals (user_id, goal_type, target_value) "
+        "VALUES (?, ?, ?)",
+        (user_id, "daily_steps", 9000),
+    )
+    connection.execute(
+        "INSERT INTO body_composition_goals (user_id, metric_type, "
+        "target_value, direction, start_value, started_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, "weight_kg", 68, "decrease", 72, "2026-09-01"),
+    )
+
+    template_id = connection.execute(
+        "INSERT INTO workout_templates (user_id, name, notes) "
+        "VALUES (?, ?, ?)",
+        (user_id, f"plantilla-{label}", None),
+    ).lastrowid
+    template_exercise_id = connection.execute(
+        "INSERT INTO workout_template_exercises (workout_template_id, name, "
+        "muscle_group, position, technique_notes) VALUES (?, ?, ?, ?, ?)",
+        (template_id, f"press-{label}", "pecho", 1, None),
+    ).lastrowid
+    connection.execute(
+        "INSERT INTO workout_template_sets (workout_template_exercise_id, "
+        "set_type, position, target_rep_range, repetitions, weight_kg, rir, "
+        "notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (template_exercise_id, "working", 1, "6-8", 6, 50, 2, None),
+    )
+    connection.execute(
+        "INSERT INTO planned_workouts (user_id, scheduled_date, "
+        "workout_template_id, name, notes, status, workout_session_id) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            user_id, "2026-09-10", template_id, f"plan-{label}", None,
+            "completed", session_id,
+        ),
+    )
+
+    connection.execute(
+        "INSERT INTO food_library (user_id, name, calories_per_100g, "
+        "protein_per_100g, carbs_per_100g, fat_per_100g, notes) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (user_id, f"arroz-{label}", 130, 2.7, 28, 0.3, None),
+    )
+    meal_template_id = connection.execute(
+        "INSERT INTO meal_templates (user_id, name, notes) VALUES (?, ?, ?)",
+        (user_id, f"desayuno-{label}", None),
+    ).lastrowid
+    connection.execute(
+        "INSERT INTO meal_template_items (meal_template_id, name, "
+        "quantity_g, calories_per_100g, protein_per_100g, carbs_per_100g, "
+        "fat_per_100g, position, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (meal_template_id, f"avena-{label}", 50, 370, 13, 60, 7, 1, None),
+    )
+
     return user_id
 
 
@@ -336,3 +396,64 @@ def test_create_data_export_contains_only_the_requested_users_data(
 
     assert bob_path != alice_path
     assert "alice" not in bob_path.read_text(encoding="utf-8")
+
+
+def test_export_includes_every_user_owned_table(tmp_path):
+    with get_connection() as connection:
+        user_id = insert_full_user_data(
+            connection, email="full@example.com", label="full",
+        )
+
+    data = json.loads(
+        create_data_export(user_id=user_id, exports_dir=tmp_path).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert data["format_version"] == 2
+    assert data["recovery_logs"][0]["sleep_minutes"] == 450
+    assert data["fitness_goals"] == [
+        {"id": data["fitness_goals"][0]["id"],
+         "goal_type": "daily_steps", "target_value": 9000}
+    ]
+    assert data["body_composition_goals"][0]["direction"] == "decrease"
+
+    template = data["workout_templates"][0]
+    assert template["name"] == "plantilla-full"
+    assert template["exercises"][0]["sets"][0]["target_rep_range"] == "6-8"
+
+    planned = data["planned_workouts"][0]
+    assert planned["status"] == "completed"
+    assert planned["workout_template_id"] == template["id"]
+    assert planned["workout_session_id"] == data["workout_sessions"][0]["id"]
+
+    assert data["food_library"][0]["name"] == "arroz-full"
+    assert data["meal_templates"][0]["items"][0]["name"] == "avena-full"
+    assert "meal_template_id" not in data["meal_templates"][0]["items"][0]
+
+
+def test_export_covers_all_tables_that_belong_to_a_user():
+    """Si alguien añade una tabla con datos de usuario y no la exporta,
+    este test falla en lugar de perder datos en silencio."""
+    exported_tables = {
+        "daily_logs", "daily_recovery_logs", "body_metrics",
+        "workout_sessions", "workout_exercises", "workout_sets", "runs",
+        "nutrition_days", "nutrition_meals", "nutrition_foods",
+        "food_library", "meal_templates", "meal_template_items",
+        "workout_templates", "workout_template_exercises",
+        "workout_template_sets", "fitness_goals",
+        "body_composition_goals", "planned_workouts",
+    }
+    # Datos de la instalación o de la cuenta que no son contenido del usuario.
+    not_exported = {"users", "password_resets", "invitations"}
+
+    with get_connection() as connection:
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' "
+                "AND name NOT LIKE 'sqlite_%'"
+            )
+        }
+
+    assert tables - not_exported == exported_tables

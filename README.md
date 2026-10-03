@@ -329,7 +329,7 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 | `GET` | `/goals/progress` | Consultar progreso de objetivos |
 | `DELETE` | `/goals/{goal_type}` | Eliminar un objetivo |
 | `*` | `/recovery-logs`, `/calendar`, `/planned-workouts`, `/food-library`, `/meal-templates`, `/exercise-catalog` | Recuperación, calendario, planificación, biblioteca de alimentos, plantillas de comida y catálogo de ejercicios |
-| `GET` | `/exports/fitness-tracker.json` | Descargar en JSON los datos de la cuenta autenticada |
+| `GET` | `/exports/fitness-tracker.json` | Descargar en JSON **todos** los datos de la cuenta autenticada (seguimiento, recuperación, objetivos, plantillas, calendario, biblioteca de alimentos y plantillas de comida), con `format_version` |
 | `POST` | `/backups/database` | Descargar una copia SQLite completa (administrador) |
 | `POST` | `/restores/database` | Restaurar una copia SQLite validada (administrador) |
 
