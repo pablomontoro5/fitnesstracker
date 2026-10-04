@@ -1,8 +1,7 @@
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.db import get_connection
+from app.db import Connection, IntegrityError, get_connection, is_unique_violation as _is_unique_violation
 from app.dependencies import get_current_user
 from app.schemas import (
     NutritionFoodCreate,
@@ -21,7 +20,7 @@ FOOD_COLUMNS = """
 """
 
 
-def row_to_nutrition_food(row: sqlite3.Row) -> NutritionFoodResponse:
+def row_to_nutrition_food(row: dict) -> NutritionFoodResponse:
     return NutritionFoodResponse(
         id=row["id"],
         nutrition_meal_id=row["nutrition_meal_id"],
@@ -37,7 +36,7 @@ def row_to_nutrition_food(row: sqlite3.Row) -> NutritionFoodResponse:
 
 
 def ensure_owned_nutrition_meal(
-    connection: sqlite3.Connection,
+    connection: Connection,
     meal_id: int,
     user_id: int,
 ) -> None:
@@ -101,8 +100,8 @@ def create_nutrition_food(
                 f"SELECT {FOOD_COLUMNS} FROM nutrition_foods WHERE id = ?",
                 (cursor.lastrowid,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
-        if "UNIQUE constraint failed" not in str(error):
+    except IntegrityError as error:
+        if not _is_unique_violation(error):
             raise
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -219,8 +218,8 @@ def update_nutrition_food(
                 f"SELECT {FOOD_COLUMNS} FROM nutrition_foods WHERE id = ?",
                 (food_id,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
-        if "UNIQUE constraint failed" not in str(error):
+    except IntegrityError as error:
+        if not _is_unique_violation(error):
             raise
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Copia nocturna: genera una copia SQLite verificada dentro del contenedor, la
-# cifra con age y la sube al almacenamiento remoto con rclone.
+# Copia nocturna: vuelca la base de datos de Supabase con pg_dump, la cifra con
+# age y la sube al almacenamiento remoto con rclone.
 # La copia viaja por una tubería: nunca se guarda sin cifrar en el servidor.
 #
 # Configuración en el archivo indicado por BACKUP_ENV (por defecto
@@ -11,17 +11,20 @@ ENV_FILE="${BACKUP_ENV:-/etc/fitness-tracker/backup.env}"
 # shellcheck disable=SC1090
 source "$ENV_FILE"
 
-: "${COMPOSE_DIR:?Falta COMPOSE_DIR en $ENV_FILE}"
+: "${BACKUP_DATABASE_URL:?Falta BACKUP_DATABASE_URL (conexión de Supabase) en $ENV_FILE}"
 : "${AGE_RECIPIENT:?Falta AGE_RECIPIENT (clave pública age) en $ENV_FILE}"
 : "${RCLONE_REMOTE:?Falta RCLONE_REMOTE (p. ej. b2:mi-bucket/fitness) en $ENV_FILE}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
+# La versión de pg_dump debe ser igual o superior a la de Supabase.
+PG_IMAGE="${PG_IMAGE:-postgres:17-alpine}"
 
-name="fitness_tracker_$(date -u +%Y-%m-%dT%H-%M-%SZ).db.age"
+name="fitness_tracker_$(date -u +%Y-%m-%dT%H-%M-%SZ).dump.age"
 
 # Se sube con extensión .partial y solo se renombra si toda la tubería ha ido
 # bien; así una copia truncada nunca parece una copia válida.
-docker compose --project-directory "$COMPOSE_DIR" exec -T app \
-    python -m app.cli backup --stdout \
+# La URL se pasa por entorno para que no aparezca en la lista de procesos.
+docker run --rm -e PGCONNECT_URL="$BACKUP_DATABASE_URL" "$PG_IMAGE" \
+    sh -c 'pg_dump --dbname="$PGCONNECT_URL" --format=custom --schema=public --no-owner --no-privileges' \
   | age -r "$AGE_RECIPIENT" \
   | rclone rcat "$RCLONE_REMOTE/$name.partial"
 
@@ -31,7 +34,7 @@ rclone moveto "$RCLONE_REMOTE/$name.partial" "$RCLONE_REMOTE/$name"
 # antes y no se borra nada.
 rclone delete "$RCLONE_REMOTE" \
     --min-age "${RETENTION_DAYS}d" \
-    --include "fitness_tracker_*.db.age"
+    --include "fitness_tracker_*.dump.age"
 rclone delete "$RCLONE_REMOTE" --min-age 2d --include "*.partial"
 
 # Aviso opcional de «latido» (por ejemplo healthchecks.io): si dejas de recibirlo,

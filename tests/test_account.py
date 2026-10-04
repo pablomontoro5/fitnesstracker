@@ -1,5 +1,3 @@
-import sqlite3
-from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
@@ -7,12 +5,12 @@ from fastapi import UploadFile
 from fastapi.testclient import TestClient
 
 from app.cli import main as cli_main
-from app.db import DATABASE_PATH, get_connection, initialize_database
+from app.db import get_connection
 from app.main import app
 from app.password_resets import create_password_reset
 from app.security import hash_password
-from app.services.restores import restore_database
 from tests.conftest import register_and_login
+from tests.db_helpers import foreign_keys, table_columns, table_names
 from tests.test_exports import insert_full_user_data
 
 
@@ -331,31 +329,20 @@ def test_delete_account_removes_the_user_and_all_their_data_only():
 
     with get_connection() as connection:
         assert connection.execute(
-            "SELECT COUNT(*) FROM users WHERE id = ?", (deleted_id,)
-        ).fetchone()[0] == 0
+            "SELECT COUNT(*) AS total FROM users WHERE id = ?", (deleted_id,)
+        ).fetchone()["total"] == 0
         assert connection.execute(
-            "SELECT COUNT(*) FROM users WHERE id = ?", (kept_id,)
-        ).fetchone()[0] == 1
+            "SELECT COUNT(*) AS total FROM users WHERE id = ?", (kept_id,)
+        ).fetchone()["total"] == 1
 
-        tables = [
-            row["name"]
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master "
-                "WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-            )
-        ]
-
-        for table in tables:
-            columns = {
-                row["name"]
-                for row in connection.execute(f"PRAGMA table_info({table})")
-            }
+        for table in table_names(connection):
+            columns = table_columns(connection, table)
 
             if "user_id" in columns:
                 leftovers = connection.execute(
-                    f"SELECT COUNT(*) FROM {table} WHERE user_id = ?",
+                    f"SELECT COUNT(*) AS total FROM {table} WHERE user_id = ?",
                     (deleted_id,),
-                ).fetchone()[0]
+                ).fetchone()["total"]
                 assert leftovers == 0, table
 
         # Las tablas hijas (series, ejercicios, comidas...) tampoco conservan
@@ -367,10 +354,9 @@ def test_delete_account_removes_the_user_and_all_their_data_only():
             ("nutrition_foods", 1),
         ):
             assert connection.execute(
-                f"SELECT COUNT(*) FROM {table}"
-            ).fetchone()[0] == expected, table
+                f"SELECT COUNT(*) AS total FROM {table}"
+            ).fetchone()["total"] == expected, table
 
-        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
 
     assert login("a@example.com", PASSWORD).status_code == 401
     assert client.get("/auth/me", headers=headers).status_code == 401
@@ -384,29 +370,12 @@ def test_every_table_is_reachable_from_users_through_cascades():
     no deja filas huérfanas.
     """
     with get_connection() as connection:
-        tables = [
-            row["name"]
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master "
-                "WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-            )
-        ]
-        foreign_keys = {
-            table: connection.execute(
-                f"PRAGMA foreign_key_list({table})"
-            ).fetchall()
-            for table in tables
-        }
-        columns = {
-            table: {
-                row["name"]
-                for row in connection.execute(f"PRAGMA table_info({table})")
-            }
-            for table in tables
-        }
+        tables = table_names(connection)
+        references = {table: foreign_keys(connection, table) for table in tables}
+        columns = {table: table_columns(connection, table) for table in tables}
 
     for table in tables:
-        for foreign_key in foreign_keys[table]:
+        for foreign_key in references[table]:
             if foreign_key["table"] != "users":
                 continue
 
@@ -426,7 +395,7 @@ def test_every_table_is_reachable_from_users_through_cascades():
         if table in seen:
             return False
 
-        for foreign_key in foreign_keys[table]:
+        for foreign_key in references[table]:
             if foreign_key["on_delete"] != "CASCADE":
                 continue
 
@@ -441,7 +410,7 @@ def test_every_table_is_reachable_from_users_through_cascades():
     unreachable = [
         table
         for table in tables
-        if table not in {"users", "invitations"}
+        if table not in {"users", "invitations", "schema_migrations"}
         and not cascades_from_users(table)
     ]
 
@@ -451,7 +420,7 @@ def test_every_table_is_reachable_from_users_through_cascades():
         if "user_id" in columns[table]:
             assert any(
                 fk["table"] == "users" and fk["from"] == "user_id"
-                for fk in foreign_keys[table]
+                for fk in references[table]
             ), table
 
 
@@ -464,81 +433,3 @@ def test_wrong_passwords_when_deleting_are_rate_limited():
     ]
 
     assert statuses == [400, 400, 400, 400, 400, 429]
-
-
-# --- Copias antiguas -------------------------------------------------------
-
-
-def test_restoring_an_old_backup_without_the_new_columns_keeps_logins_working(
-    tmp_path,
-):
-    register_and_login(client, email="a@example.com")
-
-    old_backup = tmp_path / "old.db"
-
-    with closing(sqlite3.connect(DATABASE_PATH)) as source:
-        with closing(sqlite3.connect(old_backup)) as destination:
-            source.backup(destination)
-            destination.execute("PRAGMA journal_mode = DELETE")
-            # Una copia hecha antes de existir la recuperación de contraseña.
-            destination.execute("DROP TABLE password_resets")
-            destination.execute("ALTER TABLE users DROP COLUMN token_version")
-            destination.commit()
-
-    restore_database(
-        upload=UploadFile(
-            filename="old.db",
-            file=BytesIO(old_backup.read_bytes()),
-        ),
-        backups_dir=tmp_path / "backups",
-    )
-
-    with get_connection() as connection:
-        columns = {
-            row["name"]
-            for row in connection.execute("PRAGMA table_info(users)")
-        }
-        tables = {
-            row["name"]
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'"
-            )
-        }
-
-    assert "token_version" in columns
-    assert "password_resets" in tables
-    assert login("a@example.com", PASSWORD).status_code == 200
-
-
-def test_initialize_database_adds_token_version_to_an_existing_users_table(
-    tmp_path, monkeypatch
-):
-    import app.db as db
-
-    monkeypatch.setattr(db, "DATABASE_PATH", tmp_path / "legacy_users.db")
-
-    with closing(sqlite3.connect(tmp_path / "legacy_users.db")) as legacy:
-        legacy.execute(
-            """
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT NOT NULL COLLATE NOCASE UNIQUE,
-                display_name TEXT NOT NULL,
-                password_hash TEXT NOT NULL,
-                is_active INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        legacy.execute(
-            "INSERT INTO users (email, display_name, password_hash) "
-            "VALUES ('x@example.com', 'X', 'hash')"
-        )
-        legacy.commit()
-
-    initialize_database()
-
-    with db.get_connection() as connection:
-        row = connection.execute("SELECT token_version FROM users").fetchone()
-
-    assert row["token_version"] == 0

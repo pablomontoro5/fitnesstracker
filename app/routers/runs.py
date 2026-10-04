@@ -1,4 +1,3 @@
-import sqlite3
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -20,7 +19,7 @@ def calculate_average_pace(
     return round(duration_seconds / distance_km, 2)
 
 
-def row_to_run(row: sqlite3.Row) -> RunResponse:
+def row_to_run(row: dict) -> RunResponse:
     return RunResponse(
         id=row["id"],
         date=date.fromisoformat(row["date"]),

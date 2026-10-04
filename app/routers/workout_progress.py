@@ -31,7 +31,7 @@ def list_exercise_names_with_progress(
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT DISTINCT exercise.name
+            SELECT DISTINCT exercise.name, LOWER(exercise.name) AS sort_name
             FROM workout_exercises AS exercise
             INNER JOIN workout_sets AS workout_set
                 ON workout_set.workout_exercise_id = exercise.id
@@ -39,7 +39,7 @@ def list_exercise_names_with_progress(
                 ON session.id = exercise.workout_session_id
             WHERE workout_set.set_type = 'working'
               AND session.user_id = ?
-            ORDER BY exercise.name COLLATE NOCASE ASC
+            ORDER BY sort_name ASC, exercise.name ASC
             """,
             (current_user.id,),
         ).fetchall()
@@ -373,7 +373,7 @@ def get_workout_personal_records(
 
     query += """
         ORDER BY
-            exercise.name COLLATE NOCASE ASC,
+            LOWER(exercise.name) ASC,
             session.date ASC,
             session.id ASC,
             workout_set.position ASC

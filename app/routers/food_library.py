@@ -1,4 +1,3 @@
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
@@ -14,7 +13,7 @@ from app.schemas import (
 router = APIRouter(prefix="/food-library", tags=["food library"])
 
 
-def row_to_food(row: sqlite3.Row) -> FoodLibraryResponse:
+def row_to_food(row: dict) -> FoodLibraryResponse:
     return FoodLibraryResponse(
         id=row["id"],
         name=row["name"],
@@ -88,7 +87,7 @@ def list_food_library_items(
                    carbs_per_100g, fat_per_100g, notes
             FROM food_library
             WHERE user_id = ?
-            ORDER BY name COLLATE NOCASE ASC, id ASC
+            ORDER BY LOWER(name) ASC, id ASC
             """,
             (current_user.id,),
         ).fetchall()

@@ -1,9 +1,8 @@
-import sqlite3
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.db import get_connection
+from app.db import IntegrityError, get_connection, is_unique_violation as _is_unique_violation
 from app.dependencies import get_current_user
 from app.schemas import (
     RecoveryLogCreate,
@@ -19,7 +18,7 @@ router = APIRouter(
 )
 
 
-def row_to_recovery_log(row: sqlite3.Row) -> RecoveryLogResponse:
+def row_to_recovery_log(row: dict) -> RecoveryLogResponse:
     return RecoveryLogResponse(
         id=row["id"],
         date=date.fromisoformat(row["date"]),
@@ -77,10 +76,8 @@ def create_recovery_log(
                 """,
                 (cursor.lastrowid, current_user.id),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
-        if "daily_recovery_logs.user_id, daily_recovery_logs.date" in str(
-            error
-        ):
+    except IntegrityError as error:
+        if _is_unique_violation(error):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(

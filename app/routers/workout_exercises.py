@@ -1,8 +1,7 @@
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.db import get_connection
+from app.db import Connection, IntegrityError, get_connection, is_unique_violation as _is_unique_violation
 from app.dependencies import get_current_user
 from app.schemas import (
     UserResponse,
@@ -27,7 +26,7 @@ WORKOUT_EXERCISE_SELECT_COLUMNS = """
 """
 
 
-def row_to_workout_exercise(row: sqlite3.Row) -> WorkoutExerciseResponse:
+def row_to_workout_exercise(row: dict) -> WorkoutExerciseResponse:
     return WorkoutExerciseResponse(
         id=row["id"],
         workout_session_id=row["workout_session_id"],
@@ -39,7 +38,7 @@ def row_to_workout_exercise(row: sqlite3.Row) -> WorkoutExerciseResponse:
 
 
 def ensure_owned_session_exists(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     session_id: int,
     user_id: int,
@@ -61,11 +60,11 @@ def ensure_owned_session_exists(
 
 
 def get_owned_exercise_row(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     exercise_id: int,
     user_id: int,
-) -> sqlite3.Row | None:
+) -> dict | None:
     return connection.execute(
         f"""
         SELECT {WORKOUT_EXERCISE_SELECT_COLUMNS}
@@ -122,7 +121,7 @@ def create_workout_exercise(
                 exercise_id=cursor.lastrowid,
                 user_id=current_user.id,
             )
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un ejercicio en esa posición para esta sesión.",
@@ -239,8 +238,8 @@ def update_workout_exercise(
                 exercise_id=exercise_id,
                 user_id=current_user.id,
             )
-    except sqlite3.IntegrityError as error:
-        if "UNIQUE constraint failed" in str(error):
+    except IntegrityError as error:
+        if _is_unique_violation(error):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Ya existe un ejercicio en esa posición para esta sesión.",

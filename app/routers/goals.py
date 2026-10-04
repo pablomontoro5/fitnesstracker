@@ -1,9 +1,8 @@
-import sqlite3
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.db import get_connection
+from app.db import Connection, get_connection
 from app.dependencies import get_current_user
 from app.schemas import (
     BodyCompositionGoalDirection,
@@ -44,7 +43,7 @@ BODY_COMPOSITION_METRIC_MAXIMUMS = {
     "thigh_cm": 300,
 }
 
-def row_to_fitness_goal(row: sqlite3.Row) -> FitnessGoalResponse:
+def row_to_fitness_goal(row: dict) -> FitnessGoalResponse:
     return FitnessGoalResponse(
         id=row["id"],
         goal_type=row["goal_type"],
@@ -53,7 +52,7 @@ def row_to_fitness_goal(row: sqlite3.Row) -> FitnessGoalResponse:
 
 
 def get_current_value(
-    connection: sqlite3.Connection,
+    connection: Connection,
     goal_type: GoalType,
     today: date,
     user_id: int,
@@ -294,7 +293,7 @@ NUTRITION_GOAL_TYPES = {
 
 
 def get_nutrition_totals(
-    connection: sqlite3.Connection,
+    connection: Connection,
     target_date: date,
     user_id: int,
 ) -> dict[str, float]:
@@ -680,7 +679,7 @@ def delete_goal(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 def row_to_body_composition_goal(
-    row: sqlite3.Row,
+    row: dict,
 ) -> BodyCompositionGoalResponse:
     return BodyCompositionGoalResponse(
         id=row["id"],
@@ -749,7 +748,7 @@ def validate_body_composition_goal(
 
 
 def get_latest_body_metric_value(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     user_id: int,
     metric_type: BodyCompositionGoalMetricType,

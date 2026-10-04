@@ -1,23 +1,21 @@
 import pytest
-from app.db import DATABASE_PATH, get_connection, initialize_database
+
+from app.db import IntegrityError, get_connection, initialize_database
+from app.schema import TABLES
+from tests.db_helpers import foreign_keys, table_columns, table_names
 
 def test_initialize_database_creates_daily_logs_table():
     # Inicializo la base de datos
     initialize_database()
     # Obtengo una conexión a la base de datos
     with get_connection() as connection:
-        table=connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='daily_logs';").fetchone()
-        assert table is not None, "La tabla 'daily_logs' no fue creada en la base de datos."
+        assert "daily_logs" in table_names(connection)
 
 def test_daily_logs_has_expected_columns():
     initialize_database()
 
     with get_connection() as connection:
-        columns = connection.execute(
-            "PRAGMA table_info(daily_logs)"
-        ).fetchall()
-
-    column_names = {column["name"] for column in columns}
+        column_names = table_columns(connection, "daily_logs")
 
     assert column_names == {
         "id",
@@ -29,31 +27,49 @@ def test_daily_logs_has_expected_columns():
     }
 
 
-def test_database_file_is_created():
+def test_initialize_database_is_idempotent_and_records_migrations():
+    initialize_database()
     initialize_database()
 
-    assert DATABASE_PATH.exists()
+    with get_connection() as connection:
+        versions = [
+            row["version"]
+            for row in connection.execute(
+                "SELECT version FROM schema_migrations ORDER BY version"
+            )
+        ]
+
+        assert versions == [1]
+        assert set(TABLES) <= set(table_names(connection))
+
+
+def test_every_table_has_row_level_security_enabled():
+    """La API REST pública de Supabase no debe poder leer ninguna tabla."""
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT relname, relrowsecurity FROM pg_class "
+            "WHERE relnamespace = 'public'::regnamespace AND relkind = 'r'"
+        ).fetchall()
+
+    without_rls = {
+        row["relname"]
+        for row in rows
+        if not row["relrowsecurity"] and row["relname"] != "schema_migrations"
+    }
+
+    assert without_rls == set()
 
 
 def test_initialize_database_creates_nutrition_tables():
     initialize_database()
     with get_connection() as connection:
-        table_names = {
-            row["name"]
-            for row in connection.execute(
-                """
-                SELECT name
-                FROM sqlite_master
-                WHERE type = 'table'
-                """
-            ).fetchall()
-        }
+        existing_tables = set(table_names(connection))
 
     assert {
         "nutrition_days",
         "nutrition_meals",
         "nutrition_foods",
-    }.issubset(table_names)
+    }.issubset(existing_tables)
 
 @pytest.mark.parametrize(
     ("table_name", "expected_columns"),
@@ -110,11 +126,9 @@ def test_user_owned_tracking_tables_have_expected_columns(
     initialize_database()
 
     with get_connection() as connection:
-        columns = connection.execute(
-            f"PRAGMA table_info({table_name})"
-        ).fetchall()
+        columns = table_columns(connection, table_name)
 
-    assert {column["name"] for column in columns} == expected_columns
+    assert columns == expected_columns
 
 @pytest.mark.parametrize(
     "table_name",
@@ -128,16 +142,13 @@ def test_user_owned_tracking_tables_reference_users(table_name: str):
     initialize_database()
 
     with get_connection() as connection:
-        foreign_keys = connection.execute(
-            f"PRAGMA foreign_key_list({table_name})"
-        ).fetchall()
+        references = foreign_keys(connection, table_name)
 
     assert any(
         foreign_key["from"] == "user_id"
         and foreign_key["table"] == "users"
-        and foreign_key["to"] == "id"
-        and foreign_key["on_delete"].upper() == "CASCADE"
-        for foreign_key in foreign_keys
+        and foreign_key["on_delete"] == "CASCADE"
+        for foreign_key in references
     )
 
 def test_body_metrics_date_is_unique_per_user():
@@ -220,10 +231,7 @@ def test_body_metrics_date_is_unique_per_user():
             ),
         )
 
-        with pytest.raises(
-            Exception,
-            match="UNIQUE constraint failed",
-        ):
+        with pytest.raises(IntegrityError):
             connection.execute(
                 """
                 INSERT INTO body_metrics (
@@ -240,100 +248,80 @@ def test_body_metrics_date_is_unique_per_user():
                     first_user_id,
                     *body_metric_values,
                 ),
-            )    
-
-def test_initialize_database_upgrades_empty_legacy_tables_without_users(
-    tmp_path, monkeypatch
-):
-    """Una base antigua y vacía (sin usuarios) debe poder arrancar."""
-    import sqlite3
-
-    import app.db as db
-
-    database_path = tmp_path / "legacy.db"
-    monkeypatch.setattr(db, "DATABASE_PATH", database_path)
-
-    legacy = sqlite3.connect(database_path)
-    legacy.executescript(
-        """
-        CREATE TABLE body_metrics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT NOT NULL, weight_kg REAL, height_cm REAL, bmi REAL,
-            body_fat_percentage REAL, waist_cm REAL, hip_cm REAL,
-            chest_cm REAL, arm_cm REAL, thigh_cm REAL, notes TEXT,
-            created_at TEXT
-        );
-        CREATE TABLE runs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT, distance_km REAL, duration_seconds INTEGER,
-            average_pace_seconds_km REAL, notes TEXT, created_at TEXT
-        );
-        CREATE TABLE workout_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT, notes TEXT, created_at TEXT
-        );
-        CREATE TABLE nutrition_days (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT NOT NULL UNIQUE, notes TEXT, created_at TEXT
-        );
-        """
-    )
-    legacy.commit()
-    legacy.close()
-
-    db.initialize_database()
-
-    with db.get_connection() as connection:
-        for table in (
-            "body_metrics",
-            "runs",
-            "workout_templates",
-            "nutrition_days",
-        ):
-            columns = {
-                row["name"]
-                for row in connection.execute(f"PRAGMA table_info({table})")
-            }
-            assert "user_id" in columns, table
+            )
 
 
-def test_initialize_database_recovers_from_interrupted_migration(
-    tmp_path, monkeypatch
-):
-    """Un intento fallido puede dejar tablas *_new; no debe bloquear."""
-    import sqlite3
+def test_emails_are_unique_ignoring_case():
+    with get_connection() as connection:
+        connection.execute(
+            "INSERT INTO users (email, display_name, password_hash) "
+            "VALUES (?, ?, ?)",
+            ("Persona@Example.com", "Persona", "hash"),
+        )
 
-    import app.db as db
+        with pytest.raises(IntegrityError):
+            connection.execute(
+                "INSERT INTO users (email, display_name, password_hash) "
+                "VALUES (?, ?, ?)",
+                ("persona@example.com", "Otra", "hash"),
+            )
 
-    database_path = tmp_path / "interrupted.db"
-    monkeypatch.setattr(db, "DATABASE_PATH", database_path)
 
-    legacy = sqlite3.connect(database_path)
-    legacy.executescript(
-        """
-        CREATE TABLE body_metrics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT NOT NULL, weight_kg REAL, height_cm REAL, bmi REAL,
-            body_fat_percentage REAL, waist_cm REAL, hip_cm REAL,
-            chest_cm REAL, arm_cm REAL, thigh_cm REAL, notes TEXT,
-            created_at TEXT
-        );
-        CREATE TABLE body_metrics_new (id INTEGER PRIMARY KEY);
-        """
-    )
-    legacy.commit()
-    legacy.close()
+def test_a_failed_transaction_leaves_no_partial_changes():
+    with pytest.raises(RuntimeError):
+        with get_connection() as connection:
+            connection.execute(
+                "INSERT INTO users (email, display_name, password_hash) "
+                "VALUES (?, ?, ?)",
+                ("rollback@example.com", "Rollback", "hash"),
+            )
+            raise RuntimeError("fallo a mitad")
 
-    db.initialize_database()
+    with get_connection() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) AS total FROM users"
+        ).fetchone()["total"] == 0
 
-    with db.get_connection() as connection:
-        columns = {
-            row["name"]
-            for row in connection.execute("PRAGMA table_info(body_metrics)")
-        }
-        leftovers = connection.execute(
-            "SELECT name FROM sqlite_master WHERE name LIKE '%\\_new' ESCAPE '\\'"
+
+def test_lastrowid_rowcount_and_literal_percent_signs_work():
+    with get_connection() as connection:
+        user_id = connection.execute(
+            "INSERT INTO users (email, display_name, password_hash) "
+            "VALUES (?, ?, ?)",
+            ("literal@example.com", "100% real? sí", "hash"),
+        ).lastrowid
+
+        assert isinstance(user_id, int)
+
+        # `?` y `%` dentro de un literal o de un LIKE no se tocan.
+        found = connection.execute(
+            "SELECT id FROM users WHERE display_name LIKE '100%' "
+            "AND display_name LIKE ?",
+            ("%real?%",),
         ).fetchall()
+        assert [row["id"] for row in found] == [user_id]
 
-    assert "user_id" in columns
-    assert leftovers == []
+        updated = connection.execute(
+            "UPDATE users SET token_version = token_version + 1 WHERE id = ?",
+            (user_id,),
+        )
+        assert updated.rowcount == 1
+
+
+def test_current_timestamp_is_stored_in_the_text_format_the_app_expects():
+    with get_connection() as connection:
+        user_id = connection.execute(
+            "INSERT INTO users (email, display_name, password_hash) "
+            "VALUES (?, ?, ?)",
+            ("ts@example.com", "TS", "hash"),
+        ).lastrowid
+        connection.execute(
+            "UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (user_id,),
+        )
+        created_at = connection.execute(
+            "SELECT created_at FROM users WHERE id = ?", (user_id,)
+        ).fetchone()["created_at"]
+
+    # "AAAA-MM-DD HH:MM:SS": lo que parsea la página de la cuenta.
+    assert len(created_at) == 19 and created_at[10] == " "

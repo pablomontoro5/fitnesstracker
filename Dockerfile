@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Usuario sin privilegios; /app/data es el volumen con la base de datos.
+# Usuario sin privilegios.
 RUN useradd --system --uid 10001 --no-create-home app
 
 WORKDIR /app
@@ -13,8 +13,6 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY app ./app
-
-RUN mkdir -p /app/data && chown -R app:app /app/data
 
 USER app
 

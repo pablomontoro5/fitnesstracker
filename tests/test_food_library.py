@@ -1,48 +1,38 @@
-import sqlite3
-from types import SimpleNamespace
-
+"""Biblioteca de alimentos contra la base de datos real."""
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import get_current_user
 from app.main import app
-from app.routers import food_library
+from tests.conftest import register_and_login
+
+
+class CurrentUser:
+    """Cambia la cuenta activa del cliente: user.id = 1 o 2."""
+
+    def __init__(self, client, accounts):
+        self._client = client
+        self._accounts = accounts
+        self.id = 1
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        self._id = value
+        self._client.headers.clear()
+        self._client.headers.update(self._accounts[value])
 
 
 @pytest.fixture
-def environment(tmp_path, monkeypatch):
-    database = tmp_path / "food_library_test.sqlite3"
-
-    def connection():
-        db = sqlite3.connect(database)
-        db.row_factory = sqlite3.Row
-        return db
-
-    with connection() as db:
-        db.execute(
-            """
-            CREATE TABLE food_library (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                calories_per_100g REAL NOT NULL,
-                protein_per_100g REAL NOT NULL,
-                carbs_per_100g REAL NOT NULL,
-                fat_per_100g REAL NOT NULL,
-                notes TEXT,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-
-    monkeypatch.setattr(food_library, "get_connection", connection)
-    user = SimpleNamespace(id=1)
-    app.dependency_overrides[get_current_user] = lambda: user
-    try:
-        with TestClient(app) as client:
-            yield client, user
-    finally:
-        app.dependency_overrides.pop(get_current_user, None)
+def environment():
+    with TestClient(app) as client:
+        accounts = {
+            1: register_and_login(client, email="uno@example.com"),
+            2: register_and_login(client, email="dos@example.com"),
+        }
+        yield client, CurrentUser(client, accounts)
 
 
 @pytest.fixture

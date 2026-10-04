@@ -1,4 +1,3 @@
-import sqlite3
 from datetime import date
 
 from fastapi import APIRouter, Depends,HTTPException, Response,status
@@ -12,7 +11,7 @@ router = APIRouter(
 )
 
 
-def row_to_workout_session(row: sqlite3.Row) -> WorkoutSessionResponse:
+def row_to_workout_session(row: dict) -> WorkoutSessionResponse:
     return WorkoutSessionResponse(
         id=row["id"],
         date=date.fromisoformat(row["date"]),

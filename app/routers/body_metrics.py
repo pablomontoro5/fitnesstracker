@@ -1,9 +1,8 @@
-import sqlite3
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from app.db import get_connection
+from app.db import IntegrityError, get_connection
 from app.dependencies import get_current_user
 from app.schemas import (
     BodyCompositionChanges,
@@ -68,7 +67,7 @@ def calculate_lean_mass_kg(
     return round(weight_kg - fat_mass_kg, 2)
 
 
-def row_to_body_metric(row: sqlite3.Row) -> BodyMetricResponse:
+def row_to_body_metric(row: dict) -> BodyMetricResponse:
     body_fat_percentage = row["body_fat_percentage"]
 
     return BodyMetricResponse(
@@ -96,7 +95,7 @@ def row_to_body_metric(row: sqlite3.Row) -> BodyMetricResponse:
 
 
 def row_to_composition_record(
-    row: sqlite3.Row,
+    row: dict,
 ) -> BodyCompositionProgressRecord:
     body_fat_percentage = row["body_fat_percentage"]
 
@@ -195,7 +194,7 @@ def create_body_metric(
                 """,
                 (cursor.lastrowid, current_user.id),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe una medición para esta fecha.",
@@ -369,7 +368,7 @@ def update_body_metric(
                 """,
                 (metric_id, current_user.id),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe una medición para esta fecha.",

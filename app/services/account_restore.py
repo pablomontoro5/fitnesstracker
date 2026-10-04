@@ -8,8 +8,9 @@ planificadas, etc.).
 Una sección ausente en el fichero se deja como está; una sección presente
 sustituye por completo a la actual (aunque venga vacía).
 """
-import sqlite3
 from datetime import date
+
+from app.db import Connection
 
 from app.services.exports import EXPORT_FORMAT_VERSION
 
@@ -158,13 +159,13 @@ def _insert_children(
 
 
 def restore_account_data(
-    connection: sqlite3.Connection,
+    connection: Connection,
     user_id: int,
     data,
 ) -> dict[str, int]:
     """Aplica la exportación dentro de la transacción de `connection`.
 
-    Lanza InvalidExport o sqlite3.IntegrityError; quien llama debe revertir.
+    Lanza InvalidExport o IntegrityError; quien llama debe revertir.
     """
     if not isinstance(data, dict) or "exported_at" not in data:
         raise InvalidExport("El archivo no es una exportación de Fitness Tracker.")

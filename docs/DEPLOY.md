@@ -2,14 +2,17 @@
 
 Guía paso a paso para publicar la aplicación con HTTPS, usuarios reales y copias
 de seguridad cifradas fuera del servidor. Pensada para pocos usuarios (unos 5 al
-empezar) con SQLite en un único servidor.
+empezar). La aplicación (FastAPI) corre en un servidor propio; los datos viven en
+una base **PostgreSQL de Supabase**. Supabase se usa solo como base de datos: la
+autenticación sigue siendo la de la aplicación.
 
 ```
 Internet ──443──▶ Caddy (HTTPS automático) ──▶ FastAPI (contenedor "app")
-                                                   │
-                                          volumen Docker: base de datos SQLite
-                                                   │
-                      copia nocturna ──▶ age (cifrado) ──▶ rclone ──▶ almacenamiento externo (S3/B2)
+                                                   │  (PostgreSQL por SSL)
+                                                   ▼
+                                           Supabase (PostgreSQL, región UE)
+                                                   ▲
+   copia nocturna: pg_dump ──▶ age (cifrado) ──▶ rclone ──▶ almacenamiento externo (S3/B2)
 ```
 
 ## 0. Qué necesitas
@@ -17,10 +20,11 @@ Internet ──443──▶ Caddy (HTTPS automático) ──▶ FastAPI (contene
 | Cosa | Para qué | Coste orientativo |
 | --- | --- | --- |
 | Un VPS en la UE (p. ej. Hetzner Cloud, plan más pequeño, Ubuntu 24.04) | Ejecutar la app | Unos pocos euros al mes. **Comprueba el precio actual**: Hetzner subió tarifas en 2026 |
+| Un proyecto de Supabase en la UE | Base de datos PostgreSQL | Plan gratuito para empezar. **Comprueba en su página de precios** qué incluye: los proyectos gratuitos se pausan tras un tiempo sin actividad y no garantizan copias propias, por eso mantenemos la copia nocturna cifrada |
 | Un dominio | HTTPS con certificado propio | ≈10 €/año |
 | Una cuenta de almacenamiento S3 compatible (p. ej. Backblaze B2) | Guardar las copias fuera del servidor | Céntimos al mes con una base de datos pequeña |
 
-Contratar el servidor, comprar el dominio y crear la cuenta de almacenamiento (pasos 1, 2 y 6.2) solo puedes hacerlo tú.
+Contratar el servidor, comprar el dominio y crear las cuentas de Supabase y de almacenamiento (pasos 1, 2, 3b y 6.2) solo puedes hacerlo tú.
 
 ## 1. Servidor
 
@@ -43,7 +47,28 @@ Si el servidor tiene IPv6, añade también un registro **AAAA**. La propagación
 puede tardar desde unos minutos hasta unas horas; Caddy no podrá obtener el
 certificado hasta que el dominio apunte al servidor.
 
-## 3. Preparar el servidor
+## 3. Base de datos en Supabase
+
+1. En [supabase.com](https://supabase.com) crea un proyecto. Elige una región de
+   la UE (la misma o la más cercana a tu servidor) y una **contraseña de base de
+   datos** larga: guárdala en tu gestor de contraseñas.
+2. Pulsa **Connect** y copia la cadena de conexión. Elige según dónde corra la app:
+   - **Session pooler** (puerto 5432, `aws-0-REGIÓN.pooler.supabase.com`): funciona
+     por IPv4. Es la opción recomendada si tu VPS no tiene IPv6.
+   - **Conexión directa** (`db.PROYECTO.supabase.co:5432`): solo IPv6 salvo que
+     contrates el complemento IPv4 de Supabase. Úsala si tu servidor tiene IPv6.
+   - El **Transaction pooler** (puerto 6543) también funciona (la aplicación
+     desactiva las sentencias preparadas), pero no hace falta con un servidor fijo.
+3. Sustituye `[PASSWORD]` por tu contraseña (si tiene `@`, `/`, `:` o `#`,
+   codifícalos: `%40`, `%2F`, `%3A`, `%23`). Esa URL es
+   `FITNESS_TRACKER_DATABASE_URL`.
+4. No hace falta crear tablas: la aplicación las crea sola al arrancar (migraciones
+   versionadas en `schema_migrations`) y activa la seguridad por filas (RLS) en todas,
+   de modo que la API REST pública de Supabase no puede leer ningún dato. **No uses
+   la clave `anon` ni `service_role` en la aplicación**: solo la cadena de conexión.
+5. En el panel, *Authentication → Providers*, no actives nada: no se usa.
+
+## 3b. Preparar el servidor
 
 Conéctate como `root` y crea un usuario normal:
 
@@ -106,34 +131,32 @@ En `.env` rellena:
 - `FITNESS_TRACKER_JWT_SECRET`: genera uno con
   `python3 -c "import secrets; print(secrets.token_hex(32))"`.
   **Guárdalo en tu gestor de contraseñas.** Si lo cambias, todas las sesiones se cierran.
-- `FITNESS_TRACKER_ADMIN_EMAILS`: tu email.
+- `FITNESS_TRACKER_DATABASE_URL`: la cadena de conexión de Supabase del paso 3.
 - Deja `FITNESS_TRACKER_REGISTRATION_MODE=invite`.
 
 ```bash
 chmod 600 .env
 docker compose up -d --build
-docker compose ps                 # app debe estar «healthy»
+docker compose ps                 # app debe estar «healthy» (si no, ver la URL de la base de datos)
 docker compose logs -f caddy      # busca que el certificado se ha obtenido
 ```
 
 Abre `https://tu-dominio`. Si no carga, mira la sección *Problemas frecuentes*.
 
-## 5. Crear tu cuenta de administrador
+## 5. Crear tu cuenta
 
 ```bash
 docker compose exec app python -m app.cli create-invite
 ```
 
-Copia el código, entra en la web, pulsa «Crear cuenta» y regístrate con el email
-que pusiste en `FITNESS_TRACKER_ADMIN_EMAILS`. Esa cuenta podrá usar Backups y
-Restauración.
+Copia el código, entra en la web, pulsa «Crear cuenta» y regístrate.
 
 Para cada persona nueva, genera otro código y envíaselo por un canal privado.
 Cada código sirve una vez y caduca a los 7 días.
 
 ## 6. Copias de seguridad nocturnas cifradas
 
-La copia se genera dentro del contenedor, se verifica, se cifra con una clave
+La copia es un volcado de PostgreSQL (`pg_dump`) que se cifra con una clave
 pública (`age`) y se sube a un almacenamiento externo. Nunca queda una copia sin
 cifrar en el servidor. Se conservan los últimos 14 días de copias (configurable con `RETENTION_DAYS`).
 
@@ -172,7 +195,9 @@ sudo chmod 600 /etc/fitness-tracker/backup.env
 Contenido de `backup.env`:
 
 ```bash
-COMPOSE_DIR=/opt/fitnesstracker
+# Para pg_dump usa la conexión directa (o el Session pooler si no hay IPv6),
+# nunca el Transaction pooler.
+BACKUP_DATABASE_URL=postgresql://postgres.PROYECTO:[PASSWORD]@aws-0-REGION.pooler.supabase.com:5432/postgres
 AGE_RECIPIENT=age1...                  # la clave PÚBLICA
 RCLONE_REMOTE=b2:nombre-del-bucket/fitness
 RETENTION_DAYS=14
@@ -210,8 +235,10 @@ export RCLONE_REMOTE=b2:nombre-del-bucket/fitness
 deploy/verify-backup.sh fitness-backup-key.txt
 ```
 
-Descarga la última copia, la descifra y comprueba su integridad. Hazlo la primera
-vez y después una vez al mes.
+Descarga la última copia, la descifra y comprueba con `pg_restore --list` que es
+un volcado válido con las tablas de la aplicación (necesita Docker en tu
+ordenador). Hazlo la primera vez y después una vez al mes. Una vez, además, haz una
+restauración completa de prueba (sección 8) en una base vacía.
 
 ## 7. Operación diaria
 
@@ -233,23 +260,36 @@ docker compose up -d --build
 docker compose logs --tail 50 app
 ```
 
-Los datos están en un volumen de Docker y no se tocan al reconstruir. Haz una
-copia manual (`sudo deploy/backup.sh`) antes de actualizar si el cambio toca la base de datos.
+Los datos están en Supabase y no se tocan al reconstruir. Si una versión nueva
+incluye una migración, se aplica sola al arrancar. Haz una copia manual
+(`sudo deploy/backup.sh`) antes de actualizar si el cambio toca la base de datos.
 
 ## 8. Restaurar una copia
 
-1. Descarga la copia de tu almacenamiento y descífrala **en tu ordenador**:
-   ```bash
-   rclone copyto b2:nombre-del-bucket/fitness/fitness_tracker_FECHA.db.age copia.db.age
-   age -d -i fitness-backup-key.txt -o copia.db copia.db.age
-   ```
-2. Entra en la web como administrador, abre **Backups** y sube `copia.db` en
-   «Restaurar». La app guarda antes una copia de seguridad del estado actual.
+Restaurar sustituye los datos de **todas** las cuentas por los de la copia, así que
+es una operación de emergencia. Se hace desde tu ordenador (con Docker):
 
-**Si has perdido el servidor entero:** repite los pasos 1 a 5 en un servidor nuevo
-(usa el mismo `FITNESS_TRACKER_JWT_SECRET` si lo tienes, para que no se cierren las
-sesiones), regístrate como administrador con una invitación nueva y restaura la copia
-como en el punto anterior. Las cuentas y datos vuelven con ella.
+1. Descarga la copia y descífrala:
+   ```bash
+   rclone copyto b2:nombre-del-bucket/fitness/fitness_tracker_FECHA.dump.age copia.dump.age
+   age -d -i fitness-backup-key.txt -o copia.dump copia.dump.age
+   ```
+2. Para el contenedor `app` en el servidor (`docker compose stop app`) para que
+   nadie escriba mientras restauras.
+3. Restaura en la base de Supabase (misma URL que `BACKUP_DATABASE_URL`).
+   `--clean --if-exists` borra y recrea las tablas de la copia:
+   ```bash
+   docker run --rm -v "$PWD:/b:ro" postgres:17-alpine \
+     pg_restore --dbname="postgresql://postgres.PROYECTO:[PASSWORD]@aws-0-REGION.pooler.supabase.com:5432/postgres" \
+     --clean --if-exists --no-owner --no-privileges /b/copia.dump
+   ```
+4. Arranca de nuevo la app (`docker compose start app`): comprobará que el
+   esquema está al día y que la seguridad por filas sigue activada.
+
+**Si has perdido el servidor de la app:** los datos siguen en Supabase. Repite los
+pasos 1 a 4 en un servidor nuevo con el mismo `FITNESS_TRACKER_DATABASE_URL` y el mismo
+`FITNESS_TRACKER_JWT_SECRET` (así no se cierran las sesiones). **Si has perdido la
+base de datos**, crea un proyecto nuevo, cambia la URL y restaura la última copia.
 
 ### Restaurar los datos de una sola persona
 
@@ -257,7 +297,7 @@ Si solo hace falta recuperar a un usuario (borró algo por error), no restaures
 la base entera: esa persona sube su exportación JSON en **Mi cuenta → Restaurar
 desde una exportación**. Solo se sustituyen sus datos y nadie más se ve afectado.
 Una persona que no conserve su exportación no puede usar este método; para ella
-tendrías que extraer sus datos de una copia SQLite en un entorno aparte.
+tendrías que restaurar la copia en una base aparte y extraer sus datos de ahí.
 
 ## 9. Lista de comprobación de seguridad
 
@@ -265,6 +305,7 @@ tendrías que extraer sus datos de una copia SQLite en un entorno aparte.
 - [ ] `FITNESS_TRACKER_REGISTRATION_MODE=invite`.
 - [ ] Acceso SSH solo con clave, sin `root`, `ufw` activo.
 - [ ] La clave privada de `age` guardada en dos sitios y **no** en el servidor.
+- [ ] La contraseña de la base de datos de Supabase en tu gestor de contraseñas, y ninguna clave `anon`/`service_role` en la app.
 - [ ] Una copia restaurada y verificada (`verify-backup.sh`).
 - [ ] Alerta de «latido» configurada para saber si las copias se paran.
 
@@ -278,11 +319,15 @@ tendrías que extraer sus datos de una copia SQLite en un entorno aparte.
 - La documentación interactiva (`/docs`, `/redoc`) está desactivada por defecto.
   No pongas `FITNESS_TRACKER_ENABLE_DOCS` en producción.
 - Los registros (inicios de sesión, fallos, cambios de contraseña, borrados,
-  copias y restauraciones) salen por la salida estándar: `docker compose logs -f app`.
+  cambios de datos de la cuenta) salen por la salida estándar: `docker compose logs -f app`.
   No incluyen emails, contraseñas, tokens ni códigos; las cuentas aparecen por id.
-- La restauración sustituye la base de datos **completa** (todas las cuentas).
-  Al restaurar una copia reaparecen las cuentas que se borraron después de ella:
-  si hubo solicitudes de borrado, vuelve a aplicarlas.
+- Restaurar una copia completa sustituye los datos de **todas** las cuentas y
+  hace reaparecer las cuentas que se borraron después de ella: si hubo
+  solicitudes de borrado, vuelve a aplicarlas.
+- El plan gratuito de Supabase pausa los proyectos inactivos y tiene límites de
+  tamaño y de conexiones; la app usa un máximo de conexiones pequeño
+  (`FITNESS_TRACKER_DB_POOL_MAX`, 10 por defecto). Con usuarios reales, valora el
+  plan de pago.
 - **Datos personales:** la app guarda datos de salud y actividad. Con usuarios
   reales, informa de qué datos guardas, para qué y cómo pueden pedir su borrado
   (RGPD). Esto no es asesoramiento legal. Cada usuario puede borrar su cuenta
@@ -295,7 +340,11 @@ tendrías que extraer sus datos de una copia SQLite en un entorno aparte.
   no apunta aún al servidor, o los puertos 80/443 están cerrados. Comprueba el DNS
   (`dig +short tu-dominio`) y `docker compose logs caddy`.
 - **`app` no llega a «healthy»:** mira `docker compose logs app`. Lo más habitual es
-  un `FITNESS_TRACKER_JWT_SECRET` ausente o de menos de 32 bytes.
+  un `FITNESS_TRACKER_JWT_SECRET` ausente o de menos de 32 bytes, o una
+  `FITNESS_TRACKER_DATABASE_URL` incorrecta: contraseña mal codificada, o conexión
+  directa desde un servidor sin IPv6 (usa el Session pooler).
+- **Primera petición muy lenta tras días sin uso:** el proyecto gratuito de
+  Supabase estaba pausado; reactívalo desde su panel.
 - **«Se necesita un código de invitación válido»:** el código ya se usó, caducó o
   se copió incompleto (comprueba la primera letra).
 - **Muchos «429 Demasiados intentos» para todos los usuarios:** el limitador está

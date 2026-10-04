@@ -1,9 +1,8 @@
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.db import get_connection
+from app.db import Connection, IntegrityError, get_connection
 from app.logging_config import logger
 from app.invitations import (
     consume_invitation,
@@ -49,7 +48,7 @@ router = APIRouter(
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def row_to_user(row: sqlite3.Row) -> UserResponse:
+def row_to_user(row: dict) -> UserResponse:
     return UserResponse(
         id=row["id"],
         email=row["email"],
@@ -151,7 +150,7 @@ def register_user(user: UserRegister, request: Request) -> UserResponse:
                 """,
                 (cursor.lastrowid,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         logger.info("Registro: email ya existente ip=%s", client_ip)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -244,10 +243,10 @@ def check_password_attempts(user_id: int) -> str:
 
 
 def get_verified_password_row(
-    connection: sqlite3.Connection,
+    connection: Connection,
     user_id: int,
     password: str,
-) -> sqlite3.Row:
+) -> dict:
     """Comprueba la contraseña actual; cuenta los fallos para limitarlos."""
     key = check_password_attempts(user_id)
 

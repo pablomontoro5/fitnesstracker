@@ -6,13 +6,12 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.db import DATABASE_PATH, initialize_database
+from app.db import close_pool, initialize_database
 from app.invitations import get_registration_mode
 from app.logging_config import configure_logging, logger
 from app.security import get_jwt_secret
 from app.routers import (
     auth,
-    backups,
     body_metrics,
     calendar,
     daily_logs,
@@ -58,12 +57,12 @@ async def lifespan(app: FastAPI):
     registration_mode = get_registration_mode()
     initialize_database()
     logger.info(
-        "Arranque: registro=%s docs=%s base_de_datos=%s",
+        "Arranque: registro=%s docs=%s",
         registration_mode,
         "activadas" if docs_enabled() else "desactivadas",
-        DATABASE_PATH,
     )
     yield
+    close_pool()
 
 
 app = FastAPI(
@@ -87,7 +86,6 @@ app.include_router(workout_sets.router)
 app.include_router(workout_progress.router)
 app.include_router(runs.router)
 app.include_router(statistics.router)
-app.include_router(backups.router)
 app.include_router(exports.router)
 app.include_router(restores.router)
 app.include_router(workout_templates.router)

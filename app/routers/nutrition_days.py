@@ -1,9 +1,8 @@
-import sqlite3
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.db import get_connection
+from app.db import IntegrityError, get_connection
 from app.dependencies import get_current_user
 from app.schemas import (
     NutritionDayCreate,
@@ -19,7 +18,7 @@ router = APIRouter(
 )
 
 
-def row_to_nutrition_day(row: sqlite3.Row) -> NutritionDayResponse:
+def row_to_nutrition_day(row: dict) -> NutritionDayResponse:
     return NutritionDayResponse(
         id=row["id"],
         date=date.fromisoformat(row["date"]),
@@ -58,7 +57,7 @@ def create_nutrition_day(
                 """,
                 (cursor.lastrowid, current_user.id),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un registro nutricional para esta fecha.",

@@ -1,4 +1,6 @@
+import atexit
 import os
+import tempfile
 
 os.environ["FITNESS_TRACKER_TESTING"] = "1"
 os.environ["FITNESS_TRACKER_JWT_SECRET"] = (
@@ -8,9 +10,35 @@ os.environ["FITNESS_TRACKER_JWT_SECRET"] = (
 os.environ["FITNESS_TRACKER_REGISTRATION_MODE"] = "open"
 os.environ["FITNESS_TRACKER_ACCESS_TOKEN_MINUTES"] = "60"
 
+# Los tests vacían las tablas: NUNCA deben apuntar a una base real. Se usa
+# FITNESS_TRACKER_TEST_DATABASE_URL (p. ej. el servicio de PostgreSQL de CI) o,
+# si no existe, un PostgreSQL temporal y local que levanta `pgserver`.
+os.environ.pop("FITNESS_TRACKER_DATABASE_URL", None)
+_test_database_url = os.environ.get("FITNESS_TRACKER_TEST_DATABASE_URL")
+
+if not _test_database_url:
+    try:
+        import pgserver
+    except ImportError as error:  # pragma: no cover
+        raise RuntimeError(
+            "Define FITNESS_TRACKER_TEST_DATABASE_URL o instala "
+            "requirements-dev.txt (pgserver)."
+        ) from error
+
+    _postgres = pgserver.get_server(
+        tempfile.mkdtemp(prefix="fitness-tracker-pg-"),
+        cleanup_mode="stop",
+    )
+    atexit.register(_postgres.cleanup)
+    _test_database_url = _postgres.get_uri()
+
+os.environ["FITNESS_TRACKER_DATABASE_URL"] = _test_database_url
+
 import pytest
+from fastapi.testclient import TestClient
 
 from app.db import get_connection, initialize_database
+from app.schema import TABLES
 from app.rate_limit import reset_rate_limits
 
 
@@ -19,42 +47,12 @@ def clean_database():
     initialize_database()
     reset_rate_limits()
 
+    tables = ", ".join(TABLES)
+
     with get_connection() as connection:
-        connection.execute("DELETE FROM fitness_goals")
-        connection.execute("DELETE FROM body_composition_goals")
-
-        connection.execute("DELETE FROM nutrition_foods")
-        connection.execute("DELETE FROM nutrition_meals")
-        connection.execute("DELETE FROM nutrition_days")
-
-        connection.execute("DELETE FROM planned_workouts")
-
-        connection.execute("DELETE FROM workout_template_sets")
-        connection.execute("DELETE FROM workout_template_exercises")
-        connection.execute("DELETE FROM workout_templates")
-
-        connection.execute("DELETE FROM workout_sets")
-        connection.execute("DELETE FROM workout_exercises")
-        connection.execute("DELETE FROM workout_sessions")
-
-        connection.execute("DELETE FROM body_metrics")
-        connection.execute("DELETE FROM daily_recovery_logs")
-        connection.execute("DELETE FROM daily_logs")
-        connection.execute("DELETE FROM runs")
-
-        connection.execute("DELETE FROM invitations")
-        connection.execute("DELETE FROM password_resets")
-        connection.execute("DELETE FROM users")
-
-        connection.execute("DELETE FROM meal_template_items")
-        connection.execute("DELETE FROM meal_templates")
-        connection.execute("DELETE FROM food_library")
+        connection.execute(f"TRUNCATE {tables} RESTART IDENTITY CASCADE")
 
     yield
-
-    initialize_database()
-
-from fastapi.testclient import TestClient
 
 
 def register_and_login(

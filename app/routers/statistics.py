@@ -463,9 +463,9 @@ def get_activity_statistics(
                 COUNT(DISTINCT workout_exercises.id) AS exercises,
                 COUNT(workout_sets.id) AS working_sets,
                 COALESCE(SUM(workout_sets.repetitions), 0) AS repetitions,
-                TOTAL(
+                COALESCE(SUM(
                     workout_sets.repetitions * workout_sets.weight_kg
-                ) AS volume_kg
+                ), 0) AS volume_kg
             FROM workout_sessions
             LEFT JOIN workout_exercises
                 ON workout_exercises.workout_session_id = workout_sessions.id
@@ -481,7 +481,7 @@ def get_activity_statistics(
             """
             SELECT
                 COUNT(*) AS runs,
-                COALESCE(TOTAL(distance_km), 0) AS distance_km,
+                COALESCE(SUM(distance_km), 0) AS distance_km,
                 COALESCE(SUM(duration_seconds), 0) AS duration_seconds
             FROM runs
             WHERE user_id = ? AND date BETWEEN ? AND ?
@@ -622,7 +622,7 @@ def get_activity_charts(
             """
             SELECT
                 date,
-                ROUND(SUM(distance_km), 2) AS distance_km
+                ROUND((SUM(distance_km))::numeric, 2)::float8 AS distance_km
             FROM runs
             WHERE user_id = ? AND date BETWEEN ? AND ?
             GROUP BY date
@@ -749,16 +749,16 @@ def get_statistics_workout_volume(
             """
             SELECT
                 workout_sessions.date AS date,
-                ROUND(
+                ROUND((
                     COALESCE(
                         SUM(
                             workout_sets.repetitions
                             * workout_sets.weight_kg
                         ),
                         0
-                    ),
+                    ))::numeric,
                     2
-                ) AS volume_kg,
+                )::float8 AS volume_kg,
                 COUNT(workout_sets.id) AS working_sets,
                 COALESCE(
                     SUM(workout_sets.repetitions),
@@ -949,16 +949,16 @@ def get_statistics_workout_volume(
             """
             SELECT
                 workout_sessions.date AS date,
-                ROUND(
+                ROUND((
                     COALESCE(
                         SUM(
                             workout_sets.repetitions
                             * workout_sets.weight_kg
                         ),
                         0
-                    ),
+                    ))::numeric,
                     2
-                ) AS volume_kg,
+                )::float8 AS volume_kg,
                 COUNT(workout_sets.id) AS working_sets,
                 COALESCE(
                     SUM(workout_sets.repetitions),
@@ -1107,7 +1107,7 @@ def get_activity_charts(
             """
             SELECT
                 date,
-                ROUND(SUM(distance_km), 2) AS distance_km
+                ROUND((SUM(distance_km))::numeric, 2)::float8 AS distance_km
             FROM runs
             WHERE user_id = ? AND date BETWEEN ? AND ?
             GROUP BY date

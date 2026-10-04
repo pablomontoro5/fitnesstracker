@@ -7,10 +7,11 @@ revela códigos válidos.
 import hashlib
 import os
 import secrets
-import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
+
+from app.db import Connection
 
 
 REGISTRATION_MODE_ENV = "FITNESS_TRACKER_REGISTRATION_MODE"
@@ -39,7 +40,7 @@ def hash_invitation_code(code: str) -> str:
 
 
 def create_invitation(
-    connection: sqlite3.Connection,
+    connection: Connection,
     days: int = DEFAULT_INVITATION_DAYS,
     now: datetime | None = None,
 ) -> tuple[str, str]:
@@ -71,7 +72,7 @@ def invalid_invitation() -> HTTPException:
 
 
 def find_valid_invitation_id(
-    connection: sqlite3.Connection,
+    connection: Connection,
     code: str | None,
 ) -> int:
     """Devuelve el id de la invitación o lanza 403 (mismo error siempre)."""
@@ -96,7 +97,7 @@ def find_valid_invitation_id(
 
 
 def consume_invitation(
-    connection: sqlite3.Connection,
+    connection: Connection,
     invitation_id: int,
     user_id: int,
 ) -> None:

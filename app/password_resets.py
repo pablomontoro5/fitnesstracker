@@ -6,10 +6,11 @@ persona por un canal privado. Solo se guarda su hash.
 """
 import hashlib
 import secrets
-import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
+
+from app.db import Connection
 
 
 DEFAULT_RESET_MINUTES = 60
@@ -25,7 +26,7 @@ def hash_reset_code(code: str) -> str:
 
 
 def create_password_reset(
-    connection: sqlite3.Connection,
+    connection: Connection,
     user_id: int,
     minutes: int = DEFAULT_RESET_MINUTES,
     now: datetime | None = None,
@@ -73,7 +74,7 @@ def invalid_reset() -> HTTPException:
 
 
 def find_valid_reset_id(
-    connection: sqlite3.Connection,
+    connection: Connection,
     user_id: int,
     code: str,
 ) -> int:
@@ -96,7 +97,7 @@ def find_valid_reset_id(
 
 
 def consume_password_reset(
-    connection: sqlite3.Connection,
+    connection: Connection,
     reset_id: int,
 ) -> None:
     cursor = connection.execute(

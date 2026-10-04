@@ -1,9 +1,8 @@
-import sqlite3
 from datetime import date
 from fastapi import APIRouter, Depends,HTTPException, Response, status
 from app.dependencies import get_current_user
 
-from app.db import get_connection
+from app.db import IntegrityError, get_connection
 from app.schemas import (
     UserResponse,
     WorkoutSessionResponse,
@@ -25,7 +24,7 @@ router = APIRouter(
 
 
 def row_to_workout_template(
-    row: sqlite3.Row,
+    row: dict,
 ) -> WorkoutTemplateResponse:
     return WorkoutTemplateResponse(
         id=row["id"],
@@ -34,7 +33,7 @@ def row_to_workout_template(
     )
 
 def row_to_workout_template_exercise(
-    row: sqlite3.Row,
+    row: dict,
 ) -> WorkoutTemplateExerciseResponse:
     return WorkoutTemplateExerciseResponse(
         id=row["id"],
@@ -71,7 +70,7 @@ def ensure_workout_template_exists(
         )
 
 def row_to_workout_template_set(
-    row: sqlite3.Row,
+    row: dict,
 ) -> WorkoutTemplateSetResponse:
     return WorkoutTemplateSetResponse(
         id=row["id"],
@@ -296,7 +295,7 @@ def create_workout_template_exercise(
                 """,
                 (cursor.lastrowid,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
@@ -392,7 +391,7 @@ def update_workout_template_exercise(
                 """,
                 (exercise_id,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
@@ -486,7 +485,7 @@ def create_workout_template_set(
                 """,
                 (cursor.lastrowid,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
@@ -598,7 +597,7 @@ def update_workout_template_set(
                 """,
                 (set_id,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(

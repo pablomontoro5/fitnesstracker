@@ -2,7 +2,7 @@
 
 **Fitness Tracker** es una aplicación web personal para centralizar el seguimiento diario de actividad, entrenamientos de gimnasio, running, alimentación, composición corporal y objetivos de actividad.
 
-El proyecto sigue una arquitectura incremental: backend modular con FastAPI, persistencia local con SQLite, API documentada automáticamente, pruebas con Pytest y un frontend responsive en HTML, CSS y JavaScript. La aplicación admite varias cuentas con datos aislados por usuario y registro por invitación, y está pensada para desplegarse en un servidor propio. Más adelante podrá evolucionar a PWA o a un cliente móvil conectado a la misma API.
+El proyecto sigue una arquitectura incremental: backend modular con FastAPI, persistencia en PostgreSQL (Supabase), API documentada automáticamente, pruebas con Pytest y un frontend responsive en HTML, CSS y JavaScript. La aplicación admite varias cuentas con datos aislados por usuario y registro por invitación, y está pensada para desplegarse con la API en un servidor propio y la base de datos en Supabase. Más adelante podrá evolucionar a PWA o a un cliente móvil conectado a la misma API.
 
 ---
 
@@ -18,7 +18,7 @@ Registrar en un único lugar datos que normalmente quedan repartidos entre notas
 - Comidas, alimentos, calorías y macronutrientes diarios.
 - Peso, altura, IMC y evolución corporal.
 - Objetivos de pasos diarios, entrenamientos semanales y kilómetros de running semanales.
-- Exportación JSON y copias de seguridad/restauración de la base SQLite.
+- Exportación JSON y restauración por usuario; copia nocturna cifrada de la base de datos.
 
 ---
 
@@ -88,10 +88,8 @@ Registrar en un único lugar datos que normalmente quedan repartidos entre notas
 ### Datos y copias de seguridad
 
 - Exportar a JSON los datos de la cuenta autenticada (cada usuario solo recibe los suyos).
-- Descargar una copia completa de la base SQLite (solo administradores).
-- Restaurar una copia SQLite desde la interfaz (solo administradores).
-- Validar integridad SQLite, tablas necesarias y columnas obligatorias antes de restaurar.
-- Crear automáticamente un backup de seguridad antes de reemplazar los datos activos.
+- Restaurar los datos de una cuenta desde su propia exportación JSON, sin tocar a las demás.
+- Copia nocturna cifrada de la base de datos completa (`pg_dump` + `age` + `rclone`), fuera de la aplicación: ver [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ---
 
@@ -102,7 +100,7 @@ Registrar en un único lugar datos que normalmente quedan repartidos entre notas
 - **Registro rápido:** los campos esenciales son obligatorios; notas y datos adicionales son opcionales.
 - **Fuente de verdad en el backend:** los cálculos de ritmo, IMC, volumen y progreso de objetivos se realizan en la API.
 - **Sin afirmaciones médicas:** peso e IMC son métricas de seguimiento, no diagnósticos ni recomendaciones sanitarias.
-- **Seguridad de datos local:** las restauraciones validan el archivo y generan una copia de protección antes de modificar la base activa.
+- **Datos aislados:** cada consulta filtra por usuario y las tablas tienen seguridad por filas (RLS) activada, para que la API REST pública de Supabase no pueda leerlas.
 
 ---
 
@@ -112,9 +110,8 @@ Registrar en un único lugar datos que normalmente quedan repartidos entre notas
 
 - Python
 - FastAPI
-- SQLite mediante `sqlite3`
+- PostgreSQL (Supabase) mediante `psycopg` 3 con pool de conexiones
 - Pydantic para validación de datos
-- `python-multipart` para subida de copias SQLite
 - Pytest y HTTPX para pruebas
 
 ### Frontend
@@ -152,7 +149,6 @@ Con la aplicación en ejecución, las vistas principales están disponibles en:
 | `/static/food-library/` | Biblioteca de alimentos y plantillas de comida (también se usan desde `/static/nutrition/`) |
 | `/static/goals/` | Configuración y seguimiento de objetivos de actividad |
 | `/static/login/` | Inicio de sesión y registro (con código de invitación) |
-| `/static/backups/` | Descarga y restauración de copias SQLite (solo administradores) |
 | `/docs` | Documentación interactiva de la API (solo con `FITNESS_TRACKER_ENABLE_DOCS=1`) |
 | `/redoc` | Documentación alternativa de la API |
 
@@ -166,10 +162,10 @@ Los archivos estáticos se sirven mediante FastAPI con `StaticFiles(..., html=Tr
 fitness-tracker/
 ├── app/
 │   ├── main.py
-│   ├── db.py
+│   ├── db.py                          # Conexión, pool y migraciones
+│   ├── schema.py                      # Esquema PostgreSQL y RLS
 │   ├── schemas.py
 │   ├── routers/
-│   │   ├── backups.py
 │   │   ├── body_metrics.py
 │   │   ├── daily_logs.py
 │   │   ├── exports.py
@@ -186,18 +182,14 @@ fitness-tracker/
 │   │   ├── workout_sets.py
 │   │   └── workout_templates.py
 │   ├── services/
-│   │   ├── backups.py
-│   │   ├── exports.py
-│   │   └── restores.py
+│   │   ├── account_restore.py
+│   │   └── exports.py
 │   └── frontend/
 │       ├── index.html                 # Panel principal
 │       ├── home.js                    # Verificación de sesión, logout y exportación JSON
 │       ├── auth.js                    # Token, apiFetch y logout compartidos
 │       ├── list-states.js             # Estados de carga y error con «Reintentar»
 │       ├── style.css                  # Estilos compartidos
-│       ├── backups/
-│       │   ├── index.html
-│       │   └── backups.js
 │       ├── calendar/
 │       │   ├── index.html
 │       │   └── calendar.js
@@ -227,24 +219,21 @@ fitness-tracker/
 │           ├── workouts.js
 │           ├── history.html
 │           └── history.js
-├── data/                              # Datos locales; no versionar bases ni backups
 ├── tests/
 │   ├── conftest.py
-│   ├── test_backups.py
-│   ├── test_backups_router.py
 │   ├── test_body_metrics.py
 │   ├── test_daily_logs.py
 │   ├── test_exports.py
 │   ├── test_exports_router.py
 │   ├── test_goals.py
 │   ├── test_account_restore.py
-│   ├── test_restores.py
-│   ├── test_restores_router.py
+│   ├── test_account_restore.py
 │   ├── test_runs.py
 │   ├── test_statistics.py
 │   ├── test_workout_templates.py
 │   └── ...
 ├── requirements.txt
+├── requirements-dev.txt
 └── README.md
 ```
 
@@ -339,9 +328,7 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 | `DELETE` | `/goals/{goal_type}` | Eliminar un objetivo |
 | `*` | `/recovery-logs`, `/calendar`, `/planned-workouts`, `/food-library`, `/meal-templates`, `/exercise-catalog` | Recuperación, calendario, planificación, biblioteca de alimentos, plantillas de comida y catálogo de ejercicios |
 | `GET` | `/exports/fitness-tracker.json` | Descargar en JSON **todos** los datos de la cuenta autenticada (seguimiento, recuperación, objetivos, plantillas, calendario, biblioteca de alimentos y plantillas de comida), con `format_version` |
-| `POST` | `/backups/database` | Descargar una copia SQLite completa (administrador) |
 | `POST` | `/restores/account` | Restaurar los datos de la cuenta autenticada desde su exportación JSON (pide contraseña; no toca otras cuentas) |
-| `POST` | `/restores/database` | Restaurar una copia SQLite validada (administrador) |
 
 Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuestas de la API.
 
@@ -402,20 +389,18 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [x] Añadir `user_id` a plantillas y a sus ejercicios/series.
 - [x] Convertir exportación JSON en una exportación exclusiva de la cuenta
   autenticada.
-- [x] Sustituir el backup SQLite completo por exportaciones por usuario o
-  backups administrativos protegidos.
+- [x] Sustituir el backup SQLite completo por exportaciones por usuario.
 - [x] Diseñar restauración segura por usuario, sin sobrescribir datos de otras
   cuentas.
 - [x] Añadir control de sesión en frontend: login, logout, expiración de token
   y envío consistente de `Authorization: Bearer ...`.
-- [x] Recuperación de contraseña con código del administrador, cambio de
+- [x] Recuperación de contraseña con código generado en el servidor, cambio de
   contraseña y borrado de cuenta.
 - [ ] Recuperación de contraseña por correo electrónico.
 - [x] Registro por invitación, límite de intentos y secreto JWT validado.
-- [x] SQLite en modo WAL con copias de seguridad portables.
+- [x] Migrar de SQLite a PostgreSQL (Supabase), con migraciones versionadas y RLS.
 - [ ] Configurar CORS restrictivo, HTTPS (Caddy), logs y CI/CD.
 - [ ] Desplegar en un servidor (Docker + Caddy) con copia nocturna fuera del servidor.
-- [ ] Migrar a PostgreSQL solo si crece el número de usuarios o la concurrencia.
 
 ### Fase 4 — Móvil y experiencia PWA
 
@@ -475,7 +460,22 @@ Windows CMD:
 python -m pip install -r requirements.txt
 ```
 
-### 4. Ejecutar la aplicación
+### 4. Preparar PostgreSQL
+
+La aplicación solo funciona con PostgreSQL. Para desarrollo usa una base local
+(por ejemplo con Docker) o un proyecto de Supabase:
+
+```bash
+docker run -d --name fitness-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=fitness \
+  -p 5432:5432 postgres:17
+export FITNESS_TRACKER_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/fitness
+```
+
+Las tablas se crean solas al arrancar (migraciones en `app/db.py`).
+
+Para ejecutar las pruebas sin PostgreSQL instalado: `python -m pip install -r requirements-dev.txt` (levanta uno temporal con `pgserver`).
+
+### 4b. Ejecutar la aplicación
 
 ```bash
 python -m uvicorn app.main:app --reload --port 8001
@@ -486,7 +486,9 @@ python -m uvicorn app.main:app --reload --port 8001
 | Variable | Obligatoria | Descripción |
 | --- | --- | --- |
 | `FITNESS_TRACKER_JWT_SECRET` | Sí | Clave para firmar los tokens. **Mínimo 32 bytes**: el servidor no arranca con una más corta. Genera una con `python -c "import secrets; print(secrets.token_hex(32))"`. |
-| `FITNESS_TRACKER_ADMIN_EMAILS` | No | Emails de administradores, separados por comas. Solo ellos pueden descargar copias SQLite y restaurarlas. Si no se define, nadie puede. |
+| `FITNESS_TRACKER_DATABASE_URL` | Sí | Cadena de conexión PostgreSQL (en Supabase: *Connect* → Session pooler o conexión directa). |
+| `FITNESS_TRACKER_DB_POOL_MAX` | No | Máximo de conexiones del pool (10 por defecto). |
+| `FITNESS_TRACKER_TEST_DATABASE_URL` | No | Solo para las pruebas: base PostgreSQL que se vacía en cada prueba. Si no se define, las pruebas arrancan un PostgreSQL local con `pgserver`. |
 | `FITNESS_TRACKER_REGISTRATION_MODE` | No | `invite` (por defecto): para registrarse hace falta un código de invitación. `open`: registro abierto, útil solo en desarrollo local. |
 | `FITNESS_TRACKER_ENABLE_DOCS` | No | `1` activa `/docs`, `/redoc` y `/openapi.json`. Apagadas por defecto; no las actives en producción. |
 | `FITNESS_TRACKER_LOG_LEVEL` | No | Nivel de los registros: `INFO` (por defecto), `WARNING`, `DEBUG`… |
@@ -502,16 +504,14 @@ python -m app.cli create-invite --days 7
 
 El código se muestra una sola vez (en la base de datos solo se guarda su hash),
 caduca a los 7 días y se pega en el campo «Código de invitación» del registro.
-Para crear la primera cuenta de administrador, genera una invitación y regístrate
-con el email que pusiste en `FITNESS_TRACKER_ADMIN_EMAILS`. Así nadie puede
-adelantarse y quedarse con ese rol.
+Para crear la primera cuenta, genera una invitación y regístrate con ella.
 
 En desarrollo local puedes saltarte las invitaciones con
 `export FITNESS_TRACKER_REGISTRATION_MODE=open`.
 
 ### Recuperación de contraseña
 
-Sin servicio de correo: quien olvide su contraseña se lo pide al administrador,
+Sin servicio de correo: quien olvide su contraseña se lo pide a quien administra el servidor,
 que genera un código **en el servidor**:
 
 ```bash
@@ -544,9 +544,10 @@ se eliminan por antigüedad.
 
 ### Base de datos
 
-SQLite funciona en modo WAL, así que junto a `data/fitness_tracker.db` verás
-los archivos `-wal` y `-shm`; no los borres con la app en marcha. Las copias de
-seguridad se generan como un único archivo `.db` portable.
+PostgreSQL (Supabase). El esquema está en `app/schema.py` y se aplica con
+migraciones versionadas (`schema_migrations`) al arrancar; todas las tablas llevan
+RLS activado. La aplicación se conecta con la cadena de conexión de la base de
+datos, nunca con las claves `anon`/`service_role` de Supabase.
 
 ### Despliegue en un servidor
 
@@ -555,14 +556,10 @@ HTTPS automático), un script de copias nocturnas cifradas y una guía completa 
 [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ```bash
-cp .env.example .env        # rellena DOMAIN, JWT secret y email de administrador
+cp .env.example .env        # rellena DOMAIN, JWT secret y la URL de la base de datos
 docker compose up -d --build
 docker compose exec app python -m app.cli create-invite
 ```
-
-Las copias de seguridad también se pueden crear desde la línea de comandos:
-`python -m app.cli backup [--output-dir DIR | --stdout]` (copia portable y
-verificada).
 
 ### 6. Abrir la aplicación
 
@@ -585,14 +582,13 @@ python -m pytest -q
   corporales y estadísticas.
 - La exportación JSON exige sesión e incluye todos los datos de la cuenta (y
   solo los suyos).
-- Las copias SQLite y las restauraciones operan sobre la base de datos completa
-  (todas las cuentas y sus hashes de contraseña), por lo que solo pueden usarlas
-  administradores. Cada persona puede restaurar **solo sus datos** desde su
-  exportación JSON (página «Mi cuenta»), sin afectar a las demás cuentas: las
-  secciones del archivo sustituyen a las actuales, las que no trae se dejan
-  como están y, si algo falla, no se cambia nada.
-- La persistencia es SQLite en un único servidor (adecuado para pocos usuarios);
-  no hay sincronización en la nube ni varias réplicas.
+- Cada persona puede restaurar **solo sus datos** desde su exportación JSON
+  (página «Mi cuenta»), sin afectar a las demás cuentas: las secciones del
+  archivo sustituyen a las actuales, las que no trae se dejan como están y, si
+  algo falla, no se cambia nada. Restaurar una copia completa de la base es una
+  operación de servidor (ver `docs/DEPLOY.md`).
+- La API corre en un único servidor y proceso (adecuado para pocos usuarios); no
+  hay sincronización entre dispositivos ni varias réplicas de la API.
 - Los pasos, entrenamientos, carreras y datos nutricionales se introducen manualmente.
 - No hay integración actual con relojes, Apple Health, Health Connect ni dispositivos de actividad.
 - Los mapas, rutas GPS e importación GPX aún no están implementados.

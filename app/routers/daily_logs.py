@@ -1,4 +1,3 @@
-import sqlite3
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -11,7 +10,7 @@ from app.schemas import (
     UserResponse,
 )
 
-from app.db import get_connection
+from app.db import IntegrityError, get_connection
 
 router = APIRouter(
     prefix="/daily-logs",
@@ -19,7 +18,7 @@ router = APIRouter(
 )
 
 
-def row_to_daily_log(row: sqlite3.Row) -> DailyLogResponse:
+def row_to_daily_log(row: dict) -> DailyLogResponse:
     return DailyLogResponse(
         id=row["id"],
         date=date.fromisoformat(row["date"]),
@@ -60,7 +59,7 @@ def create_daily_log(
                 """,
                 (cursor.lastrowid,),
             ).fetchone()
-    except sqlite3.IntegrityError as error:
+    except IntegrityError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un registro para esta fecha.",

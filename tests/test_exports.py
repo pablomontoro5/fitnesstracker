@@ -445,14 +445,14 @@ def test_export_covers_all_tables_that_belong_to_a_user():
         "body_composition_goals", "planned_workouts",
     }
     # Datos de la instalación o de la cuenta que no son contenido del usuario.
-    not_exported = {"users", "password_resets", "invitations"}
+    not_exported = {"users", "password_resets", "invitations", "schema_migrations"}
 
     with get_connection() as connection:
         tables = {
             row["name"]
             for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table' "
-                "AND name NOT LIKE 'sqlite_%'"
+                "SELECT table_name AS name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
             )
         }
 

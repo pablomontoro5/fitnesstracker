@@ -125,7 +125,7 @@ def create_template(data: TemplateData, user=Depends(get_current_user)):
 def list_templates(user=Depends(get_current_user)):
     with get_connection() as db:
         rows = db.execute(
-            "SELECT id FROM meal_templates WHERE user_id = ? ORDER BY name COLLATE NOCASE, id",
+            "SELECT id FROM meal_templates WHERE user_id = ? ORDER BY LOWER(name), id",
             (user.id,),
         ).fetchall()
         return [_response(db, row["id"], user.id) for row in rows]

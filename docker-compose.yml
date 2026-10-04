@@ -3,8 +3,6 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
-    volumes:
-      - fitness_data:/app/data
     # No se publica ningún puerto: solo Caddy accede a la aplicación.
     expose:
       - "8000"
@@ -37,6 +35,5 @@ services:
       - caddy_config:/config
 
 volumes:
-  fitness_data:
   caddy_data:
   caddy_config:

@@ -1,9 +1,8 @@
-import sqlite3
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.db import get_connection
+from app.db import Connection, get_connection
 from app.dependencies import get_current_user
 from app.schemas import (
     PlannedWorkoutComplete,
@@ -22,7 +21,7 @@ router = APIRouter(
 )
 
 
-def row_to_planned_workout(row: sqlite3.Row) -> PlannedWorkoutResponse:
+def row_to_planned_workout(row: dict) -> PlannedWorkoutResponse:
     return PlannedWorkoutResponse(
         id=row["id"],
         scheduled_date=date.fromisoformat(row["scheduled_date"]),
@@ -35,11 +34,11 @@ def row_to_planned_workout(row: sqlite3.Row) -> PlannedWorkoutResponse:
 
 
 def get_owned_workout_template(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     template_id: int,
     user_id: int,
-) -> sqlite3.Row:
+) -> dict:
     template = connection.execute(
         """
         SELECT
@@ -63,11 +62,11 @@ def get_owned_workout_template(
 
 
 def get_owned_planned_workout(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     planned_workout_id: int,
     user_id: int,
-) -> sqlite3.Row:
+) -> dict:
     planned_workout = connection.execute(
         """
         SELECT
@@ -95,7 +94,7 @@ def get_owned_planned_workout(
 
 
 def resolve_planned_workout_name(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     workout_template_id: int | None,
     name: str | None,
