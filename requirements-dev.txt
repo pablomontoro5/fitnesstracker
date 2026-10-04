@@ -1,5 +1,6 @@
 -r requirements.txt
 
+# En Windows no hay versión: usa un PostgreSQL en Docker (ver README).
 # Solo para ejecutar las pruebas sin tener PostgreSQL instalado: levanta uno
 # temporal y local. En CI se usa FITNESS_TRACKER_TEST_DATABASE_URL en su lugar.
-pgserver==0.1.4
+pgserver==0.1.4; sys_platform != "win32"

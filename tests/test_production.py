@@ -50,7 +50,7 @@ def test_docs_can_be_enabled_explicitly(reload_app):
 def test_requirements_are_pinned():
     lines = [
         line.strip()
-        for line in REQUIREMENTS.read_text().splitlines()
+        for line in REQUIREMENTS.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.startswith("#")
     ]
 
@@ -59,7 +59,7 @@ def test_requirements_are_pinned():
 
 
 def test_login_password_field_has_no_minlength():
-    html = LOGIN_HTML.read_text()
+    html = LOGIN_HTML.read_text(encoding="utf-8")
     start = html.index('id="login-password"')
     field = html[start : html.index("/>", start)]
 

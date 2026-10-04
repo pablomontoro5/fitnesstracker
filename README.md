@@ -473,7 +473,18 @@ export FITNESS_TRACKER_DATABASE_URL=postgresql://postgres:postgres@localhost:543
 
 Las tablas se crean solas al arrancar (migraciones en `app/db.py`).
 
-Para ejecutar las pruebas sin PostgreSQL instalado: `python -m pip install -r requirements-dev.txt` (levanta uno temporal con `pgserver`).
+Para ejecutar las pruebas:
+
+- **Linux/macOS:** `python -m pip install -r requirements-dev.txt` y `pytest`; se levanta un PostgreSQL temporal con `pgserver`.
+- **Windows** (`pgserver` no tiene versión): arranca Docker Desktop, crea una base de pruebas y apunta a ella con `127.0.0.1` (no `localhost`):
+
+```bash
+docker run -d --name fitness-pg-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=fitness_test -p 5433:5432 postgres:17
+export FITNESS_TRACKER_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/fitness_test
+python -m pytest -q
+```
+
+Esa base se vacía en cada prueba: no la apuntes nunca a datos reales.
 
 ### 4b. Ejecutar la aplicación
 

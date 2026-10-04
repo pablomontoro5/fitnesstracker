@@ -195,6 +195,15 @@ def _get_pool() -> ConnectionPool:
             _pool = None
 
         if _pool is None:
+            # Una conexión de prueba muestra el error real (contraseña, red,
+            # IPv6...) en vez de un PoolTimeout genérico tras 15 segundos.
+            try:
+                psycopg.connect(url, connect_timeout=10).close()
+            except psycopg.OperationalError as error:
+                raise DatabaseConfigError(
+                    f"No se pudo conectar con la base de datos: {error}"
+                ) from error
+
             _pool = ConnectionPool(
                 url,
                 min_size=1,
