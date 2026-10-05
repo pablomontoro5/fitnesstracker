@@ -399,7 +399,7 @@ Consulta `/docs` para ver el catálogo completo, parámetros, modelos y respuest
 - [ ] Recuperación de contraseña por correo electrónico.
 - [x] Registro por invitación, límite de intentos y secreto JWT validado.
 - [x] Migrar de SQLite a PostgreSQL (Supabase), con migraciones versionadas y RLS.
-- [ ] Configurar CORS restrictivo, HTTPS (Caddy), logs y CI/CD.
+- [x] Configurar CORS restrictivo, HTTPS (Caddy), logs y CI/CD.
 - [ ] Desplegar en un servidor (Docker + Caddy) con copia nocturna fuera del servidor.
 
 ### Fase 4 — Móvil y experiencia PWA

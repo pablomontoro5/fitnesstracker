@@ -318,6 +318,13 @@ tendrías que restaurar la copia en una base aparte y extraer sus datos de ahí.
   Entrégalo por un canal privado y comprueba que quien lo pide es quien dice ser.
 - La documentación interactiva (`/docs`, `/redoc`) está desactivada por defecto.
   No pongas `FITNESS_TRACKER_ENABLE_DOCS` en producción.
+- No hay CORS a propósito: el frontend se sirve desde el mismo dominio que la
+  API, así que el navegador bloquea las peticiones desde cualquier otra web. No
+  añadas `CORSMiddleware` salvo que un frontend en otro dominio lo necesite, y
+  en ese caso con su origen exacto, nunca `*`.
+- La única dependencia externa del navegador es Chart.js (página de
+  estadísticas), con versión fija y hash de integridad (SRI): si el CDN sirve
+  otro archivo, el navegador lo rechaza.
 - Los registros (inicios de sesión, fallos, cambios de contraseña, borrados,
   cambios de datos de la cuenta) salen por la salida estándar: `docker compose logs -f app`.
   No incluyen emails, contraseñas, tokens ni códigos; las cuentas aparecen por id.

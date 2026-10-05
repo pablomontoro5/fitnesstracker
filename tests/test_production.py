@@ -1,5 +1,6 @@
 import importlib
 import logging
+import re
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ REQUIREMENTS = Path(__file__).resolve().parent.parent / "requirements.txt"
 LOGIN_HTML = (
     Path(__file__).resolve().parent.parent / "app/frontend/login/index.html"
 )
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "app/frontend"
 
 
 @pytest.fixture
@@ -56,6 +58,38 @@ def test_requirements_are_pinned():
 
     assert lines
     assert all("==" in line for line in lines), lines
+
+
+def test_other_origins_get_no_cors_headers():
+    # El frontend se sirve desde el mismo origen que la API: sin cabeceras
+    # CORS, el navegador bloquea las peticiones de cualquier otro dominio.
+    client = TestClient(default_app)
+    origin = {"Origin": "https://otro-dominio.example"}
+
+    response = client.get("/health", headers=origin)
+    preflight = client.options(
+        "/auth/login",
+        headers={**origin, "Access-Control-Request-Method": "POST"},
+    )
+
+    for result in (response, preflight):
+        assert "access-control-allow-origin" not in result.headers
+        assert "access-control-allow-credentials" not in result.headers
+
+
+def test_external_scripts_are_pinned_with_integrity():
+    scripts = []
+
+    for page in FRONTEND_DIR.rglob("*.html"):
+        html = page.read_text(encoding="utf-8")
+        for tag in re.findall(r"<script\b[^>]*>", html):
+            if re.search(r'src="https?://', tag):
+                scripts.append((page.name, tag))
+
+    for page, tag in scripts:
+        assert re.search(r'src="[^"]+@\d+\.\d+\.\d+/', tag), (page, tag)
+        assert 'integrity="sha384-' in tag, (page, tag)
+        assert 'crossorigin="anonymous"' in tag, (page, tag)
 
 
 def test_login_password_field_has_no_minlength():

@@ -4,9 +4,10 @@
 {$DOMAIN} {
 	encode zstd gzip
 
-	# Las restauraciones suben un archivo .db completo.
+	# La subida más grande es la restauración de una exportación JSON, que la
+	# aplicación limita a 20 MB; el margen cubre la codificación multipart.
 	request_body {
-		max_size 100MB
+		max_size 25MB
 	}
 
 	header {
