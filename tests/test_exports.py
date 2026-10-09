@@ -457,3 +457,26 @@ def test_export_covers_all_tables_that_belong_to_a_user():
         }
 
     assert tables - not_exported == exported_tables
+
+
+def test_default_exports_directory_is_writable_and_private(tmp_path, monkeypatch):
+    """Sin `exports_dir`, la exportación debe poder escribirse (p. ej. en un
+    contenedor sin carpeta de datos) y quedar solo para el propietario."""
+    import stat
+
+    from app.services import exports
+
+    monkeypatch.setattr(exports, "EXPORTS_DIR", tmp_path / "nuevo" / "exports")
+
+    with get_connection() as connection:
+        user_id = connection.execute(
+            "INSERT INTO users (email, display_name, password_hash) "
+            "VALUES (?, ?, ?)",
+            ("default-dir@example.com", "Default", "hash"),
+        ).lastrowid
+
+    path = create_data_export(user_id=user_id)
+
+    assert path.exists()
+    assert path.parent == tmp_path / "nuevo" / "exports"
+    assert stat.S_IMODE(path.parent.stat().st_mode) & 0o077 == 0
