@@ -31,3 +31,16 @@ def test_every_internal_link_in_the_frontend_resolves():
                 broken.append((page.relative_to(FRONTEND).as_posix(), link))
 
     assert broken == []
+
+
+def test_privacy_notice_is_served_and_linked_from_signup_and_account():
+    response = client.get("/static/privacy/")
+
+    assert response.status_code == 200
+    assert "Aviso de privacidad" in response.text
+    # Hasta que se rellenen, los huecos del responsable deben ser visibles.
+    assert "[EMAIL DE CONTACTO]" in response.text
+
+    for page in ("login", "account"):
+        html = (FRONTEND / page / "index.html").read_text(encoding="utf-8")
+        assert 'href="/static/privacy/"' in html, page
