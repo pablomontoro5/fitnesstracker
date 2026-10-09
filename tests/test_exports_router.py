@@ -2,6 +2,7 @@ import json
 
 from fastapi.testclient import TestClient
 
+from app.db import DatabaseConfigError
 from app.main import app
 from app.services import exports
 from tests.conftest import register_and_login
@@ -92,3 +93,29 @@ def test_export_only_contains_the_authenticated_users_data(
     assert "NOTA-BOB" in bob_export.text
     assert "NOTA-ALICE" not in bob_export.text
     assert json.loads(bob_export.text)["daily_logs"] == []
+
+
+def test_export_reports_database_failure_as_503(monkeypatch):
+    def broken_export(user_id):
+        raise DatabaseConfigError("No se pudo conectar: secreto")
+
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+        monkeypatch.setattr(exports, "create_data_export", broken_export)
+        response = client.get("/exports/fitness-tracker.json", headers=headers)
+
+    assert response.status_code == 503
+    assert "secreto" not in response.text
+
+
+def test_export_reports_disk_failure_as_500(monkeypatch):
+    def broken_export(user_id):
+        raise PermissionError("/app/data: permission denied")
+
+    with TestClient(app) as client:
+        headers = register_and_login(client)
+        monkeypatch.setattr(exports, "create_data_export", broken_export)
+        response = client.get("/exports/fitness-tracker.json", headers=headers)
+
+    assert response.status_code == 500
+    assert "/app" not in response.text

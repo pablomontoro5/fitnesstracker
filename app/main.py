@@ -3,10 +3,10 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.db import close_pool, initialize_database
+from app.db import check_database, close_pool, initialize_database
 from app.invitations import get_registration_mode
 from app.logging_config import configure_logging, logger
 from app.security import get_jwt_secret
@@ -110,5 +110,17 @@ def serve_frontend() -> FileResponse:
 
 
 @app.get("/health", tags=["system"])
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+def health_check() -> JSONResponse:
+    """Responde 200 solo si la aplicación y la base de datos funcionan; con
+    503, el healthcheck de Docker y los monitores detectan la caída. No se
+    devuelve el motivo del fallo (va al log) para no filtrar datos de conexión."""
+    try:
+        check_database()
+    except Exception:
+        logger.exception("Healthcheck: la base de datos no responde")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "database": "unavailable"},
+        )
+
+    return JSONResponse(content={"status": "ok", "database": "ok"})

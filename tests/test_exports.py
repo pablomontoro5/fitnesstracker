@@ -1,5 +1,8 @@
 import json
+import os
 from datetime import datetime
+
+import pytest
 
 from app.db import get_connection
 from app.services.exports import create_data_export
@@ -459,6 +462,7 @@ def test_export_covers_all_tables_that_belong_to_a_user():
     assert tables - not_exported == exported_tables
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Permisos POSIX no aplicables en Windows")
 def test_default_exports_directory_is_writable_and_private(tmp_path, monkeypatch):
     """Sin `exports_dir`, la exportación debe poder escribirse (p. ej. en un
     contenedor sin carpeta de datos) y quedar solo para el propietario."""
