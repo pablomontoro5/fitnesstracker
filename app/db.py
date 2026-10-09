@@ -240,6 +240,16 @@ def get_connection() -> Connection:
     return Connection(_get_pool())
 
 
+def check_database(timeout: float = 3.0) -> None:
+    """Comprueba que la base de datos responde (para /health).
+
+    Lanza una excepción si no se consigue una conexión del pool o la consulta
+    falla en `timeout` segundos, sin esperar los 15 s del pool.
+    """
+    with _get_pool().connection(timeout=timeout) as connection:
+        connection.execute("SELECT 1")
+
+
 # ---------------------------------------------------------------------------
 # Esquema y migraciones
 # ---------------------------------------------------------------------------

@@ -20,8 +20,12 @@ async function downloadDataExport() {
     const response = await apiFetch("/exports/fitness-tracker.json");
 
     if (!response.ok) {
+      const body = await response.json().catch(() => null);
+
       throw new Error(
-        "No se pudo generar la exportación. Inténtalo de nuevo.",
+        typeof body?.detail === "string"
+          ? body.detail
+          : "No se pudo generar la exportación. Inténtalo de nuevo.",
       );
     }
 
