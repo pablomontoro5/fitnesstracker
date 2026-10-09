@@ -1,11 +1,15 @@
 import json
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from app.db import DATA_DIR, get_connection
+from app.db import get_connection
 
 
-EXPORTS_DIR = DATA_DIR / "exports"
+# Fichero temporal que se borra tras la descarga. Va al directorio temporal del
+# sistema, que siempre existe y es escribible (también en el contenedor, donde
+# la aplicación no guarda nada en disco).
+EXPORTS_DIR = Path(tempfile.gettempdir()) / "fitness-tracker-exports"
 
 # Versión del formato. La restauración por cuenta la comprueba.
 EXPORT_FORMAT_VERSION = 2
@@ -38,7 +42,8 @@ def create_data_export(
 ) -> Path:
     """Exporta únicamente los datos de la cuenta indicada."""
     export_directory = exports_dir or EXPORTS_DIR
-    export_directory.mkdir(parents=True, exist_ok=True)
+    # Solo el propietario: la exportación contiene datos de salud.
+    export_directory.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     with get_connection() as connection:
         daily_logs = [
