@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Aviso de privacidad de Fitness Tracker: qué datos guardamos, para qué, dónde, cuánto tiempo y cómo ejercer tus derechos."
+  />
+  <title>Privacidad | Fitness Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <p class="eyebrow">Fitness Tracker</p>
+        <h1>Aviso de privacidad</h1>
+      </div>
+
+      <div class="header-actions">
+        <a class="docs-link" href="/">Volver al inicio</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container auth-page">
+    <a class="back-link" href="/">← Volver al inicio</a>
+
+    <section class="intro-card">
+      <div>
+        <p class="eyebrow">Tus datos, claros</p>
+        <h2>Qué guardamos y por qué</h2>
+        <p>
+          Fitness Tracker guarda lo que tú registras para que puedas consultarlo.
+          No lo usamos para publicidad, no lo vendemos y no lo compartimos con
+          terceros salvo con los proveedores técnicos indicados más abajo.
+        </p>
+        <p><small>Última actualización: [FECHA]</small></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>1. Quién es el responsable</h2>
+      <p>
+        <strong>[NOMBRE Y APELLIDOS O RAZÓN SOCIAL DEL RESPONSABLE]</strong>
+        [NIF/CIF y dirección postal, si procede].
+      </p>
+      <p>
+        Contacto para cualquier cuestión de privacidad:
+        <strong>[EMAIL DE CONTACTO]</strong>.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>2. Qué datos guardamos</h2>
+      <ul>
+        <li>
+          <strong>Datos de cuenta:</strong> correo electrónico, nombre visible
+          y la contraseña, que se guarda <em>cifrada de forma irreversible</em>
+          (hash argon2): nadie, ni el administrador, puede leerla. También la
+          fecha de creación de la cuenta.
+        </li>
+        <li>
+          <strong>Datos que registras tú:</strong> pasos, entrenamientos
+          (ejercicios, series, plantillas y planificación), carreras,
+          alimentación (comidas, alimentos y plantillas), recuperación,
+          medidas corporales (peso, altura, porcentaje de grasa, perímetros),
+          objetivos y notas.
+        </li>
+        <li>
+          <strong>Datos técnicos mínimos:</strong> un identificador de sesión
+          que se guarda en tu navegador (almacenamiento local, no es una
+          cookie de seguimiento) y, durante unos minutos y solo en la memoria
+          del servidor, tu dirección IP para limitar intentos de acceso
+          repetidos. No usamos cookies de analítica ni de publicidad.
+        </li>
+      </ul>
+      <p class="warning-text">
+        Parte de lo que registras (peso, medidas, hábitos de alimentación y de
+        recuperación) son <strong>datos relativos a la salud</strong>, que la
+        normativa considera especialmente sensibles. Por eso solo los tratamos
+        si nos das tu consentimiento explícito al crear la cuenta, y puedes
+        retirarlo en cualquier momento borrando tu cuenta.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>3. Para qué los usamos</h2>
+      <ul>
+        <li>Prestarte el servicio: guardar tus registros y mostrarte tus estadísticas.</li>
+        <li>Mantener la seguridad de la cuenta (inicio de sesión, recuperación de contraseña, límite de intentos).</li>
+        <li>Hacer copias de seguridad para poder recuperar el servicio si algo falla.</li>
+      </ul>
+      <p>
+        Base jurídica: tu consentimiento (datos de salud) y la ejecución del
+        servicio que solicitas al crear la cuenta (resto de datos).
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>4. Dónde se guardan y quién los trata</h2>
+      <ul>
+        <li>
+          <strong>Base de datos:</strong> Supabase (PostgreSQL), en una región
+          de la <strong>Unión Europea</strong>.
+        </li>
+        <li>
+          <strong>Servidor de la aplicación:</strong> [PROVEEDOR Y UBICACIÓN
+          DEL SERVIDOR, p. ej. un VPS en la UE].
+        </li>
+        <li>
+          <strong>Copias de seguridad:</strong> almacenamiento externo
+          [PROVEEDOR Y REGIÓN]. Las copias van <strong>cifradas</strong>.
+        </li>
+      </ul>
+      <p>
+        Estos proveedores actúan como encargados del tratamiento: solo
+        procesan los datos para prestarnos su servicio. No transferimos tus
+        datos fuera del Espacio Económico Europeo [CONFIRMAR con los
+        proveedores elegidos].
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>5. Cuánto tiempo los conservamos</h2>
+      <ul>
+        <li>Tus datos, mientras mantengas la cuenta.</li>
+        <li>
+          Si borras la cuenta desde «Mi cuenta», se eliminan de inmediato de la
+          base de datos. Pueden permanecer en las copias de seguridad cifradas
+          hasta <strong>14 días</strong>, hasta que esas copias se renuevan.
+        </li>
+        <li>Los códigos de invitación y de recuperación son de un solo uso y caducan.</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>6. Tus derechos y cómo ejercerlos</h2>
+      <p>Puedes, sin coste:</p>
+      <ul>
+        <li>
+          <strong>Acceder y llevarte tus datos:</strong> «Descargar exportación»
+          en el panel principal te da todo en un archivo JSON.
+        </li>
+        <li>
+          <strong>Rectificar:</strong> edita tus registros directamente en la
+          aplicación.
+        </li>
+        <li>
+          <strong>Borrar:</strong> «Borrar mi cuenta» en
+          <a href="/static/account/">Mi cuenta</a> elimina tu cuenta y todos
+          tus datos. Si no puedes entrar, escribe a
+          <strong>[EMAIL DE CONTACTO]</strong> desde el correo con el que te
+          registraste y lo hacemos nosotros.
+        </li>
+        <li>
+          <strong>Oponerte, limitar el tratamiento o retirar el
+          consentimiento:</strong> escríbenos a <strong>[EMAIL DE CONTACTO]</strong>.
+        </li>
+      </ul>
+      <p>
+        Respondemos en un máximo de un mes. Si crees que no hemos tratado bien
+        tus datos, puedes reclamar ante la
+        <a href="https://www.aepd.es" rel="noopener noreferrer">Agencia
+        Española de Protección de Datos</a>.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>7. Cambios en este aviso</h2>
+      <p>
+        Si cambiamos algo importante, lo actualizaremos aquí con una nueva
+        fecha.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
