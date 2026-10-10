@@ -9,6 +9,9 @@
   />
   <title>Fitness Tracker</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#176b48" />
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
 </head>
 <body style="visibility: hidden;">
   <header class="site-header">
@@ -19,6 +22,14 @@
       </div>
 
       <div class="header-actions">
+        <button
+          id="install-app-button"
+          class="secondary-button"
+          type="button"
+          hidden
+        >
+          Instalar la app
+        </button>
         <a class="docs-link" href="/static/account/">Mi cuenta</a>
         <button id="logout-button" class="secondary-button" type="button">
           Cerrar sesión
@@ -185,5 +196,6 @@
 
   <script src="/static/auth.js"></script>
   <script src="/static/home.js" type="module"></script>
+  <script src="/static/pwa.js"></script>
 </body>
 </html>

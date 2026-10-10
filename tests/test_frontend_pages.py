@@ -44,3 +44,69 @@ def test_privacy_notice_is_served_and_linked_from_signup_and_account():
     for page in ("login", "account"):
         html = (FRONTEND / page / "index.html").read_text(encoding="utf-8")
         assert 'href="/static/privacy/"' in html, page
+
+
+def test_manifest_is_served_and_its_icons_exist():
+    response = client.get("/manifest.webmanifest")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(
+        "application/manifest+json"
+    )
+
+    manifest = response.json()
+
+    assert manifest["start_url"] == "/"
+    assert manifest["scope"] == "/"
+    assert manifest["display"] == "standalone"
+
+    sizes = {icon["sizes"] for icon in manifest["icons"]}
+    purposes = {icon["purpose"] for icon in manifest["icons"]}
+
+    assert {"192x192", "512x512"} <= sizes
+    assert "maskable" in purposes
+
+    for icon in manifest["icons"]:
+        icon_response = client.get(icon["src"])
+
+        assert icon_response.status_code == 200, icon["src"]
+        assert icon_response.headers["content-type"] == "image/png"
+
+
+def test_service_worker_is_served_from_the_root_with_full_scope():
+    response = client.get("/sw.js")
+
+    assert response.status_code == 200
+    assert "javascript" in response.headers["content-type"]
+    assert response.headers["service-worker-allowed"] == "/"
+    # Una versión nueva debe llegar en la siguiente visita.
+    assert response.headers["cache-control"] == "no-cache"
+
+
+def test_service_worker_never_caches_api_responses():
+    """Las respuestas de la API llevan datos de salud: no deben guardarse."""
+    source = (FRONTEND / "sw.js").read_text(encoding="utf-8")
+
+    # Solo se interceptan GET de la página de inicio y de /static/.
+    assert 'request.method !== "GET"' in source
+    assert 'url.pathname.startsWith("/static/")' in source
+    assert "isCacheable(url)" in source
+
+    for api_path in ("/auth", "/exports", "/restores", "/daily-logs"):
+        assert f'"{api_path}' not in source
+
+
+def test_every_page_links_the_manifest_and_loads_pwa_script():
+    missing = []
+
+    for page in FRONTEND.rglob("*.html"):
+        html = page.read_text(encoding="utf-8")
+
+        if (
+            'rel="manifest"' not in html
+            or 'href="/manifest.webmanifest"' not in html
+            or 'src="/static/pwa.js"' not in html
+        ):
+            missing.append(page.relative_to(FRONTEND).as_posix())
+
+    assert missing == []
