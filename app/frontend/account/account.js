@@ -188,21 +188,21 @@ restoreAccountForm.addEventListener("submit", async (event) => {
 });
 
 
-const importHevyForm = document.querySelector("#import-hevy-form");
-const importHevyFile = document.querySelector("#import-hevy-file");
-const importHevySummary = document.querySelector("#import-hevy-summary");
-const importHevyPreviewButton = document.querySelector(
-  "#import-hevy-preview-button",
+const importWorkoutsForm = document.querySelector("#import-workouts-form");
+const importWorkoutsFile = document.querySelector("#import-workouts-file");
+const importWorkoutsSummary = document.querySelector("#import-workouts-summary");
+const importWorkoutsPreviewButton = document.querySelector(
+  "#import-workouts-preview-button",
 );
-const importHevyConfirmButton = document.querySelector(
-  "#import-hevy-confirm-button",
+const importWorkoutsConfirmButton = document.querySelector(
+  "#import-workouts-confirm-button",
 );
 
 
-function resetHevyImport() {
-  importHevySummary.hidden = true;
-  importHevySummary.replaceChildren();
-  importHevyConfirmButton.hidden = true;
+function resetWorkoutsImport() {
+  importWorkoutsSummary.hidden = true;
+  importWorkoutsSummary.replaceChildren();
+  importWorkoutsConfirmButton.hidden = true;
 }
 
 
@@ -211,8 +211,8 @@ function plural(count, singular, pluralForm) {
 }
 
 
-function renderHevySummary(result) {
-  importHevySummary.replaceChildren();
+function renderImportSummary(result) {
+  importWorkoutsSummary.replaceChildren();
 
   const lines = [
     result.dry_run
@@ -241,7 +241,7 @@ function renderHevySummary(result) {
   for (const line of lines) {
     const paragraph = document.createElement("p");
     paragraph.textContent = line;
-    importHevySummary.append(paragraph);
+    importWorkoutsSummary.append(paragraph);
   }
 
   if (result.warnings.length > 0) {
@@ -253,19 +253,40 @@ function renderHevySummary(result) {
       list.append(item);
     }
 
-    importHevySummary.append(list);
+    importWorkoutsSummary.append(list);
   }
 
-  importHevySummary.hidden = false;
+  importWorkoutsSummary.hidden = false;
 }
 
 
-async function sendHevyFile(dryRun) {
+const importWorkoutsSource = document.querySelector("#import-workouts-source");
+const importWorkoutsUnitLabel = document.querySelector(
+  "#import-workouts-unit-label",
+);
+const importWorkoutsUnit = document.querySelector("#import-workouts-unit");
+
+
+importWorkoutsSource.addEventListener("change", () => {
+  // Solo el CSV de Strong necesita que se indique la unidad del peso.
+  importWorkoutsUnitLabel.hidden = importWorkoutsSource.value !== "strong";
+  resetWorkoutsImport();
+});
+
+importWorkoutsUnit.addEventListener("change", resetWorkoutsImport);
+
+
+async function sendImportFile(dryRun) {
+  const source = importWorkoutsSource.value;
   const formData = new FormData();
-  formData.append("file", importHevyFile.files[0]);
+  formData.append("file", importWorkoutsFile.files[0]);
   formData.append("dry_run", dryRun ? "true" : "false");
 
-  const response = await apiFetch("/imports/hevy", {
+  if (source === "strong") {
+    formData.append("weight_unit", importWorkoutsUnit.value);
+  }
+
+  const response = await apiFetch(`/imports/${source}`, {
     method: "POST",
     body: formData,
   });
@@ -278,19 +299,19 @@ async function sendHevyFile(dryRun) {
 }
 
 
-importHevyFile.addEventListener("change", resetHevyImport);
+importWorkoutsFile.addEventListener("change", resetWorkoutsImport);
 
-importHevyForm.addEventListener("submit", async (event) => {
+importWorkoutsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearAccountStatus();
-  resetHevyImport();
-  importHevyPreviewButton.disabled = true;
+  resetWorkoutsImport();
+  importWorkoutsPreviewButton.disabled = true;
 
   try {
-    const result = await sendHevyFile(true);
+    const result = await sendImportFile(true);
 
-    renderHevySummary(result);
-    importHevyConfirmButton.hidden = result.sessions === 0;
+    renderImportSummary(result);
+    importWorkoutsConfirmButton.hidden = result.sessions === 0;
 
     if (result.sessions === 0) {
       showAccountStatus("No hay sesiones nuevas que importar.", "success");
@@ -298,21 +319,21 @@ importHevyForm.addEventListener("submit", async (event) => {
   } catch (error) {
     showAccountStatus(error.message, "error");
   } finally {
-    importHevyPreviewButton.disabled = false;
+    importWorkoutsPreviewButton.disabled = false;
   }
 });
 
-importHevyConfirmButton.addEventListener("click", async () => {
+importWorkoutsConfirmButton.addEventListener("click", async () => {
   clearAccountStatus();
-  importHevyConfirmButton.disabled = true;
-  importHevyPreviewButton.disabled = true;
+  importWorkoutsConfirmButton.disabled = true;
+  importWorkoutsPreviewButton.disabled = true;
 
   try {
-    const result = await sendHevyFile(false);
+    const result = await sendImportFile(false);
 
-    importHevyConfirmButton.hidden = true;
-    renderHevySummary(result);
-    importHevyForm.reset();
+    importWorkoutsConfirmButton.hidden = true;
+    renderImportSummary(result);
+    importWorkoutsForm.reset();
     showAccountStatus(
       "Entrenamientos importados. Ya puedes verlos en tu historial.",
       "success",
@@ -320,8 +341,8 @@ importHevyConfirmButton.addEventListener("click", async () => {
   } catch (error) {
     showAccountStatus(error.message, "error");
   } finally {
-    importHevyConfirmButton.disabled = false;
-    importHevyPreviewButton.disabled = false;
+    importWorkoutsConfirmButton.disabled = false;
+    importWorkoutsPreviewButton.disabled = false;
   }
 });
 
