@@ -1,10 +1,12 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db import Connection, get_connection
 from app.dependencies import get_current_user
 from app.schemas import (
+    PlannedWeekCopy,
+    PlannedWeekCopyResponse,
     PlannedWorkoutComplete,
     PlannedWorkoutCompleteResponse,
     PlannedWorkoutCreate,
@@ -126,6 +128,104 @@ def resolve_planned_workout_name(
     )
 
     return normalized_name or template["name"]
+
+
+MAX_COPY_WEEK_OFFSET_DAYS = 366
+
+
+@router.post(
+    "/copy-week",
+    response_model=PlannedWeekCopyResponse,
+)
+def copy_planned_week(
+    copy: PlannedWeekCopy,
+    current_user: UserResponse = Depends(get_current_user),
+) -> PlannedWeekCopyResponse:
+    """Repite una semana de planificación en otra.
+
+    Copia todas las sesiones de los 7 días de origen a los mismos días de
+    destino, como «planificadas» (aunque en origen estuvieran completadas u
+    omitidas). Si el día de destino ya tiene una sesión igual (mismo nombre y
+    misma plantilla), no se duplica."""
+    offset = (copy.target_start - copy.source_start).days
+
+    if offset == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La semana de origen y la de destino deben ser distintas.",
+        )
+
+    if abs(offset) > MAX_COPY_WEEK_OFFSET_DAYS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Las semanas no pueden estar separadas más de 366 días.",
+        )
+
+    source_end = copy.source_start + timedelta(days=6)
+    target_end = copy.target_start + timedelta(days=6)
+
+    with get_connection() as connection:
+        source_rows = connection.execute(
+            """
+            SELECT scheduled_date, workout_template_id, name, notes
+            FROM planned_workouts
+            WHERE user_id = ? AND scheduled_date BETWEEN ? AND ?
+            ORDER BY scheduled_date ASC, id ASC
+            """,
+            (
+                current_user.id,
+                copy.source_start.isoformat(),
+                source_end.isoformat(),
+            ),
+        ).fetchall()
+
+        existing = {
+            (row["scheduled_date"], row["workout_template_id"], row["name"].casefold())
+            for row in connection.execute(
+                """
+                SELECT scheduled_date, workout_template_id, name
+                FROM planned_workouts
+                WHERE user_id = ? AND scheduled_date BETWEEN ? AND ?
+                """,
+                (
+                    current_user.id,
+                    copy.target_start.isoformat(),
+                    target_end.isoformat(),
+                ),
+            ).fetchall()
+        }
+
+        copied = skipped = 0
+
+        for row in source_rows:
+            new_date = (
+                date.fromisoformat(row["scheduled_date"]) + timedelta(days=offset)
+            ).isoformat()
+            key = (new_date, row["workout_template_id"], row["name"].casefold())
+
+            if key in existing:
+                skipped += 1
+                continue
+
+            connection.execute(
+                """
+                INSERT INTO planned_workouts (
+                    user_id, scheduled_date, workout_template_id, name, notes
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    current_user.id,
+                    new_date,
+                    row["workout_template_id"],
+                    row["name"],
+                    row["notes"],
+                ),
+            )
+            existing.add(key)
+            copied += 1
+
+    return PlannedWeekCopyResponse(copied=copied, skipped=skipped)
 
 
 @router.post(

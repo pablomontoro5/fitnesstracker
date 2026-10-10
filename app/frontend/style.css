@@ -2765,6 +2765,25 @@ a.history-button:hover {
   text-align: center;
 }
 
+.calendar-view-toggle {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.calendar-view-toggle [aria-pressed="true"] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.calendar-week-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .calendar-weekdays,
 .calendar-grid {
   display: grid;
@@ -2824,6 +2843,74 @@ a.history-button:hover {
 .calendar-day-number {
   font-size: 0.85rem;
   font-weight: 700;
+}
+
+/* Vista semanal: cada día enseña su nombre y las sesiones planificadas. */
+.calendar-grid.week-view .calendar-day {
+  min-height: 9rem;
+}
+
+.calendar-day-weekday {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.calendar-day-plans {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.calendar-day-plan {
+  display: block;
+  padding: 0.15rem 0.35rem;
+  border-left: 3px solid var(--approximation);
+  border-radius: 0.3rem;
+  background: var(--surface-muted);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-day-plan.completed {
+  border-left-color: var(--working);
+}
+
+.calendar-day-plan.skipped {
+  border-left-color: var(--text-muted);
+  opacity: 0.65;
+  text-decoration: line-through;
+}
+
+.calendar-day-more {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+@media (max-width: 700px) {
+  /* El título (p. ej. «Semana del 12–18 de octubre de 2026») ocupa su fila y
+     los botones de navegación quedan debajo. */
+  .calendar-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .calendar-month-title {
+    flex: 1 1 100%;
+    order: -1;
+    font-size: 1.1rem;
+  }
+
+  .calendar-grid.week-view {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calendar-grid.week-view .calendar-day {
+    min-height: auto;
+  }
 }
 
 .calendar-day-steps {

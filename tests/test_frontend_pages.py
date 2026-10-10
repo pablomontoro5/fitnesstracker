@@ -127,3 +127,17 @@ def test_account_page_has_import_form_and_hidden_attribute_is_respected():
     css = (FRONTEND / "style.css").read_text(encoding="utf-8")
 
     assert "[hidden]" in css
+
+
+def test_calendar_page_has_week_view_controls():
+    html = (FRONTEND / "calendar" / "index.html").read_text(encoding="utf-8")
+
+    for element_id in (
+        "view-month-button", "view-week-button", "week-actions",
+        "copy-from-previous-week-button", "copy-to-next-week-button",
+        "calendar-weekdays",
+    ):
+        assert f'id="{element_id}"' in html, element_id
+
+    # Los controles de copiar solo se muestran en la vista semanal.
+    assert 'id="week-actions" class="calendar-week-actions" hidden' in html

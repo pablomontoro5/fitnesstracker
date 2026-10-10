@@ -645,6 +645,18 @@ class PlannedWorkoutComplete(BaseModel):
     completed_date: date | None = None
 
 
+class PlannedWeekCopy(BaseModel):
+    """Copia las sesiones planificadas de los 7 días que empiezan en
+    `source_start` a los 7 que empiezan en `target_start`."""
+    source_start: date
+    target_start: date
+
+
+class PlannedWeekCopyResponse(BaseModel):
+    copied: int
+    skipped: int
+
+
 class PlannedWorkoutResponse(BaseModel):
     id: int
     scheduled_date: date
