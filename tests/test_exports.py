@@ -413,7 +413,7 @@ def test_export_includes_every_user_owned_table(tmp_path):
         )
     )
 
-    assert data["format_version"] == 2
+    assert data["format_version"] == 3
     assert data["recovery_logs"][0]["sleep_minutes"] == 450
     assert data["fitness_goals"] == [
         {"id": data["fitness_goals"][0]["id"],

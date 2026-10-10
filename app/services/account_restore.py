@@ -194,6 +194,8 @@ def restore_account_data(
             )
 
     counts: dict[str, int] = {}
+    # Id de la carrera en el archivo -> id nuevo, para las carreras planificadas.
+    run_ids: dict[int, int] = {}
 
     for key, (table, columns, date_columns) in ROOT_SECTIONS.items():
         records = sections[key]
@@ -202,10 +204,14 @@ def restore_account_data(
             continue
 
         for record in records:
-            _insert(
+            new_id = _insert(
                 connection, table, "user_id", user_id, columns,
                 _row(record, columns, date_columns, key),
             )
+
+            # Las carreras planificadas completadas apuntan a su registro.
+            if key == "runs" and isinstance(record.get("id"), int):
+                run_ids[record["id"]] = new_id
 
         counts[key] = len(records)
 
@@ -311,18 +317,29 @@ def restore_account_data(
                 ("scheduled_date",),
                 "sesión planificada",
             )
+            # Los archivos anteriores a la versión 3 no traen estos campos:
+            # son sesiones de gimnasio.
+            kind = planned.get("kind") or "workout"
+
+            if kind not in ("workout", "run"):
+                raise InvalidExport(f"Tipo de sesión planificada no válido: {kind!r}.")
+
             connection.execute(
                 """
                 INSERT INTO planned_workouts (
                     user_id, scheduled_date, name, notes, status,
-                    workout_template_id, workout_session_id
+                    kind, target_distance_km,
+                    workout_template_id, workout_session_id, run_id
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user_id, *values,
+                    kind,
+                    planned.get("target_distance_km"),
                     template_ids.get(planned.get("workout_template_id")),
                     session_ids.get(planned.get("workout_session_id")),
+                    run_ids.get(planned.get("run_id")),
                 ),
             )
 

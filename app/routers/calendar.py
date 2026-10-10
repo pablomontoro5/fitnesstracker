@@ -130,6 +130,8 @@ def get_calendar_activity(
                 id,
                 scheduled_date,
                 name,
+                kind,
+                target_distance_km,
                 status
             FROM planned_workouts
             WHERE user_id = ?
@@ -184,6 +186,8 @@ def get_calendar_activity(
             CalendarPlannedWorkoutResponse(
                 id=row["id"],
                 name=row["name"],
+                kind=row["kind"],
+                target_distance_km=row["target_distance_km"],
                 status=row["status"],
                 is_overdue=is_overdue,
             )

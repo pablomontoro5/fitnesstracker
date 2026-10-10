@@ -148,3 +148,17 @@ def test_calendar_page_has_plan_summary_and_overdue_legend():
 
     assert 'id="plan-summary"' in html
     assert 'legend-dot overdue' in html
+
+
+def test_calendar_page_can_plan_runs():
+    html = (FRONTEND / "calendar" / "index.html").read_text(encoding="utf-8")
+
+    for element_id in (
+        "planned-kind", "planned-distance", "planned-distance-label",
+        "planned-template-label",
+    ):
+        assert f'id="{element_id}"' in html, element_id
+
+    assert '<option value="run">' in html
+    # La distancia solo se pide al elegir «Carrera».
+    assert 'id="planned-distance-label" class="full-width" hidden' in html

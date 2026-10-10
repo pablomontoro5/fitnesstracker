@@ -20,7 +20,11 @@ from psycopg.errors import IntegrityError  # noqa: F401  (se reexporta)
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from app.schema import ROW_LEVEL_SECURITY_STATEMENTS, SCHEMA_STATEMENTS
+from app.schema import (
+    PLANNED_RUNS_STATEMENTS,
+    ROW_LEVEL_SECURITY_STATEMENTS,
+    SCHEMA_STATEMENTS,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -258,6 +262,7 @@ def check_database(timeout: float = 3.0) -> None:
 # añade una entrada nueva: nunca edites una ya aplicada.
 MIGRATIONS: list[tuple[int, str, list[str]]] = [
     (1, "esquema inicial", SCHEMA_STATEMENTS + ROW_LEVEL_SECURITY_STATEMENTS),
+    (2, "sesiones planificadas de tipo carrera", PLANNED_RUNS_STATEMENTS),
 ]
 
 

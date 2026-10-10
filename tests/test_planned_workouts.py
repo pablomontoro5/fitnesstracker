@@ -285,11 +285,14 @@ def test_update_planned_workout_and_mark_skipped():
     assert response.json() == {
         "id": planned_workout["id"],
         "scheduled_date": "2026-09-23",
+        "kind": "workout",
+        "target_distance_km": None,
         "workout_template_id": None,
         "name": "Torso A reprogramado",
         "notes": "Entrenar por la tarde.",
         "status": "skipped",
         "workout_session_id": None,
+        "run_id": None,
     }
 
 

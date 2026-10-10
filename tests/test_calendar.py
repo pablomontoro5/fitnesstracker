@@ -135,6 +135,8 @@ def test_calendar_combines_activity_for_a_day():
                     "name": "Torso A",
                     "status": "planned",
                     "is_overdue": False,
+                    "kind": "workout",
+                    "target_distance_km": None,
                 }
             ],
         }
@@ -217,12 +219,16 @@ def test_calendar_returns_multiple_planned_workouts_in_creation_order():
             "name": "Movilidad",
             "status": "planned",
             "is_overdue": False,
+            "kind": "workout",
+            "target_distance_km": None,
         },
         {
             "id": second["id"],
             "name": "Torso A",
             "status": "planned",
             "is_overdue": False,
+            "kind": "workout",
+            "target_distance_km": None,
         },
     ]
 def test_calendar_isolated_between_users():

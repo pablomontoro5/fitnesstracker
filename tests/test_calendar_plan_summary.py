@@ -118,7 +118,7 @@ def test_overdue_flag_is_set_only_on_past_planned_sessions():
 
     assert day_of(result, "2026-10-06")["planned_workouts"][0] == {
         "id": past["id"], "name": "Pasada", "status": "planned",
-        "is_overdue": True,
+        "is_overdue": True, "kind": "workout", "target_distance_km": None,
     }
     assert day_of(result, "2026-10-07")["planned_workouts"][0]["is_overdue"] is False
     assert day_of(result, "2026-10-11")["planned_workouts"][0]["is_overdue"] is False
