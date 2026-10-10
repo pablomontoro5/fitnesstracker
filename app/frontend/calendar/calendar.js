@@ -22,6 +22,7 @@ const state = {
   weekStart: startOfWeek(new Date()),
   selectedDate: formatDate(new Date()),
   days: new Map(),
+  planSummary: null,
   templates: [],
 };
 
@@ -33,6 +34,7 @@ const elements = {
   nextMonthButton: document.querySelector("#next-month-button"),
   todayButton: document.querySelector("#today-button"),
   calendarError: document.querySelector("#calendar-error"),
+  planSummary: document.querySelector("#plan-summary"),
   calendarWeekdays: document.querySelector("#calendar-weekdays"),
   viewMonthButton: document.querySelector("#view-month-button"),
   viewWeekButton: document.querySelector("#view-week-button"),
@@ -185,6 +187,9 @@ async function loadActivity() {
   const query = new URLSearchParams({
     start_date: formatDate(start),
     end_date: formatDate(end),
+    // Con la fecha local del navegador: así «vencida» no depende de la zona
+    // horaria del servidor.
+    today: formatDate(new Date()),
   });
 
   renderListLoading(
@@ -197,10 +202,12 @@ async function loadActivity() {
     const activity = await request(`/calendar/activity?${query}`);
 
     state.days = new Map(activity.days.map((day) => [day.date, day]));
+    state.planSummary = activity.plan_summary;
     elements.calendarError.className = "empty-state hidden";
     elements.calendarError.replaceChildren();
   } catch (error) {
     state.days = new Map();
+    state.planSummary = null;
     elements.calendarError.classList.remove("hidden");
     renderListError(
       elements.calendarError,
@@ -211,7 +218,80 @@ async function loadActivity() {
   }
 
   renderCalendar();
+  renderPlanSummary();
   renderDayDetail();
+}
+
+
+function renderPlanSummary() {
+  const summary = state.planSummary;
+  const period = state.view === "week" ? "la semana" : "el mes";
+
+  if (!summary) {
+    elements.planSummary.replaceChildren();
+    return;
+  }
+
+  if (summary.total === 0) {
+    elements.planSummary.replaceChildren(
+      createElement(
+        "p",
+        "plan-summary-details",
+        `No hay sesiones planificadas en ${period}.`,
+      ),
+    );
+    return;
+  }
+
+  const headline = createElement(
+    "p",
+    "plan-summary-text",
+    `Plan de ${period}: ${summary.completed} de ${summary.total} `
+      + `${summary.total === 1 ? "sesión completada" : "sesiones completadas"}`
+      + (summary.completion_rate === null
+        ? ""
+        : ` (${formatNumber(summary.completion_rate, 0)} % de lo que ya tocaba)`),
+  );
+
+  const progress = createElement("div", "plan-progress");
+  progress.setAttribute("role", "progressbar");
+  progress.setAttribute("aria-valuemin", "0");
+  progress.setAttribute("aria-valuemax", String(summary.total));
+  progress.setAttribute("aria-valuenow", String(summary.completed));
+
+  const bar = createElement("div", "plan-progress-bar");
+  bar.style.width = `${(summary.completed / summary.total) * 100}%`;
+  progress.append(bar);
+
+  const details = createElement("p", "plan-summary-details");
+
+  if (summary.overdue > 0) {
+    details.append(
+      createElement(
+        "span",
+        "overdue",
+        `${summary.overdue} ${summary.overdue === 1 ? "vencida" : "vencidas"}`,
+      ),
+    );
+  }
+
+  if (summary.skipped > 0) {
+    details.append(
+      createElement(
+        "span",
+        "",
+        `${summary.skipped} ${summary.skipped === 1 ? "omitida" : "omitidas"}`,
+      ),
+    );
+  }
+
+  if (summary.upcoming > 0) {
+    details.append(
+      createElement("span", "", `${summary.upcoming} por hacer`),
+    );
+  }
+
+  elements.planSummary.replaceChildren(headline, progress, details);
 }
 
 
@@ -305,8 +385,13 @@ function renderCalendar() {
       if (activity.is_rest_day) {
         markers.append(createElement("i", "legend-dot rest"));
       }
-      if (activity.planned_workouts.some((item) => item.status === "planned")) {
+      if (activity.planned_workouts.some(
+        (item) => item.status === "planned" && !item.is_overdue,
+      )) {
         markers.append(createElement("i", "legend-dot planned"));
+      }
+      if (activity.planned_workouts.some((item) => item.is_overdue)) {
+        markers.append(createElement("i", "legend-dot overdue"));
       }
 
       cell.append(markers);
@@ -342,9 +427,15 @@ function buildDayPlans(plans) {
   const list = createElement("span", "calendar-day-plans");
 
   for (const plan of plans.slice(0, MAX_PLANS_SHOWN_PER_DAY)) {
-    const item = createElement("span", `calendar-day-plan ${plan.status}`);
+    const label = plan.is_overdue
+      ? "Vencida"
+      : (STATUS_LABELS[plan.status] ?? plan.status);
+    const item = createElement(
+      "span",
+      `calendar-day-plan ${plan.is_overdue ? "overdue" : plan.status}`,
+    );
     item.textContent = plan.name;
-    item.title = `${plan.name} · ${STATUS_LABELS[plan.status] ?? plan.status}`;
+    item.title = `${plan.name} · ${label}`;
     list.append(item);
   }
 
@@ -367,6 +458,9 @@ function describeDay(value, activity) {
   if (activity.is_rest_day) parts.push("día de descanso");
   if (activity.planned_workouts.length > 0) {
     parts.push(`${activity.planned_workouts.length} sesiones planificadas`);
+  }
+  if (activity.planned_workouts.some((item) => item.is_overdue)) {
+    parts.push("con sesiones vencidas");
   }
 
   return parts.join(", ");
@@ -483,16 +577,27 @@ async function renderPlannedList() {
 }
 
 
+function isPlannedOverdue(planned) {
+  const activity = state.days.get(planned.scheduled_date);
+
+  return Boolean(
+    activity?.planned_workouts.find((item) => item.id === planned.id)
+      ?.is_overdue,
+  );
+}
+
+
 function buildPlannedCard(planned) {
   const card = createElement("article", `planned-card ${planned.status}`);
+  const overdue = isPlannedOverdue(planned);
 
   const heading = createElement("div", "planned-card-heading");
   heading.append(
     createElement("strong", "planned-card-name", planned.name),
     createElement(
       "span",
-      `planned-status ${planned.status}`,
-      STATUS_LABELS[planned.status] ?? planned.status,
+      `planned-status ${overdue ? "overdue" : planned.status}`,
+      overdue ? "Vencida" : (STATUS_LABELS[planned.status] ?? planned.status),
     ),
   );
   card.append(heading);

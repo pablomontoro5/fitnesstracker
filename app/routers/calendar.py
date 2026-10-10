@@ -8,6 +8,7 @@ from app.dependencies import get_current_user
 from app.schemas import (
     CalendarActivityDayResponse,
     CalendarActivityResponse,
+    CalendarPlanSummaryResponse,
     CalendarPlannedWorkoutResponse,
     UserResponse,
 )
@@ -29,8 +30,13 @@ MAX_CALENDAR_RANGE_DAYS = 366
 def get_calendar_activity(
     start_date: date,
     end_date: date,
+    today: date | None = None,
     current_user: UserResponse = Depends(get_current_user),
 ) -> CalendarActivityResponse:
+    # `today` lo envía el navegador con su fecha local: el servidor puede estar
+    # en otra zona horaria y marcaría como vencido lo de hoy (o al revés).
+    today = today or date.today()
+
     if start_date > end_date:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -157,14 +163,41 @@ def get_calendar_activity(
     planned_by_date: dict[str, list[CalendarPlannedWorkoutResponse]] = (
         defaultdict(list)
     )
+    completed = skipped = overdue = upcoming = 0
+
     for row in planned_rows:
+        is_overdue = (
+            row["status"] == "planned"
+            and date.fromisoformat(row["scheduled_date"]) < today
+        )
+
+        if row["status"] == "completed":
+            completed += 1
+        elif row["status"] == "skipped":
+            skipped += 1
+        elif is_overdue:
+            overdue += 1
+        else:
+            upcoming += 1
+
         planned_by_date[row["scheduled_date"]].append(
             CalendarPlannedWorkoutResponse(
                 id=row["id"],
                 name=row["name"],
                 status=row["status"],
+                is_overdue=is_overdue,
             )
         )
+
+    due = completed + skipped + overdue
+    plan_summary = CalendarPlanSummaryResponse(
+        total=len(planned_rows),
+        completed=completed,
+        skipped=skipped,
+        overdue=overdue,
+        upcoming=upcoming,
+        completion_rate=round(completed / due * 100, 1) if due else None,
+    )
 
     days: list[CalendarActivityDayResponse] = []
     current_date = start_date
@@ -203,4 +236,5 @@ def get_calendar_activity(
         start_date=start_date,
         end_date=end_date,
         days=days,
+        plan_summary=plan_summary,
     )

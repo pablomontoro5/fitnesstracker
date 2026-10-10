@@ -141,3 +141,10 @@ def test_calendar_page_has_week_view_controls():
 
     # Los controles de copiar solo se muestran en la vista semanal.
     assert 'id="week-actions" class="calendar-week-actions" hidden' in html
+
+
+def test_calendar_page_has_plan_summary_and_overdue_legend():
+    html = (FRONTEND / "calendar" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="plan-summary"' in html
+    assert 'legend-dot overdue' in html

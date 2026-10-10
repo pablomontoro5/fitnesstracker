@@ -115,6 +115,7 @@ def test_calendar_combines_activity_for_a_day():
             params={
                 "start_date": "2026-09-21",
                 "end_date": "2026-09-21",
+                "today": "2026-09-20",
             },
         )
 
@@ -133,6 +134,7 @@ def test_calendar_combines_activity_for_a_day():
                     "id": planned_workout["id"],
                     "name": "Torso A",
                     "status": "planned",
+                    "is_overdue": False,
                 }
             ],
         }
@@ -204,6 +206,7 @@ def test_calendar_returns_multiple_planned_workouts_in_creation_order():
             params={
                 "start_date": "2026-09-23",
                 "end_date": "2026-09-23",
+                "today": "2026-09-20",
             },
         )
 
@@ -213,11 +216,13 @@ def test_calendar_returns_multiple_planned_workouts_in_creation_order():
             "id": first["id"],
             "name": "Movilidad",
             "status": "planned",
+            "is_overdue": False,
         },
         {
             "id": second["id"],
             "name": "Torso A",
             "status": "planned",
+            "is_overdue": False,
         },
     ]
 def test_calendar_isolated_between_users():
