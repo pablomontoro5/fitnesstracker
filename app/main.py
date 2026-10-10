@@ -109,6 +109,28 @@ def serve_frontend() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def serve_manifest() -> FileResponse:
+    return FileResponse(
+        FRONTEND_DIR / "manifest.webmanifest",
+        media_type="application/manifest+json",
+    )
+
+
+@app.get("/sw.js", include_in_schema=False)
+def serve_service_worker() -> FileResponse:
+    # Va en la raíz (no en /static/) para que su ámbito sea toda la aplicación,
+    # y sin caché para que una versión nueva se instale en la siguiente visita.
+    return FileResponse(
+        FRONTEND_DIR / "sw.js",
+        media_type="text/javascript",
+        headers={
+            "Cache-Control": "no-cache",
+            "Service-Worker-Allowed": "/",
+        },
+    )
+
+
 @app.get("/health", tags=["system"])
 def health_check() -> JSONResponse:
     """Responde 200 solo si la aplicación y la base de datos funcionan; con
