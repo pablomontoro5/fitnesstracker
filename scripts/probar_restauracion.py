@@ -20,7 +20,7 @@ import sys
 import time
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -47,6 +47,40 @@ def load_env_file(path: Path) -> None:
         if key.strip() == DATABASE_URL_ENV:
             os.environ[DATABASE_URL_ENV] = value.strip().strip("'\"")
             return
+
+
+def diagnose_url(url: str) -> list[str]:
+    """Errores típicos al montar la cadena de Supabase (sin revelar secretos)."""
+    problems = []
+
+    if "[" in url or "]" in url:
+        # Con corchetes la cadena ni siquiera se puede analizar.
+        return [
+            "quedan corchetes: sustituye [YOUR-PASSWORD] entero, sin corchetes"
+        ]
+
+    parsed = urlparse(url)
+    user = unquote(parsed.username or "")
+    password = unquote(parsed.password or "")
+
+    if parsed.scheme not in {"postgresql", "postgres"}:
+        problems.append("debe empezar por postgresql://")
+
+    if url.split("://", 1)[-1].count("@") > 1:
+        problems.append(
+            "la contraseña tiene una @ sin codificar (escríbela como %40)"
+        )
+
+    if (parsed.hostname or "").endswith(".pooler.supabase.com") and "." not in user:
+        problems.append(
+            "con el pooler el usuario debe ser postgres.<id-del-proyecto>, "
+            "no solo postgres"
+        )
+
+    if not password:
+        problems.append("no hay contraseña en la cadena")
+
+    return problems
 
 
 def strip_ids(value):
@@ -200,8 +234,27 @@ def main() -> int:
         print(f"Falta {DATABASE_URL_ENV} (en el entorno o en {args.env_file}).")
         return 2
 
-    host = urlparse(url).hostname
+    problems = diagnose_url(url)
+
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname
+    except ValueError:
+        parsed, host = urlparse(""), None
     print(f"Base de datos: {host}")
+
+    if host:
+        # Ni el usuario ni la longitud son secretos; la contraseña no se muestra.
+        print(f"Usuario: {unquote(parsed.username or '')} "
+              f"(contraseña de {len(unquote(parsed.password or ''))} caracteres)")
+
+    for problem in problems:
+        print(f"  AVISO: {problem}")
+
+    if not host:
+        print("La cadena no tiene el formato "
+              "postgresql://usuario:contraseña@host:5432/postgres")
+        return 2
 
     if not args.confirmar:
         print("Es una prueba con usuarios desechables que se borran al final.")
