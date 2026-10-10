@@ -19,6 +19,7 @@ from app.routers import (
     exports,
     goals,
     food_library,
+    imports,
     meal_templates,
     nutrition_days,
     nutrition_foods,
@@ -87,6 +88,7 @@ app.include_router(workout_progress.router)
 app.include_router(runs.router)
 app.include_router(statistics.router)
 app.include_router(exports.router)
+app.include_router(imports.router)
 app.include_router(restores.router)
 app.include_router(workout_templates.router)
 app.include_router(goals.router)
