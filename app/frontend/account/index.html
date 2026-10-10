@@ -172,44 +172,73 @@
         <div class="panel-heading">
           <div>
             <p class="eyebrow">Tus datos</p>
-            <h2>Importar entrenamientos desde Hevy</h2>
+            <h2>Importar entrenamientos</h2>
           </div>
         </div>
 
         <p>
-          En Hevy: Perfil → Ajustes → Exportar e importar datos → Exportar
-          datos. Sube aquí el archivo .csv. Se <strong>añaden</strong> a lo que
-          ya tienes: no se borra nada, y si repites la importación, las
-          sesiones que ya existen (misma fecha y nombre) se omiten.
+          Sube el archivo .csv exportado desde otra aplicación. Se
+          <strong>añaden</strong> a lo que ya tienes: no se borra nada, y si
+          repites la importación, las sesiones que ya existen (misma fecha y
+          nombre) se omiten.
         </p>
+        <ul>
+          <li>
+            <strong>Hevy:</strong> Perfil → Ajustes → Exportar e importar
+            datos → Exportar datos.
+          </li>
+          <li>
+            <strong>Strong:</strong> Perfil → Ajustes → Exportar datos de
+            Strong.
+          </li>
+        </ul>
         <p>
-          Hevy no exporta el grupo muscular, así que los ejercicios importados
-          quedan como «Sin clasificar».
+          Ninguna de las dos exporta el grupo muscular, así que los ejercicios
+          importados quedan como «Sin clasificar».
         </p>
 
-        <form id="import-hevy-form" class="form-grid">
+        <form id="import-workouts-form" class="form-grid">
           <label class="full-width">
-            Archivo de Hevy (.csv)
+            Aplicación de origen
+            <select id="import-workouts-source">
+              <option value="hevy">Hevy</option>
+              <option value="strong">Strong</option>
+            </select>
+          </label>
+
+          <label id="import-workouts-unit-label" class="full-width" hidden>
+            Unidad de peso del archivo
+            <span class="optional">
+              Strong no la indica en el CSV: usa la que tengas en la app
+            </span>
+            <select id="import-workouts-unit">
+              <option value="kg">Kilogramos (kg)</option>
+              <option value="lb">Libras (lb)</option>
+            </select>
+          </label>
+
+          <label class="full-width">
+            Archivo (.csv)
             <input
-              id="import-hevy-file"
+              id="import-workouts-file"
               type="file"
               accept=".csv,text/csv"
               required
             />
           </label>
 
-          <div id="import-hevy-summary" class="full-width" role="status" aria-live="polite" hidden></div>
+          <div id="import-workouts-summary" class="full-width" role="status" aria-live="polite" hidden></div>
 
           <div class="form-actions full-width">
             <button
-              id="import-hevy-preview-button"
+              id="import-workouts-preview-button"
               class="secondary-button"
               type="submit"
             >
               Revisar archivo
             </button>
             <button
-              id="import-hevy-confirm-button"
+              id="import-workouts-confirm-button"
               class="primary-button"
               type="button"
               hidden

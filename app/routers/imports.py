@@ -1,10 +1,14 @@
+from typing import Callable
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
-from app.db import IntegrityError, get_connection
+from app.db import Connection, IntegrityError, get_connection
 from app.dependencies import get_current_user
 from app.logging_config import logger
 from app.schemas import UserResponse
-from app.services.hevy_import import InvalidImport, import_hevy_workouts
+from app.services.hevy_import import import_hevy_workouts
+from app.services.strong_import import import_strong_workouts
+from app.services.workout_import import InvalidImport
 
 MAX_IMPORT_BYTES = 10 * 1024 * 1024
 
@@ -15,23 +19,19 @@ router = APIRouter(
 )
 
 
-@router.post(
-    "/hevy",
-    status_code=status.HTTP_200_OK,
-)
-def import_hevy_csv(
-    file: UploadFile = File(...),
-    dry_run: bool = Form(True),
-    current_user: UserResponse = Depends(get_current_user),
+def run_import(
+    source: str,
+    file: UploadFile,
+    dry_run: bool,
+    user: UserResponse,
+    importer: Callable[[Connection, bytes], dict],
 ) -> dict:
-    """Importa a la cuenta autenticada los entrenamientos de un CSV de Hevy.
-
-    Solo añade datos. Con `dry_run` (por defecto) devuelve lo que haría sin
-    guardar nada, para revisarlo antes de confirmar."""
+    """Valida el archivo y ejecuta `importer` en una transacción: o se guarda
+    todo o no se guarda nada."""
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Debes seleccionar el archivo .csv exportado desde Hevy.",
+            detail=f"Debes seleccionar el archivo .csv exportado desde {source}.",
         )
 
     try:
@@ -46,11 +46,8 @@ def import_hevy_csv(
         )
 
     try:
-        # Una sola transacción: si algo falla, no se guarda nada.
         with get_connection() as connection:
-            result = import_hevy_workouts(
-                connection, current_user.id, content, dry_run=dry_run,
-            )
+            result = importer(connection, content)
     except InvalidImport as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -67,8 +64,52 @@ def import_hevy_csv(
 
     if not dry_run:
         logger.info(
-            "Importación de Hevy: usuario=%s sesiones=%s series=%s",
-            current_user.id, result["sessions"], result["sets"],
+            "Importación de %s: usuario=%s sesiones=%s series=%s",
+            source, user.id, result["sessions"], result["sets"],
         )
 
     return result
+
+
+@router.post(
+    "/hevy",
+    status_code=status.HTTP_200_OK,
+)
+def import_hevy_csv(
+    file: UploadFile = File(...),
+    dry_run: bool = Form(True),
+    current_user: UserResponse = Depends(get_current_user),
+) -> dict:
+    """Importa a la cuenta autenticada los entrenamientos de un CSV de Hevy.
+
+    Solo añade datos. Con `dry_run` (por defecto) devuelve lo que haría sin
+    guardar nada, para revisarlo antes de confirmar."""
+    return run_import(
+        "Hevy", file, dry_run, current_user,
+        lambda connection, content: import_hevy_workouts(
+            connection, current_user.id, content, dry_run=dry_run,
+        ),
+    )
+
+
+@router.post(
+    "/strong",
+    status_code=status.HTTP_200_OK,
+)
+def import_strong_csv(
+    file: UploadFile = File(...),
+    weight_unit: str = Form("kg"),
+    dry_run: bool = Form(True),
+    current_user: UserResponse = Depends(get_current_user),
+) -> dict:
+    """Importa a la cuenta autenticada los entrenamientos de un CSV de Strong.
+
+    El CSV de Strong no indica la unidad del peso: `weight_unit` es «kg» o
+    «lb». Solo añade datos; con `dry_run` (por defecto) no guarda nada."""
+    return run_import(
+        "Strong", file, dry_run, current_user,
+        lambda connection, content: import_strong_workouts(
+            connection, current_user.id, content,
+            weight_unit=weight_unit, dry_run=dry_run,
+        ),
+    )

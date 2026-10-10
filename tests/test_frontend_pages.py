@@ -112,12 +112,13 @@ def test_every_page_links_the_manifest_and_loads_pwa_script():
     assert missing == []
 
 
-def test_account_page_has_hevy_import_form_and_hidden_attribute_is_respected():
+def test_account_page_has_import_form_and_hidden_attribute_is_respected():
     html = (FRONTEND / "account" / "index.html").read_text(encoding="utf-8")
 
     for element_id in (
-        "import-hevy-form", "import-hevy-file",
-        "import-hevy-preview-button", "import-hevy-confirm-button",
+        "import-workouts-form", "import-workouts-file",
+        "import-workouts-preview-button", "import-workouts-confirm-button",
+        "import-workouts-source", "import-workouts-unit",
     ):
         assert f'id="{element_id}"' in html, element_id
 
