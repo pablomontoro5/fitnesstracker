@@ -110,3 +110,19 @@ def test_every_page_links_the_manifest_and_loads_pwa_script():
             missing.append(page.relative_to(FRONTEND).as_posix())
 
     assert missing == []
+
+
+def test_account_page_has_hevy_import_form_and_hidden_attribute_is_respected():
+    html = (FRONTEND / "account" / "index.html").read_text(encoding="utf-8")
+
+    for element_id in (
+        "import-hevy-form", "import-hevy-file",
+        "import-hevy-preview-button", "import-hevy-confirm-button",
+    ):
+        assert f'id="{element_id}"' in html, element_id
+
+    # El botón de confirmar empieza oculto; los botones tienen `display: flex`,
+    # así que hace falta la regla global que respete el atributo `hidden`.
+    css = (FRONTEND / "style.css").read_text(encoding="utf-8")
+
+    assert "[hidden]" in css

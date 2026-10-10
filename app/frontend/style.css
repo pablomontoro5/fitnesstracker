@@ -451,6 +451,11 @@ textarea:focus {
   display: none !important;
 }
 
+/* Los botones tienen `display: flex`, que anula el atributo `hidden`. */
+[hidden] {
+  display: none !important;
+}
+
 .sets-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);

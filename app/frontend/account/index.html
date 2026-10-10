@@ -171,6 +171,58 @@
       <article class="panel">
         <div class="panel-heading">
           <div>
+            <p class="eyebrow">Tus datos</p>
+            <h2>Importar entrenamientos desde Hevy</h2>
+          </div>
+        </div>
+
+        <p>
+          En Hevy: Perfil → Ajustes → Exportar e importar datos → Exportar
+          datos. Sube aquí el archivo .csv. Se <strong>añaden</strong> a lo que
+          ya tienes: no se borra nada, y si repites la importación, las
+          sesiones que ya existen (misma fecha y nombre) se omiten.
+        </p>
+        <p>
+          Hevy no exporta el grupo muscular, así que los ejercicios importados
+          quedan como «Sin clasificar».
+        </p>
+
+        <form id="import-hevy-form" class="form-grid">
+          <label class="full-width">
+            Archivo de Hevy (.csv)
+            <input
+              id="import-hevy-file"
+              type="file"
+              accept=".csv,text/csv"
+              required
+            />
+          </label>
+
+          <div id="import-hevy-summary" class="full-width" role="status" aria-live="polite" hidden></div>
+
+          <div class="form-actions full-width">
+            <button
+              id="import-hevy-preview-button"
+              class="secondary-button"
+              type="submit"
+            >
+              Revisar archivo
+            </button>
+            <button
+              id="import-hevy-confirm-button"
+              class="primary-button"
+              type="button"
+              hidden
+            >
+              Importar
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
             <p class="eyebrow">Zona peligrosa</p>
             <h2>Borrar mi cuenta</h2>
           </div>

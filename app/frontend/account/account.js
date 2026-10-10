@@ -188,6 +188,144 @@ restoreAccountForm.addEventListener("submit", async (event) => {
 });
 
 
+const importHevyForm = document.querySelector("#import-hevy-form");
+const importHevyFile = document.querySelector("#import-hevy-file");
+const importHevySummary = document.querySelector("#import-hevy-summary");
+const importHevyPreviewButton = document.querySelector(
+  "#import-hevy-preview-button",
+);
+const importHevyConfirmButton = document.querySelector(
+  "#import-hevy-confirm-button",
+);
+
+
+function resetHevyImport() {
+  importHevySummary.hidden = true;
+  importHevySummary.replaceChildren();
+  importHevyConfirmButton.hidden = true;
+}
+
+
+function plural(count, singular, pluralForm) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+
+function renderHevySummary(result) {
+  importHevySummary.replaceChildren();
+
+  const lines = [
+    result.dry_run
+      ? `Se importarían ${plural(result.sessions, "sesión", "sesiones")}, `
+        + `${plural(result.exercises, "ejercicio", "ejercicios")} y `
+        + `${plural(result.sets, "serie", "series")}.`
+      : `Importadas ${plural(result.sessions, "sesión", "sesiones")}, `
+        + `${plural(result.exercises, "ejercicio", "ejercicios")} y `
+        + `${plural(result.sets, "serie", "series")}.`,
+  ];
+
+  if (result.skipped_sessions > 0) {
+    lines.push(
+      `${plural(result.skipped_sessions, "sesión ya existía", "sesiones ya existían")} `
+      + "y se omite.",
+    );
+  }
+
+  if (result.omitted_sets > 0) {
+    lines.push(
+      `${plural(result.omitted_sets, "serie omitida", "series omitidas")} `
+      + "(sin repeticiones o con datos no válidos).",
+    );
+  }
+
+  for (const line of lines) {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = line;
+    importHevySummary.append(paragraph);
+  }
+
+  if (result.warnings.length > 0) {
+    const list = document.createElement("ul");
+
+    for (const warning of result.warnings) {
+      const item = document.createElement("li");
+      item.textContent = warning;
+      list.append(item);
+    }
+
+    importHevySummary.append(list);
+  }
+
+  importHevySummary.hidden = false;
+}
+
+
+async function sendHevyFile(dryRun) {
+  const formData = new FormData();
+  formData.append("file", importHevyFile.files[0]);
+  formData.append("dry_run", dryRun ? "true" : "false");
+
+  const response = await apiFetch("/imports/hevy", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+
+importHevyFile.addEventListener("change", resetHevyImport);
+
+importHevyForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  clearAccountStatus();
+  resetHevyImport();
+  importHevyPreviewButton.disabled = true;
+
+  try {
+    const result = await sendHevyFile(true);
+
+    renderHevySummary(result);
+    importHevyConfirmButton.hidden = result.sessions === 0;
+
+    if (result.sessions === 0) {
+      showAccountStatus("No hay sesiones nuevas que importar.", "success");
+    }
+  } catch (error) {
+    showAccountStatus(error.message, "error");
+  } finally {
+    importHevyPreviewButton.disabled = false;
+  }
+});
+
+importHevyConfirmButton.addEventListener("click", async () => {
+  clearAccountStatus();
+  importHevyConfirmButton.disabled = true;
+  importHevyPreviewButton.disabled = true;
+
+  try {
+    const result = await sendHevyFile(false);
+
+    importHevyConfirmButton.hidden = true;
+    renderHevySummary(result);
+    importHevyForm.reset();
+    showAccountStatus(
+      "Entrenamientos importados. Ya puedes verlos en tu historial.",
+      "success",
+    );
+  } catch (error) {
+    showAccountStatus(error.message, "error");
+  } finally {
+    importHevyConfirmButton.disabled = false;
+    importHevyPreviewButton.disabled = false;
+  }
+});
+
+
 async function initializeAccount() {
   if (!getAccessToken()) {
     window.location.replace("/static/login/?next=%2Fstatic%2Faccount%2F");
