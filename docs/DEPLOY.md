@@ -15,6 +15,30 @@ Internet ──443──▶ Caddy (HTTPS automático) ──▶ FastAPI (contene
    copia nocturna: pg_dump ──▶ age (cifrado) ──▶ rclone ──▶ almacenamiento externo (S3/B2)
 ```
 
+## Decisión: dónde corre la API
+
+La API corre en **un VPS propio en la UE con Docker + Caddy**, y no en un servicio
+gestionado. Motivos:
+
+- Ya está hecho y probado en el CI: `docker-compose.yml`, `Caddyfile`, imagen que
+  arranca sin privilegios y comprobación de `/health`.
+- Las copias nocturnas cifradas (`deploy/backup.sh`) y su restauración están pensadas
+  para este esquema; en un servicio gestionado habría que rehacerlas.
+- Coste fijo y bajo para unos pocos usuarios, sin sorpresas por tráfico.
+
+Qué se paga con esta decisión: **el mantenimiento es tuyo** (actualizar el sistema, vigilar
+el disco, renovar claves). Si más adelante prefieres no encargarte, la imagen Docker
+también funciona en un servicio gestionado que acepte contenedores: lo que cambiaría es
+el HTTPS (lo daría el servicio, sin Caddy) y las copias (tendrían que seguir saliendo
+a un almacenamiento externo).
+
+**Región de la base de datos.** Pon el proyecto de Supabase en la misma región que el
+VPS o lo más cerca posible: cada petición hace varias consultas y la distancia se
+nota. Con un VPS en Alemania (Hetzner Falkenstein/Núremberg), lo natural es
+**Fráncfort (`eu-central-1`)**. Londres (`eu-west-2`) está fuera de la UE: no es
+ilegal (el Reino Unido tiene decisión de adecuación), pero el aviso de privacidad
+debe decir «Reino Unido» y no «UE».
+
 ## 0. Qué necesitas
 
 | Cosa | Para qué | Coste orientativo |
@@ -52,16 +76,22 @@ certificado hasta que el dominio apunte al servidor.
 1. En [supabase.com](https://supabase.com) crea un proyecto. Elige una región de
    la UE (la misma o la más cercana a tu servidor) y una **contraseña de base de
    datos** larga: guárdala en tu gestor de contraseñas.
-2. Pulsa **Connect** y copia la cadena de conexión. Elige según dónde corra la app:
-   - **Session pooler** (puerto 5432, `aws-0-REGIÓN.pooler.supabase.com`): funciona
+2. Pulsa **Connect** y copia la cadena de conexión. Elige según dónde corra la app.
+   **Copia siempre el host del botón Connect, no lo escribas a mano**: el prefijo
+   (`aws-0-…` o `aws-1-…`) depende del proyecto, y con el prefijo equivocado el
+   pooler responde «tenant/user not found» o «password authentication failed».
+   - **Session pooler** (puerto 5432, `aws-N-REGIÓN.pooler.supabase.com`; el usuario
+     es `postgres.ID_DEL_PROYECTO`, no solo `postgres`): funciona
      por IPv4. Es la opción recomendada si tu VPS no tiene IPv6.
    - **Conexión directa** (`db.PROYECTO.supabase.co:5432`): solo IPv6 salvo que
      contrates el complemento IPv4 de Supabase. Úsala si tu servidor tiene IPv6.
    - El **Transaction pooler** (puerto 6543) también funciona (la aplicación
      desactiva las sentencias preparadas), pero no hace falta con un servidor fijo.
-3. Sustituye `[PASSWORD]` por tu contraseña (si tiene `@`, `/`, `:` o `#`,
-   codifícalos: `%40`, `%2F`, `%3A`, `%23`). Esa URL es
-   `FITNESS_TRACKER_DATABASE_URL`.
+3. Sustituye `[PASSWORD]` por tu contraseña, **sin los corchetes** (si tiene `@`,
+   `/`, `:` o `#`, codifícalos: `%40`, `%2F`, `%3A`, `%23`; con una contraseña de
+   letras y números no hace falta). Esa URL es `FITNESS_TRACKER_DATABASE_URL`.
+   Guarda la contraseña en tu gestor y no la pegues en chats ni tickets: si se
+   expone, restablécela en *Project Settings → Database → Reset database password*.
 4. No hace falta crear tablas: la aplicación las crea sola al arrancar (migraciones
    versionadas en `schema_migrations`) y activa la seguridad por filas (RLS) en todas,
    de modo que la API REST pública de Supabase no puede leer ningún dato. **No uses
@@ -350,6 +380,14 @@ tendrías que restaurar la copia en una base aparte y extraer sus datos de ahí.
   un `FITNESS_TRACKER_JWT_SECRET` ausente o de menos de 32 bytes, o una
   `FITNESS_TRACKER_DATABASE_URL` incorrecta: contraseña mal codificada, o conexión
   directa desde un servidor sin IPv6 (usa el Session pooler).
+- **`password authentication failed for user "postgres"` con el pooler:** el pooler
+  muestra siempre `postgres`, aunque envíes `postgres.ID`. Revisa, por este orden:
+  que no queden los corchetes de `[YOUR-PASSWORD]`; que el usuario lleve el id del
+  proyecto; que el host sea el que da el botón **Connect** (con otro prefijo
+  `aws-N` sale `tenant/user not found`); que la contraseña no tenga símbolos sin
+  codificar ni caracteres que se confundan al teclearla (`I`/`l`, `O`/`0`), y que
+  hayas esperado un par de minutos tras cambiarla. El SQL Editor de Supabase **no**
+  puede cambiar la contraseña de `postgres`: solo el panel.
 - **Primera petición muy lenta tras días sin uso:** el proyecto gratuito de
   Supabase estaba pausado; reactívalo desde su panel.
 - **«Se necesita un código de invitación válido»:** el código ya se usó, caducó o
