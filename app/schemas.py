@@ -676,6 +676,20 @@ class CalendarPlannedWorkoutResponse(BaseModel):
     id: int
     name: str
     status: PlannedWorkoutStatus
+    # Planificada, con fecha anterior a «hoy» y sin completar ni omitir.
+    is_overdue: bool = False
+
+
+class CalendarPlanSummaryResponse(BaseModel):
+    """Cumplimiento de la planificación en el periodo consultado."""
+    total: int
+    completed: int
+    skipped: int
+    overdue: int
+    upcoming: int
+    # Porcentaje completado sobre lo que ya tocaba (completadas + omitidas +
+    # vencidas); None si todavía no tocaba nada.
+    completion_rate: float | None
 
 
 class CalendarActivityDayResponse(BaseModel):
@@ -693,6 +707,7 @@ class CalendarActivityResponse(BaseModel):
     start_date: date
     end_date: date
     days: list[CalendarActivityDayResponse]
+    plan_summary: CalendarPlanSummaryResponse
 
 class FitnessGoalUpsert(BaseModel):
     target_value: float = Field(gt=0, le=1_000_000)

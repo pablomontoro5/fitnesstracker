@@ -2777,6 +2777,42 @@ a.history-button:hover {
   color: var(--primary);
 }
 
+.plan-summary {
+  margin-bottom: 1rem;
+}
+
+.plan-summary-text {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+
+.plan-summary-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0.4rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.plan-summary-details .overdue {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.plan-progress {
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+
+.plan-progress-bar {
+  height: 100%;
+  background: var(--primary);
+}
+
 .calendar-week-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2880,6 +2916,10 @@ a.history-button:hover {
   border-left-color: var(--working);
 }
 
+.calendar-day-plan.overdue {
+  border-left-color: var(--danger);
+}
+
 .calendar-day-plan.skipped {
   border-left-color: var(--text-muted);
   opacity: 0.65;
@@ -2943,6 +2983,7 @@ a.history-button:hover {
 .legend-dot.run { background: var(--warmup); }
 .legend-dot.rest { background: var(--drop-set); }
 .legend-dot.planned { background: var(--approximation); }
+.legend-dot.overdue { background: var(--danger); }
 
 .day-summary {
   display: grid;
@@ -3010,6 +3051,7 @@ a.history-button:hover {
   color: var(--text-muted);
 }
 
+.planned-status.overdue { color: var(--danger); }
 .planned-status.completed { color: var(--primary); }
 .planned-status.planned { color: var(--approximation); }
 
