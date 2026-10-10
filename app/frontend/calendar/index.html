@@ -41,6 +41,25 @@
 
     <div class="calendar-layout">
       <section class="panel">
+        <div class="calendar-view-toggle" role="group" aria-label="Vista del calendario">
+          <button
+            id="view-month-button"
+            class="secondary-button"
+            type="button"
+            aria-pressed="true"
+          >
+            Mes
+          </button>
+          <button
+            id="view-week-button"
+            class="secondary-button"
+            type="button"
+            aria-pressed="false"
+          >
+            Semana
+          </button>
+        </div>
+
         <div class="calendar-toolbar">
           <button
             id="previous-month-button"
@@ -70,9 +89,27 @@
           </button>
         </div>
 
+        <div id="week-actions" class="calendar-week-actions" hidden>
+          <button
+            id="copy-from-previous-week-button"
+            class="secondary-button"
+            type="button"
+          >
+            Copiar la semana anterior aquí
+          </button>
+          <button
+            id="copy-to-next-week-button"
+            class="secondary-button"
+            type="button"
+          >
+            Copiar esta semana a la siguiente
+          </button>
+        </div>
+
         <div id="calendar-error" class="empty-state hidden"></div>
 
         <div
+          id="calendar-weekdays"
           class="calendar-weekdays"
           aria-hidden="true"
         >

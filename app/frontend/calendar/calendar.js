@@ -1,8 +1,25 @@
 const WEEKDAYS_IN_GRID = 7;
 
+const VIEW_STORAGE_KEY = "fitness_tracker_calendar_view";
+const MAX_PLANS_SHOWN_PER_DAY = 3;
+
+
+function loadSavedView() {
+  try {
+    return localStorage.getItem(VIEW_STORAGE_KEY) === "week" ? "week" : "month";
+  } catch {
+    return "month";
+  }
+}
+
+
 const state = {
+  // "month" o "week".
+  view: loadSavedView(),
   // Primer día del mes que se está viendo.
   month: startOfMonth(new Date()),
+  // Lunes de la semana que se está viendo (vista semanal).
+  weekStart: startOfWeek(new Date()),
   selectedDate: formatDate(new Date()),
   days: new Map(),
   templates: [],
@@ -16,6 +33,14 @@ const elements = {
   nextMonthButton: document.querySelector("#next-month-button"),
   todayButton: document.querySelector("#today-button"),
   calendarError: document.querySelector("#calendar-error"),
+  calendarWeekdays: document.querySelector("#calendar-weekdays"),
+  viewMonthButton: document.querySelector("#view-month-button"),
+  viewWeekButton: document.querySelector("#view-week-button"),
+  weekActions: document.querySelector("#week-actions"),
+  copyFromPreviousButton: document.querySelector(
+    "#copy-from-previous-week-button",
+  ),
+  copyToNextButton: document.querySelector("#copy-to-next-week-button"),
   calendarGrid: document.querySelector("#calendar-grid"),
   dayTitle: document.querySelector("#day-title"),
   daySummary: document.querySelector("#day-summary"),
@@ -63,6 +88,10 @@ function addDays(date, amount) {
 
 
 function getGridRange() {
+  if (state.view === "week") {
+    return { start: state.weekStart, end: addDays(state.weekStart, 6) };
+  }
+
   const start = startOfWeek(state.month);
   const lastOfMonth = new Date(
     state.month.getFullYear(),
@@ -209,20 +238,36 @@ function renderCalendar() {
   const todayValue = formatDate(new Date());
   const cells = [];
 
-  const monthName = new Intl.DateTimeFormat("es-ES", {
-    month: "long",
-    year: "numeric",
-  }).format(state.month);
+  const isWeekView = state.view === "week";
 
-  // "octubre de 2026" -> "Octubre de 2026"
-  elements.monthTitle.textContent = (
-    monthName.charAt(0).toUpperCase() + monthName.slice(1)
-  );
+  if (isWeekView) {
+    // "5 – 11 de octubre de 2026"
+    elements.monthTitle.textContent = `Semana del ${new Intl.DateTimeFormat(
+      "es-ES",
+      { day: "numeric", month: "long", year: "numeric" },
+    ).formatRange(start, end)}`;
+  } else {
+    const monthName = new Intl.DateTimeFormat("es-ES", {
+      month: "long",
+      year: "numeric",
+    }).format(state.month);
+
+    // "octubre de 2026" -> "Octubre de 2026"
+    elements.monthTitle.textContent = (
+      monthName.charAt(0).toUpperCase() + monthName.slice(1)
+    );
+  }
+
+  elements.calendarGrid.classList.toggle("week-view", isWeekView);
+  // En la vista semanal cada día lleva su propio nombre.
+  elements.calendarWeekdays.hidden = isWeekView;
 
   for (let day = start; day <= end; day = addDays(day, 1)) {
     const value = formatDate(day);
     const activity = state.days.get(value);
-    const isOutsideMonth = day.getMonth() !== state.month.getMonth();
+    const isOutsideMonth = (
+      state.view === "month" && day.getMonth() !== state.month.getMonth()
+    );
 
     const cell = createElement("button", "calendar-day");
     cell.type = "button";
@@ -234,6 +279,16 @@ function renderCalendar() {
     if (value === state.selectedDate) {
       cell.classList.add("selected");
       cell.setAttribute("aria-current", "date");
+    }
+
+    if (isWeekView) {
+      cell.append(
+        createElement(
+          "span",
+          "calendar-day-weekday",
+          new Intl.DateTimeFormat("es-ES", { weekday: "short" }).format(day),
+        ),
+      );
     }
 
     cell.append(createElement("span", "calendar-day-number", day.getDate()));
@@ -256,6 +311,10 @@ function renderCalendar() {
 
       cell.append(markers);
 
+      if (isWeekView && activity.planned_workouts.length > 0) {
+        cell.append(buildDayPlans(activity.planned_workouts));
+      }
+
       if (activity.steps > 0) {
         cell.append(
           createElement(
@@ -276,6 +335,26 @@ function renderCalendar() {
   }
 
   elements.calendarGrid.replaceChildren(...cells);
+}
+
+
+function buildDayPlans(plans) {
+  const list = createElement("span", "calendar-day-plans");
+
+  for (const plan of plans.slice(0, MAX_PLANS_SHOWN_PER_DAY)) {
+    const item = createElement("span", `calendar-day-plan ${plan.status}`);
+    item.textContent = plan.name;
+    item.title = `${plan.name} · ${STATUS_LABELS[plan.status] ?? plan.status}`;
+    list.append(item);
+  }
+
+  const hidden = plans.length - MAX_PLANS_SHOWN_PER_DAY;
+
+  if (hidden > 0) {
+    list.append(createElement("span", "calendar-day-more", `+${hidden} más`));
+  }
+
+  return list;
 }
 
 
@@ -552,14 +631,105 @@ async function handleCreatePlanned(event) {
 }
 
 
-function changeMonth(amount) {
-  state.month = new Date(
-    state.month.getFullYear(),
-    state.month.getMonth() + amount,
-    1,
-  );
+function changePeriod(amount) {
+  if (state.view === "week") {
+    state.weekStart = addDays(state.weekStart, 7 * amount);
+    // El día seleccionado se mueve a la misma posición de la semana nueva.
+    state.selectedDate = formatDate(
+      addDays(parseDate(state.selectedDate), 7 * amount),
+    );
+  } else {
+    state.month = new Date(
+      state.month.getFullYear(),
+      state.month.getMonth() + amount,
+      1,
+    );
+  }
 
   loadActivity();
+}
+
+
+function updateViewControls() {
+  const isWeekView = state.view === "week";
+  const unit = isWeekView ? "Semana" : "Mes";
+
+  elements.viewMonthButton.setAttribute("aria-pressed", String(!isWeekView));
+  elements.viewWeekButton.setAttribute("aria-pressed", String(isWeekView));
+  elements.weekActions.hidden = !isWeekView;
+
+  for (const [button, direction] of [
+    [elements.previousMonthButton, "anterior"],
+    [elements.nextMonthButton, "siguiente"],
+  ]) {
+    button.title = `${unit} ${direction}`;
+    button.setAttribute("aria-label", `${unit} ${direction}`);
+  }
+}
+
+
+function setView(view) {
+  if (view === state.view) {
+    return;
+  }
+
+  state.view = view;
+
+  const selected = parseDate(state.selectedDate);
+
+  if (view === "week") {
+    state.weekStart = startOfWeek(selected);
+  } else {
+    state.month = startOfMonth(selected);
+  }
+
+  try {
+    localStorage.setItem(VIEW_STORAGE_KEY, view);
+  } catch {
+    // Sin almacenamiento, la vista simplemente no se recuerda.
+  }
+
+  updateViewControls();
+  loadActivity();
+}
+
+
+async function copyWeek(sourceStart, targetStart, { goToTarget }) {
+  const result = await request("/planned-workouts/copy-week", {
+    method: "POST",
+    body: JSON.stringify({
+      source_start: formatDate(sourceStart),
+      target_start: formatDate(targetStart),
+    }),
+  });
+
+  if (result.copied === 0 && result.skipped === 0) {
+    showStatus("No hay sesiones planificadas en esa semana para copiar.", "error");
+    return;
+  }
+
+  const parts = [
+    `${result.copied} ${result.copied === 1 ? "sesión copiada" : "sesiones copiadas"}`,
+  ];
+
+  if (result.skipped > 0) {
+    parts.push(
+      `${result.skipped} ya ${result.skipped === 1 ? "existía" : "existían"}`,
+    );
+  }
+
+  showStatus(`${parts.join(", ")}.`);
+
+  if (goToTarget) {
+    const shift = Math.round((targetStart - state.weekStart) / 86400000);
+
+    state.weekStart = targetStart;
+    state.selectedDate = formatDate(
+      addDays(parseDate(state.selectedDate), shift),
+    );
+  }
+
+  await loadActivity();
 }
 
 
@@ -568,10 +738,14 @@ function selectDate(value) {
 
   const selected = parseDate(value);
 
-  // Pulsar un día de otro mes lleva a ese mes.
+  // Pulsar un día de otro mes lleva a ese mes (en la vista semanal todos los
+  // días visibles son de la semana actual y no hay nada que cambiar).
   if (
-    selected.getMonth() !== state.month.getMonth()
-    || selected.getFullYear() !== state.month.getFullYear()
+    state.view === "month"
+    && (
+      selected.getMonth() !== state.month.getMonth()
+      || selected.getFullYear() !== state.month.getFullYear()
+    )
   ) {
     state.month = startOfMonth(selected);
     loadActivity();
@@ -584,12 +758,46 @@ function selectDate(value) {
 
 
 function configureEventListeners() {
-  elements.previousMonthButton.addEventListener("click", () => changeMonth(-1));
-  elements.nextMonthButton.addEventListener("click", () => changeMonth(1));
+  elements.previousMonthButton.addEventListener("click", () => changePeriod(-1));
+  elements.nextMonthButton.addEventListener("click", () => changePeriod(1));
   elements.todayButton.addEventListener("click", () => {
     state.month = startOfMonth(new Date());
+    state.weekStart = startOfWeek(new Date());
     state.selectedDate = formatDate(new Date());
     loadActivity();
+  });
+
+  elements.viewMonthButton.addEventListener("click", () => setView("month"));
+  elements.viewWeekButton.addEventListener("click", () => setView("week"));
+
+  elements.copyFromPreviousButton.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+
+    try {
+      await copyWeek(addDays(state.weekStart, -7), state.weekStart, {
+        goToTarget: false,
+      });
+    } catch (error) {
+      showStatus(error.message, "error");
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  elements.copyToNextButton.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+
+    try {
+      await copyWeek(state.weekStart, addDays(state.weekStart, 7), {
+        goToTarget: true,
+      });
+    } catch (error) {
+      showStatus(error.message, "error");
+    } finally {
+      button.disabled = false;
+    }
   });
 
   elements.calendarGrid.addEventListener("click", (event) => {
@@ -606,6 +814,7 @@ function configureEventListeners() {
 
 async function initializeApp() {
   configureEventListeners();
+  updateViewControls();
   await Promise.all([loadTemplates(), loadActivity()]);
 }
 
