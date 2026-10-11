@@ -162,3 +162,25 @@ def test_calendar_page_can_plan_runs():
     assert '<option value="run">' in html
     # La distancia solo se pide al elegir «Carrera».
     assert 'id="planned-distance-label" class="full-width" hidden' in html
+
+
+def test_calendar_page_can_plan_meals():
+    html = (FRONTEND / "calendar" / "index.html").read_text(encoding="utf-8")
+
+    for element_id in (
+        "planned-meals-list", "planned-meal-form",
+        "planned-meal-template", "planned-meal-name",
+    ):
+        assert f'id="{element_id}"' in html, element_id
+
+    assert "legend-dot meal" in html
+
+
+def test_calendar_script_uses_the_planned_meals_api():
+    script = (FRONTEND / "calendar" / "calendar.js").read_text(encoding="utf-8")
+
+    for path in (
+        "/planned-meals/", "/planned-meals/${meal.id}/complete",
+        "/planned-meals/copy-week", "/meal-templates/",
+    ):
+        assert path in script, path

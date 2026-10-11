@@ -24,6 +24,9 @@ const state = {
   days: new Map(),
   planSummary: null,
   templates: [],
+  // Comidas planificadas del periodo visible, por fecha.
+  plannedMeals: new Map(),
+  mealTemplates: [],
 };
 
 
@@ -55,6 +58,9 @@ const elements = {
   plannedDistance: document.querySelector("#planned-distance"),
   plannedNameHint: document.querySelector("#planned-name-hint"),
   plannedName: document.querySelector("#planned-name"),
+  plannedMealsList: document.querySelector("#planned-meals-list"),
+  plannedMealForm: document.querySelector("#planned-meal-form"),
+  plannedMealTemplate: document.querySelector("#planned-meal-template"),
 };
 
 
@@ -132,6 +138,34 @@ const STATUS_LABELS = {
   skipped: "Omitida",
 };
 
+// Una comida completada ya está registrada en el diario de nutrición.
+const MEAL_STATUS_LABELS = {
+  planned: "Planificada",
+  completed: "Registrada",
+  skipped: "Omitida",
+};
+
+
+// Planificada con fecha anterior a hoy (la fecha local del navegador).
+function isMealOverdue(meal) {
+  return meal.status === "planned" && meal.scheduled_date < formatDate(new Date());
+}
+
+
+function groupMealsByDate(meals) {
+  const grouped = new Map();
+
+  for (const meal of meals) {
+    if (!grouped.has(meal.scheduled_date)) {
+      grouped.set(meal.scheduled_date, []);
+    }
+
+    grouped.get(meal.scheduled_date).push(meal);
+  }
+
+  return grouped;
+}
+
 
 function showStatus(message, type = "success") {
   elements.statusMessage.textContent = message;
@@ -204,14 +238,23 @@ async function loadActivity() {
   );
 
   try {
-    const activity = await request(`/calendar/activity?${query}`);
+    const mealQuery = new URLSearchParams({
+      start_date: formatDate(start),
+      end_date: formatDate(end),
+    });
+    const [activity, meals] = await Promise.all([
+      request(`/calendar/activity?${query}`),
+      request(`/planned-meals/?${mealQuery}`),
+    ]);
 
     state.days = new Map(activity.days.map((day) => [day.date, day]));
+    state.plannedMeals = groupMealsByDate(meals);
     state.planSummary = activity.plan_summary;
     elements.calendarError.className = "empty-state hidden";
     elements.calendarError.replaceChildren();
   } catch (error) {
     state.days = new Map();
+    state.plannedMeals = new Map();
     state.planSummary = null;
     elements.calendarError.classList.remove("hidden");
     renderListError(
@@ -237,6 +280,8 @@ function renderPlanSummary() {
     return;
   }
 
+  const mealLine = buildMealSummary();
+
   if (summary.total === 0) {
     elements.planSummary.replaceChildren(
       createElement(
@@ -244,6 +289,7 @@ function renderPlanSummary() {
         "plan-summary-details",
         `No hay sesiones planificadas en ${period}.`,
       ),
+      ...(mealLine ? [mealLine] : []),
     );
     return;
   }
@@ -296,7 +342,68 @@ function renderPlanSummary() {
     );
   }
 
-  elements.planSummary.replaceChildren(headline, progress, details);
+  elements.planSummary.replaceChildren(
+    headline,
+    progress,
+    details,
+    ...(mealLine ? [mealLine] : []),
+  );
+}
+
+
+// «Comidas: 3 de 7 registradas · 1 vencida»; nada si no hay comidas.
+function buildMealSummary() {
+  const meals = [...state.plannedMeals.values()].flat();
+
+  if (meals.length === 0) {
+    return null;
+  }
+
+  const registered = meals.filter((meal) => meal.status === "completed").length;
+  const overdue = meals.filter(isMealOverdue).length;
+  const line = createElement(
+    "p",
+    "plan-summary-details",
+    `Comidas: ${registered} de ${meals.length} registradas`,
+  );
+
+  if (overdue > 0) {
+    line.append(
+      createElement(
+        "span",
+        "overdue",
+        `${overdue} ${overdue === 1 ? "vencida" : "vencidas"}`,
+      ),
+    );
+  }
+
+  return line;
+}
+
+
+async function loadMealTemplates() {
+  try {
+    state.mealTemplates = await request("/meal-templates/");
+  } catch (error) {
+    state.mealTemplates = [];
+    showStatus(
+      `No se cargaron las plantillas de comida: ${error.message}`,
+      "error",
+    );
+  }
+
+  const options = [new Option("Sin plantilla", "")];
+
+  for (const template of state.mealTemplates) {
+    options.push(
+      new Option(
+        `${template.name} · ${formatNumber(template.calories, 0)} kcal`,
+        String(template.id),
+      ),
+    );
+  }
+
+  elements.plannedMealTemplate.replaceChildren(...options);
 }
 
 
@@ -399,10 +506,20 @@ function renderCalendar() {
         markers.append(createElement("i", "legend-dot overdue"));
       }
 
+      const meals = state.plannedMeals.get(value) ?? [];
+
+      if (meals.some((meal) => meal.status === "planned")) {
+        markers.append(createElement("i", "legend-dot meal"));
+      }
+
       cell.append(markers);
 
       if (isWeekView && activity.planned_workouts.length > 0) {
         cell.append(buildDayPlans(activity.planned_workouts));
+      }
+
+      if (isWeekView && meals.length > 0) {
+        cell.append(buildDayMeals(meals));
       }
 
       if (activity.steps > 0) {
@@ -491,8 +608,41 @@ function buildDayPlans(plans) {
 }
 
 
+function buildDayMeals(meals) {
+  const list = createElement("span", "calendar-day-plans");
+
+  for (const meal of meals.slice(0, MAX_PLANS_SHOWN_PER_DAY)) {
+    const overdue = isMealOverdue(meal);
+    const item = createElement(
+      "span",
+      `calendar-day-plan meal ${overdue ? "overdue" : meal.status}`,
+    );
+    const text = `🍽 ${meal.name}`;
+
+    item.textContent = text;
+    item.title = `${text} · ${
+      overdue ? "Vencida" : (MEAL_STATUS_LABELS[meal.status] ?? meal.status)
+    }`;
+    list.append(item);
+  }
+
+  const hidden = meals.length - MAX_PLANS_SHOWN_PER_DAY;
+
+  if (hidden > 0) {
+    list.append(createElement("span", "calendar-day-more", `+${hidden} más`));
+  }
+
+  return list;
+}
+
+
 function describeDay(value, activity) {
   const parts = [formatLongDate(value)];
+  const meals = state.plannedMeals.get(value) ?? [];
+
+  if (meals.length > 0) {
+    parts.push(`${meals.length} comidas planificadas`);
+  }
 
   if (activity.steps > 0) parts.push(`${activity.steps} pasos`);
   if (activity.has_workout) parts.push("entrenamiento");
@@ -569,6 +719,162 @@ function renderDayDetail() {
 
   elements.daySummary.replaceChildren(...rows);
   renderPlannedList();
+  renderMealsList();
+}
+
+
+function renderMealsList() {
+  const meals = state.plannedMeals.get(state.selectedDate) ?? [];
+
+  if (meals.length === 0) {
+    elements.plannedMealsList.className = "planned-list empty-state";
+    elements.plannedMealsList.textContent = "No hay comidas planificadas este día.";
+    return;
+  }
+
+  elements.plannedMealsList.className = "planned-list";
+  elements.plannedMealsList.replaceChildren(...meals.map(buildMealCard));
+}
+
+
+function buildMealCard(meal) {
+  const card = createElement("article", `planned-card ${meal.status}`);
+  const overdue = isMealOverdue(meal);
+
+  const heading = createElement("div", "planned-card-heading");
+  heading.append(
+    createElement("strong", "planned-card-name", `🍽 ${meal.name}`),
+    createElement(
+      "span",
+      `planned-status ${overdue ? "overdue" : meal.status}`,
+      overdue ? "Vencida" : (MEAL_STATUS_LABELS[meal.status] ?? meal.status),
+    ),
+  );
+  card.append(heading);
+
+  if (meal.calories !== null) {
+    card.append(
+      createElement(
+        "p",
+        "planned-card-macros",
+        `${formatNumber(meal.calories, 0)} kcal · P ${formatNumber(meal.protein_g)} g`
+          + ` · C ${formatNumber(meal.carbs_g)} g · G ${formatNumber(meal.fat_g)} g`,
+      ),
+    );
+  }
+
+  if (meal.notes) {
+    card.append(createElement("p", "planned-card-notes", meal.notes));
+  }
+
+  const actions = createElement("div", "planned-card-actions");
+
+  if (meal.status === "planned") {
+    actions.append(
+      actionButton("Registrar", "primary-button", () => completeMeal(meal)),
+      actionButton("Omitir", "secondary-button", () =>
+        updateMealStatus(meal, "skipped"),
+      ),
+      actionButton("Eliminar", "danger-button", () => deleteMeal(meal)),
+    );
+  } else if (meal.status === "skipped") {
+    actions.append(
+      actionButton("Volver a planificar", "secondary-button", () =>
+        updateMealStatus(meal, "planned"),
+      ),
+      actionButton("Eliminar", "danger-button", () => deleteMeal(meal)),
+    );
+  } else {
+    const link = createElement("a", "secondary-button", "Ver en nutrición");
+    link.href = "/static/nutrition/";
+    actions.append(link);
+  }
+
+  card.append(actions);
+
+  return card;
+}
+
+
+async function completeMeal(meal) {
+  const result = await request(`/planned-meals/${meal.id}/complete`, {
+    method: "POST",
+    body: JSON.stringify({ completed_date: null }),
+  });
+
+  showStatus(
+    "Comida registrada en tu diario de nutrición"
+      + (result.foods_added > 0
+        ? ` (${result.foods_added} ${result.foods_added === 1 ? "alimento" : "alimentos"}).`
+        : "."),
+  );
+  await loadActivity();
+}
+
+
+async function updateMealStatus(meal, status) {
+  await request(`/planned-meals/${meal.id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      scheduled_date: meal.scheduled_date,
+      meal_template_id: meal.meal_template_id,
+      name: meal.name,
+      notes: meal.notes,
+      status,
+    }),
+  });
+
+  showStatus(
+    status === "skipped" ? "Comida omitida." : "Comida planificada de nuevo.",
+  );
+  await loadActivity();
+}
+
+
+async function deleteMeal(meal) {
+  if (!window.confirm(`¿Eliminar la comida planificada "${meal.name}"?`)) {
+    return;
+  }
+
+  await request(`/planned-meals/${meal.id}`, { method: "DELETE" });
+
+  showStatus("Comida planificada eliminada.");
+  await loadActivity();
+}
+
+
+async function handleCreateMeal(event) {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const templateId = data.get("meal_template_id");
+  const name = String(data.get("name") || "").trim();
+  const notes = String(data.get("notes") || "").trim();
+
+  if (!templateId && !name) {
+    showStatus("Elige una plantilla de comida o escribe un nombre.", "error");
+    return;
+  }
+
+  try {
+    await request("/planned-meals/", {
+      method: "POST",
+      body: JSON.stringify({
+        scheduled_date: state.selectedDate,
+        meal_template_id: templateId ? Number(templateId) : null,
+        // Con plantilla, el nombre se toma de ella salvo que se escriba otro.
+        name: name || null,
+        notes: notes || null,
+      }),
+    });
+
+    form.reset();
+    showStatus("Comida planificada.");
+    await loadActivity();
+  } catch (error) {
+    showStatus(error.message, "error");
+  }
 }
 
 
@@ -945,30 +1251,41 @@ function setView(view) {
 
 
 async function copyWeek(sourceStart, targetStart, { goToTarget }) {
-  const result = await request("/planned-workouts/copy-week", {
-    method: "POST",
-    body: JSON.stringify({
-      source_start: formatDate(sourceStart),
-      target_start: formatDate(targetStart),
-    }),
+  const body = JSON.stringify({
+    source_start: formatDate(sourceStart),
+    target_start: formatDate(targetStart),
   });
+  // Sesiones y comidas se copian a la vez; cada una es su propia transacción.
+  const [workouts, meals] = await Promise.all([
+    request("/planned-workouts/copy-week", { method: "POST", body }),
+    request("/planned-meals/copy-week", { method: "POST", body }),
+  ]);
+  const skipped = workouts.skipped + meals.skipped;
 
-  if (result.copied === 0 && result.skipped === 0) {
-    showStatus("No hay sesiones planificadas en esa semana para copiar.", "error");
+  if (workouts.copied === 0 && meals.copied === 0 && skipped === 0) {
+    showStatus("No hay nada planificado en esa semana para copiar.", "error");
     return;
   }
 
-  const parts = [
-    `${result.copied} ${result.copied === 1 ? "sesión copiada" : "sesiones copiadas"}`,
-  ];
+  const copied = [];
 
-  if (result.skipped > 0) {
-    parts.push(
-      `${result.skipped} ya ${result.skipped === 1 ? "existía" : "existían"}`,
+  if (workouts.copied > 0) {
+    copied.push(
+      `${workouts.copied} ${workouts.copied === 1 ? "sesión" : "sesiones"}`,
     );
   }
 
-  showStatus(`${parts.join(", ")}.`);
+  if (meals.copied > 0) {
+    copied.push(`${meals.copied} ${meals.copied === 1 ? "comida" : "comidas"}`);
+  }
+
+  showStatus(
+    (copied.length > 0 ? `Copiadas: ${copied.join(" y ")}` : "No se ha copiado nada")
+      + (skipped > 0
+        ? ` (${skipped} ya ${skipped === 1 ? "existía" : "existían"})`
+        : "")
+      + ".",
+  );
 
   if (goToTarget) {
     const shift = Math.round((targetStart - state.weekStart) / 86400000);
@@ -1060,13 +1377,14 @@ function configureEventListeners() {
 
   elements.plannedForm.addEventListener("submit", handleCreatePlanned);
   elements.plannedKind.addEventListener("change", updatePlannedKindFields);
+  elements.plannedMealForm.addEventListener("submit", handleCreateMeal);
 }
 
 
 async function initializeApp() {
   configureEventListeners();
   updateViewControls();
-  await Promise.all([loadTemplates(), loadActivity()]);
+  await Promise.all([loadTemplates(), loadMealTemplates(), loadActivity()]);
 }
 
 
