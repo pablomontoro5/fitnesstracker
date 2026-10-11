@@ -49,6 +49,11 @@ const elements = {
   plannedList: document.querySelector("#planned-list"),
   plannedForm: document.querySelector("#planned-form"),
   plannedTemplate: document.querySelector("#planned-template"),
+  plannedKind: document.querySelector("#planned-kind"),
+  plannedTemplateLabel: document.querySelector("#planned-template-label"),
+  plannedDistanceLabel: document.querySelector("#planned-distance-label"),
+  plannedDistance: document.querySelector("#planned-distance"),
+  plannedNameHint: document.querySelector("#planned-name-hint"),
   plannedName: document.querySelector("#planned-name"),
 };
 
@@ -423,6 +428,40 @@ function renderCalendar() {
 }
 
 
+// «🏃 Rodaje · 10 km» para las carreras; el nombre a secas para el gimnasio.
+function describePlanName(plan) {
+  if (plan.kind !== "run") {
+    return plan.name;
+  }
+
+  const distance = plan.target_distance_km
+    ? ` · ${formatNumber(plan.target_distance_km)} km`
+    : "";
+
+  return `🏃 ${plan.name}${distance}`;
+}
+
+
+// Acepta «45» (minutos), «45:30» (min:seg) y «1:05:30» (h:min:seg).
+function parseDuration(text) {
+  const parts = text.trim().split(":");
+
+  if (
+    parts.length > 3
+    || parts.some((part) => !/^\d+$/.test(part))
+  ) {
+    return null;
+  }
+
+  const numbers = parts.map(Number);
+  const seconds = parts.length === 1
+    ? numbers[0] * 60
+    : numbers.reduce((total, value) => total * 60 + value, 0);
+
+  return seconds > 0 ? seconds : null;
+}
+
+
 function buildDayPlans(plans) {
   const list = createElement("span", "calendar-day-plans");
 
@@ -432,10 +471,13 @@ function buildDayPlans(plans) {
       : (STATUS_LABELS[plan.status] ?? plan.status);
     const item = createElement(
       "span",
-      `calendar-day-plan ${plan.is_overdue ? "overdue" : plan.status}`,
+      `calendar-day-plan ${plan.is_overdue ? "overdue" : plan.status}`
+        + (plan.kind === "run" ? " run" : ""),
     );
-    item.textContent = plan.name;
-    item.title = `${plan.name} · ${label}`;
+    const text = describePlanName(plan);
+
+    item.textContent = text;
+    item.title = `${text} · ${label}`;
     list.append(item);
   }
 
@@ -593,7 +635,7 @@ function buildPlannedCard(planned) {
 
   const heading = createElement("div", "planned-card-heading");
   heading.append(
-    createElement("strong", "planned-card-name", planned.name),
+    createElement("strong", "planned-card-name", describePlanName(planned)),
     createElement(
       "span",
       `planned-status ${overdue ? "overdue" : planned.status}`,
@@ -610,9 +652,14 @@ function buildPlannedCard(planned) {
 
   if (planned.status === "planned") {
     actions.append(
-      actionButton("Completar", "primary-button", () =>
-        completePlanned(planned),
-      ),
+      planned.kind === "run"
+        ? actionButton("Completar", "primary-button", async () => {
+          card.append(buildRunCompletionForm(planned));
+          actions.remove();
+        })
+        : actionButton("Completar", "primary-button", () =>
+          completePlanned(planned),
+        ),
       actionButton("Omitir", "secondary-button", () =>
         updatePlannedStatus(planned, "skipped"),
       ),
@@ -626,18 +673,92 @@ function buildPlannedCard(planned) {
       actionButton("Eliminar", "danger-button", () => deletePlanned(planned)),
     );
   } else {
+    const isRun = planned.kind === "run";
     const link = createElement(
       "a",
       "secondary-button",
-      "Ver en entrenamientos",
+      isRun ? "Ver en running" : "Ver en entrenamientos",
     );
-    link.href = "/static/workouts/history.html";
+    link.href = isRun ? "/static/runs/" : "/static/workouts/history.html";
     actions.append(link);
   }
 
   card.append(actions);
 
   return card;
+}
+
+
+function buildRunCompletionForm(planned) {
+  const form = createElement("form", "planned-run-form");
+
+  const distanceLabel = createElement("label", "", "Distancia (km)");
+  const distance = createElement("input");
+  distance.type = "number";
+  distance.min = "0.1";
+  distance.max = "1000";
+  distance.step = "0.1";
+  distance.required = true;
+  distance.value = planned.target_distance_km ?? "";
+  distanceLabel.append(distance);
+
+  const durationLabel = createElement(
+    "label",
+    "",
+    "Duración (min, mm:ss o h:mm:ss)",
+  );
+  const duration = createElement("input");
+  duration.type = "text";
+  duration.required = true;
+  duration.placeholder = "Ej.: 52:30";
+  duration.autocomplete = "off";
+  durationLabel.append(duration);
+
+  const buttons = createElement("div", "planned-card-actions");
+  const save = createElement("button", "primary-button", "Guardar carrera");
+  save.type = "submit";
+  const cancel = createElement("button", "secondary-button", "Cancelar");
+  cancel.type = "button";
+  cancel.addEventListener("click", renderPlannedList);
+  buttons.append(save, cancel);
+
+  form.append(distanceLabel, durationLabel, buttons);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const seconds = parseDuration(duration.value);
+
+    if (seconds === null) {
+      showStatus("Escribe la duración como 45, 45:30 o 1:05:30.", "error");
+      return;
+    }
+
+    save.disabled = true;
+
+    try {
+      await completePlannedRun(planned, Number(distance.value), seconds);
+    } catch (error) {
+      showStatus(error.message, "error");
+      save.disabled = false;
+    }
+  });
+
+  return form;
+}
+
+
+async function completePlannedRun(planned, distanceKm, durationSeconds) {
+  await request(`/planned-workouts/${planned.id}/complete`, {
+    method: "POST",
+    body: JSON.stringify({
+      completed_date: null,
+      distance_km: distanceKm,
+      duration_seconds: durationSeconds,
+    }),
+  });
+
+  showStatus("Carrera completada y añadida a tu running.");
+  await loadActivity();
 }
 
 
@@ -675,6 +796,7 @@ async function updatePlannedStatus(planned, status) {
     method: "PUT",
     body: JSON.stringify({
       scheduled_date: planned.scheduled_date,
+      target_distance_km: planned.target_distance_km,
       workout_template_id: planned.workout_template_id,
       name: planned.name,
       notes: planned.notes,
@@ -706,11 +828,13 @@ async function handleCreatePlanned(event) {
 
   const form = event.currentTarget;
   const data = new FormData(form);
-  const templateId = data.get("workout_template_id");
+  const isRun = data.get("kind") === "run";
+  const templateId = isRun ? null : data.get("workout_template_id");
+  const distance = String(data.get("target_distance_km") || "").trim();
   const name = String(data.get("name") || "").trim();
   const notes = String(data.get("notes") || "").trim();
 
-  if (!templateId && !name) {
+  if (!isRun && !templateId && !name) {
     showStatus("Elige una plantilla o escribe un nombre.", "error");
     return;
   }
@@ -720,18 +844,39 @@ async function handleCreatePlanned(event) {
       method: "POST",
       body: JSON.stringify({
         scheduled_date: state.selectedDate,
+        kind: isRun ? "run" : "workout",
+        target_distance_km: isRun && distance ? Number(distance) : null,
         workout_template_id: templateId ? Number(templateId) : null,
-        // Con plantilla, el nombre se toma de ella salvo que se escriba otro.
+        // Con plantilla, el nombre se toma de ella salvo que se escriba otro;
+        // una carrera sin nombre se llama «Carrera».
         name: name || null,
         notes: notes || null,
       }),
     });
 
     form.reset();
-    showStatus("Sesión planificada.");
+    updatePlannedKindFields();
+    showStatus(isRun ? "Carrera planificada." : "Sesión planificada.");
     await loadActivity();
   } catch (error) {
     showStatus(error.message, "error");
+  }
+}
+
+
+function updatePlannedKindFields() {
+  const isRun = elements.plannedKind.value === "run";
+
+  elements.plannedTemplateLabel.hidden = isRun;
+  elements.plannedDistanceLabel.hidden = !isRun;
+  elements.plannedNameHint.textContent = isRun
+    ? "si no, se llamará «Carrera»"
+    : "si no usas plantilla";
+
+  if (isRun) {
+    elements.plannedTemplate.value = "";
+  } else {
+    elements.plannedDistance.value = "";
   }
 }
 
@@ -914,6 +1059,7 @@ function configureEventListeners() {
   });
 
   elements.plannedForm.addEventListener("submit", handleCreatePlanned);
+  elements.plannedKind.addEventListener("change", updatePlannedKindFields);
 }
 
 

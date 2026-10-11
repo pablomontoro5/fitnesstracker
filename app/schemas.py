@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Literal 
 
 class DailyLogCreate(BaseModel):
@@ -607,8 +607,14 @@ PlannedWorkoutStatus = Literal[
 ]
 
 
+PlannedWorkoutKind = Literal["workout", "run"]
+
+
 class PlannedWorkoutCreate(BaseModel):
     scheduled_date: date
+    # «workout»: sesión de gimnasio (con o sin plantilla). «run»: carrera.
+    kind: PlannedWorkoutKind = "workout"
+    target_distance_km: float | None = Field(default=None, gt=0, le=1000)
     workout_template_id: int | None = Field(
         default=None,
         gt=0,
@@ -623,9 +629,23 @@ class PlannedWorkoutCreate(BaseModel):
         max_length=1000,
     )
 
+    @model_validator(mode="after")
+    def check_kind_fields(self) -> "PlannedWorkoutCreate":
+        if self.kind == "run" and self.workout_template_id is not None:
+            raise ValueError("Una carrera planificada no usa plantilla.")
+
+        if self.kind == "workout" and self.target_distance_km is not None:
+            raise ValueError(
+                "La distancia objetivo solo se indica en las carreras."
+            )
+
+        return self
+
 
 class PlannedWorkoutUpdate(BaseModel):
     scheduled_date: date
+    # Solo para carreras. El tipo no se puede cambiar una vez creada.
+    target_distance_km: float | None = Field(default=None, gt=0, le=1000)
     workout_template_id: int | None = Field(
         default=None,
         gt=0,
@@ -643,6 +663,10 @@ class PlannedWorkoutUpdate(BaseModel):
 
 class PlannedWorkoutComplete(BaseModel):
     completed_date: date | None = None
+    # Solo para carreras: la duración es obligatoria y la distancia, si falta,
+    # es la objetivo.
+    distance_km: float | None = Field(default=None, gt=0, le=1000)
+    duration_seconds: int | None = Field(default=None, gt=0, le=172_800)
 
 
 class PlannedWeekCopy(BaseModel):
@@ -660,21 +684,29 @@ class PlannedWeekCopyResponse(BaseModel):
 class PlannedWorkoutResponse(BaseModel):
     id: int
     scheduled_date: date
+    kind: PlannedWorkoutKind = "workout"
+    target_distance_km: float | None = None
     workout_template_id: int | None
     name: str
     notes: str | None
     status: PlannedWorkoutStatus
     workout_session_id: int | None
+    run_id: int | None = None
 
 
 class PlannedWorkoutCompleteResponse(BaseModel):
     planned_workout: PlannedWorkoutResponse
-    workout_session: WorkoutSessionResponse
+    # Una sesión de gimnasio completada devuelve su sesión; una carrera, su
+    # registro de running.
+    workout_session: WorkoutSessionResponse | None = None
+    run: RunResponse | None = None
 
 
 class CalendarPlannedWorkoutResponse(BaseModel):
     id: int
     name: str
+    kind: PlannedWorkoutKind = "workout"
+    target_distance_km: float | None = None
     status: PlannedWorkoutStatus
     # Planificada, con fecha anterior a «hoy» y sin completar ni omitir.
     is_overdue: bool = False

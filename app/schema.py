@@ -468,3 +468,39 @@ ROW_LEVEL_SECURITY_STATEMENTS = [
     $$
     """,
 ]
+
+
+# Migración 2: las sesiones planificadas pueden ser carreras. Una carrera tiene
+# distancia objetivo y, al completarse, enlaza con el registro de running;
+# no usa plantilla ni sesión de gimnasio. Lo garantizan estas restricciones.
+PLANNED_RUNS_STATEMENTS = [
+    """
+ALTER TABLE planned_workouts
+    ADD COLUMN kind TEXT NOT NULL DEFAULT 'workout'
+        CHECK (kind IN ('workout', 'run'))
+    """,
+    """
+ALTER TABLE planned_workouts
+    ADD COLUMN target_distance_km DOUBLE PRECISION
+        CHECK (target_distance_km > 0 AND target_distance_km <= 1000)
+    """,
+    """
+ALTER TABLE planned_workouts
+    ADD COLUMN run_id INTEGER UNIQUE
+        REFERENCES runs(id) ON DELETE SET NULL
+    """,
+    """
+ALTER TABLE planned_workouts
+    ADD CONSTRAINT planned_workouts_run_only_fields CHECK (
+        kind = 'run'
+        OR (target_distance_km IS NULL AND run_id IS NULL)
+    )
+    """,
+    """
+ALTER TABLE planned_workouts
+    ADD CONSTRAINT planned_workouts_run_has_no_gym_fields CHECK (
+        kind = 'workout'
+        OR (workout_template_id IS NULL AND workout_session_id IS NULL)
+    )
+    """,
+]

@@ -12,7 +12,8 @@ from app.db import get_connection
 EXPORTS_DIR = Path(tempfile.gettempdir()) / "fitness-tracker-exports"
 
 # Versión del formato. La restauración por cuenta la comprueba.
-EXPORT_FORMAT_VERSION = 2
+# 3: las sesiones planificadas llevan tipo, distancia objetivo y carrera enlazada.
+EXPORT_FORMAT_VERSION = 3
 
 
 def fetch_rows(connection, query: str, params: tuple) -> list[dict]:
@@ -301,8 +302,9 @@ def create_data_export(
             connection,
             """
             SELECT
-                id, scheduled_date, workout_template_id, name, notes,
-                status, workout_session_id
+                id, scheduled_date, kind, target_distance_km,
+                workout_template_id, name, notes, status,
+                workout_session_id, run_id
             FROM planned_workouts
             WHERE user_id = ?
             ORDER BY scheduled_date ASC, id ASC

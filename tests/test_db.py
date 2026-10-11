@@ -39,7 +39,7 @@ def test_initialize_database_is_idempotent_and_records_migrations():
             )
         ]
 
-        assert versions == [1]
+        assert versions == [1, 2]
         assert set(TABLES) <= set(table_names(connection))
 
 

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.db import Connection, get_connection
 from app.dependencies import get_current_user
+from app.routers.runs import calculate_average_pace
 from app.schemas import (
     PlannedWeekCopy,
     PlannedWeekCopyResponse,
@@ -12,6 +13,7 @@ from app.schemas import (
     PlannedWorkoutCreate,
     PlannedWorkoutResponse,
     PlannedWorkoutUpdate,
+    RunResponse,
     UserResponse,
     WorkoutSessionResponse,
 )
@@ -27,11 +29,14 @@ def row_to_planned_workout(row: dict) -> PlannedWorkoutResponse:
     return PlannedWorkoutResponse(
         id=row["id"],
         scheduled_date=date.fromisoformat(row["scheduled_date"]),
+        kind=row["kind"],
+        target_distance_km=row["target_distance_km"],
         workout_template_id=row["workout_template_id"],
         name=row["name"],
         notes=row["notes"],
         status=row["status"],
         workout_session_id=row["workout_session_id"],
+        run_id=row["run_id"],
     )
 
 
@@ -74,11 +79,14 @@ def get_owned_planned_workout(
         SELECT
             id,
             scheduled_date,
+            kind,
+            target_distance_km,
             workout_template_id,
             name,
             notes,
             status,
-            workout_session_id
+            workout_session_id,
+            run_id
         FROM planned_workouts
         WHERE id = ?
           AND user_id = ?
@@ -130,7 +138,86 @@ def resolve_planned_workout_name(
     return normalized_name or template["name"]
 
 
+def complete_planned_run(
+    connection: Connection,
+    *,
+    planned_workout: dict,
+    completion: PlannedWorkoutComplete,
+    completed_date: date,
+    user_id: int,
+) -> PlannedWorkoutCompleteResponse:
+    """Completa una carrera planificada creando su registro de running."""
+    distance_km = completion.distance_km or planned_workout["target_distance_km"]
+
+    if completion.duration_seconds is None or distance_km is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                "Para completar una carrera indica su duración y, si no "
+                "tenía distancia objetivo, su distancia."
+            ),
+        )
+
+    run_id = connection.execute(
+        """
+        INSERT INTO runs (
+            user_id, date, distance_km, duration_seconds,
+            average_pace_seconds_km, notes
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            user_id,
+            completed_date.isoformat(),
+            distance_km,
+            completion.duration_seconds,
+            calculate_average_pace(
+                distance_km=distance_km,
+                duration_seconds=completion.duration_seconds,
+            ),
+            planned_workout["notes"],
+        ),
+    ).lastrowid
+
+    connection.execute(
+        """
+        UPDATE planned_workouts
+        SET status = 'completed', run_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ? AND status = 'planned'
+        """,
+        (run_id, planned_workout["id"], user_id),
+    )
+
+    completed = get_owned_planned_workout(
+        connection,
+        planned_workout_id=planned_workout["id"],
+        user_id=user_id,
+    )
+    run = connection.execute(
+        """
+        SELECT id, date, distance_km, duration_seconds,
+               average_pace_seconds_km, notes
+        FROM runs
+        WHERE id = ? AND user_id = ?
+        """,
+        (run_id, user_id),
+    ).fetchone()
+
+    return PlannedWorkoutCompleteResponse(
+        planned_workout=row_to_planned_workout(completed),
+        run=RunResponse(
+            id=run["id"],
+            date=date.fromisoformat(run["date"]),
+            distance_km=run["distance_km"],
+            duration_seconds=run["duration_seconds"],
+            average_pace_seconds_km=run["average_pace_seconds_km"],
+            notes=run["notes"],
+        ),
+    )
+
+
 MAX_COPY_WEEK_OFFSET_DAYS = 366
+DEFAULT_RUN_NAME = "Carrera"
 
 
 @router.post(
@@ -167,7 +254,8 @@ def copy_planned_week(
     with get_connection() as connection:
         source_rows = connection.execute(
             """
-            SELECT scheduled_date, workout_template_id, name, notes
+            SELECT scheduled_date, kind, target_distance_km,
+                   workout_template_id, name, notes
             FROM planned_workouts
             WHERE user_id = ? AND scheduled_date BETWEEN ? AND ?
             ORDER BY scheduled_date ASC, id ASC
@@ -180,10 +268,13 @@ def copy_planned_week(
         ).fetchall()
 
         existing = {
-            (row["scheduled_date"], row["workout_template_id"], row["name"].casefold())
+            (
+                row["scheduled_date"], row["kind"],
+                row["workout_template_id"], row["name"].casefold(),
+            )
             for row in connection.execute(
                 """
-                SELECT scheduled_date, workout_template_id, name
+                SELECT scheduled_date, kind, workout_template_id, name
                 FROM planned_workouts
                 WHERE user_id = ? AND scheduled_date BETWEEN ? AND ?
                 """,
@@ -201,7 +292,10 @@ def copy_planned_week(
             new_date = (
                 date.fromisoformat(row["scheduled_date"]) + timedelta(days=offset)
             ).isoformat()
-            key = (new_date, row["workout_template_id"], row["name"].casefold())
+            key = (
+                new_date, row["kind"], row["workout_template_id"],
+                row["name"].casefold(),
+            )
 
             if key in existing:
                 skipped += 1
@@ -210,13 +304,16 @@ def copy_planned_week(
             connection.execute(
                 """
                 INSERT INTO planned_workouts (
-                    user_id, scheduled_date, workout_template_id, name, notes
+                    user_id, scheduled_date, kind, target_distance_km,
+                    workout_template_id, name, notes
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     current_user.id,
                     new_date,
+                    row["kind"],
+                    row["target_distance_km"],
                     row["workout_template_id"],
                     row["name"],
                     row["notes"],
@@ -238,27 +335,40 @@ def create_planned_workout(
     current_user: UserResponse = Depends(get_current_user),
 ) -> PlannedWorkoutResponse:
     with get_connection() as connection:
-        name = resolve_planned_workout_name(
-            connection,
-            workout_template_id=planned_workout.workout_template_id,
-            name=planned_workout.name,
-            user_id=current_user.id,
-        )
+        if planned_workout.kind == "run":
+            name = (planned_workout.name or DEFAULT_RUN_NAME).strip()
+
+            if not name:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="El nombre de la carrera no puede estar vacío.",
+                )
+        else:
+            name = resolve_planned_workout_name(
+                connection,
+                workout_template_id=planned_workout.workout_template_id,
+                name=planned_workout.name,
+                user_id=current_user.id,
+            )
 
         cursor = connection.execute(
             """
             INSERT INTO planned_workouts (
                 user_id,
                 scheduled_date,
+                kind,
+                target_distance_km,
                 workout_template_id,
                 name,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 current_user.id,
                 planned_workout.scheduled_date.isoformat(),
+                planned_workout.kind,
+                planned_workout.target_distance_km,
                 planned_workout.workout_template_id,
                 name,
                 planned_workout.notes,
@@ -308,11 +418,14 @@ def list_planned_workouts(
             SELECT
                 id,
                 scheduled_date,
+                kind,
+                target_distance_km,
                 workout_template_id,
                 name,
                 notes,
                 status,
-                workout_session_id
+                workout_session_id,
+                run_id
             FROM planned_workouts
             WHERE {where_clause}
             ORDER BY scheduled_date ASC, id ASC
@@ -363,6 +476,18 @@ def update_planned_workout(
                 detail="No se puede modificar una sesión planificada completada.",
             )
 
+        if existing["kind"] == "run":
+            if planned_workout.workout_template_id is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Una carrera planificada no usa plantilla.",
+                )
+        elif planned_workout.target_distance_km is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="La distancia objetivo solo se indica en las carreras.",
+            )
+
         if planned_workout.workout_template_id is not None:
             get_owned_workout_template(
                 connection,
@@ -382,6 +507,7 @@ def update_planned_workout(
             UPDATE planned_workouts
             SET
                 scheduled_date = ?,
+                target_distance_km = ?,
                 workout_template_id = ?,
                 name = ?,
                 notes = ?,
@@ -392,6 +518,7 @@ def update_planned_workout(
             """,
             (
                 planned_workout.scheduled_date.isoformat(),
+                planned_workout.target_distance_km,
                 planned_workout.workout_template_id,
                 name,
                 planned_workout.notes,
@@ -476,6 +603,21 @@ def complete_planned_workout(
         completed_date = completion.completed_date or date.fromisoformat(
             planned_workout["scheduled_date"]
         )
+
+        if planned_workout["kind"] == "run":
+            return complete_planned_run(
+                connection,
+                planned_workout=planned_workout,
+                completion=completion,
+                completed_date=completed_date,
+                user_id=current_user.id,
+            )
+
+        if completion.distance_km is not None or completion.duration_seconds is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Solo las carreras llevan distancia y duración.",
+            )
 
         session_cursor = connection.execute(
             """
