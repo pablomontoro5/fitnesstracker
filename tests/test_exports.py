@@ -413,7 +413,7 @@ def test_export_includes_every_user_owned_table(tmp_path):
         )
     )
 
-    assert data["format_version"] == 3
+    assert data["format_version"] == 4
     assert data["recovery_logs"][0]["sleep_minutes"] == 450
     assert data["fitness_goals"] == [
         {"id": data["fitness_goals"][0]["id"],
@@ -445,7 +445,7 @@ def test_export_covers_all_tables_that_belong_to_a_user():
         "food_library", "meal_templates", "meal_template_items",
         "workout_templates", "workout_template_exercises",
         "workout_template_sets", "fitness_goals",
-        "body_composition_goals", "planned_workouts",
+        "body_composition_goals", "planned_workouts", "planned_meals",
     }
     # Datos de la instalación o de la cuenta que no son contenido del usuario.
     not_exported = {"users", "password_resets", "invitations", "schema_migrations"}

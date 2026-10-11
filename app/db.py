@@ -21,6 +21,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from app.schema import (
+    PLANNED_MEALS_STATEMENTS,
     PLANNED_RUNS_STATEMENTS,
     ROW_LEVEL_SECURITY_STATEMENTS,
     SCHEMA_STATEMENTS,
@@ -263,6 +264,7 @@ def check_database(timeout: float = 3.0) -> None:
 MIGRATIONS: list[tuple[int, str, list[str]]] = [
     (1, "esquema inicial", SCHEMA_STATEMENTS + ROW_LEVEL_SECURITY_STATEMENTS),
     (2, "sesiones planificadas de tipo carrera", PLANNED_RUNS_STATEMENTS),
+    (3, "comidas planificadas", PLANNED_MEALS_STATEMENTS),
 ]
 
 

@@ -339,7 +339,7 @@ def test_export_and_restore_keep_planned_runs_and_relink_the_run():
 
     exported = client.get("/exports/fitness-tracker.json", headers=headers).json()
 
-    assert exported["format_version"] == 3
+    assert exported["format_version"] == 4
     kinds = {p["name"]: p for p in exported["planned_workouts"]}
     assert kinds["Media"]["kind"] == "run"
     assert kinds["Media"]["target_distance_km"] == 21.1
