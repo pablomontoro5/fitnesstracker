@@ -960,3 +960,47 @@ class FoodLibraryResponse(BaseModel):
     carbs_per_100g: float
     fat_per_100g: float
     notes: str | None
+
+
+class PlannedMealCreate(BaseModel):
+    scheduled_date: date
+    meal_template_id: int | None = Field(default=None, gt=0)
+    # Con plantilla, el nombre por defecto es el de la plantilla.
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class PlannedMealUpdate(BaseModel):
+    scheduled_date: date
+    meal_template_id: int | None = Field(default=None, gt=0)
+    name: str = Field(min_length=1, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
+    status: Literal["planned", "skipped"]
+
+
+class PlannedMealComplete(BaseModel):
+    # Día del diario de nutrición en el que se registra; por defecto, el
+    # planificado.
+    completed_date: date | None = None
+
+
+class PlannedMealResponse(BaseModel):
+    id: int
+    scheduled_date: date
+    meal_template_id: int | None
+    name: str
+    notes: str | None
+    status: PlannedWorkoutStatus
+    nutrition_meal_id: int | None
+    # Totales de la plantilla (None si no tiene plantilla).
+    calories: float | None = None
+    protein_g: float | None = None
+    carbs_g: float | None = None
+    fat_g: float | None = None
+
+
+class PlannedMealCompleteResponse(BaseModel):
+    planned_meal: PlannedMealResponse
+    nutrition_day_id: int
+    nutrition_meal_id: int
+    foods_added: int

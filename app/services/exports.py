@@ -13,7 +13,8 @@ EXPORTS_DIR = Path(tempfile.gettempdir()) / "fitness-tracker-exports"
 
 # Versión del formato. La restauración por cuenta la comprueba.
 # 3: las sesiones planificadas llevan tipo, distancia objetivo y carrera enlazada.
-EXPORT_FORMAT_VERSION = 3
+# 4: se exportan las comidas planificadas (planned_meals).
+EXPORT_FORMAT_VERSION = 4
 
 
 def fetch_rows(connection, query: str, params: tuple) -> list[dict]:
@@ -312,6 +313,19 @@ def create_data_export(
             (user_id,),
         )
 
+        planned_meals = fetch_rows(
+            connection,
+            """
+            SELECT
+                id, scheduled_date, meal_template_id, name, notes, status,
+                nutrition_meal_id
+            FROM planned_meals
+            WHERE user_id = ?
+            ORDER BY scheduled_date ASC, id ASC
+            """,
+            (user_id,),
+        )
+
         food_library = fetch_rows(
             connection,
             """
@@ -460,6 +474,7 @@ def create_data_export(
             for template in workout_templates
         ],
         "planned_workouts": planned_workouts,
+        "planned_meals": planned_meals,
         "food_library": food_library,
         "meal_templates": [
             meal_template

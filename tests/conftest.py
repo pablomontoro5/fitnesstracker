@@ -38,7 +38,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.db import get_connection, initialize_database
-from app.schema import TABLES
+from app.schema import ALL_TABLES
 from app.rate_limit import reset_rate_limits
 
 
@@ -47,7 +47,7 @@ def clean_database():
     initialize_database()
     reset_rate_limits()
 
-    tables = ", ".join(TABLES)
+    tables = ", ".join(ALL_TABLES)
 
     with get_connection() as connection:
         connection.execute(f"TRUNCATE {tables} RESTART IDENTITY CASCADE")

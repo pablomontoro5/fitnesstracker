@@ -24,6 +24,7 @@ from app.routers import (
     nutrition_days,
     nutrition_foods,
     nutrition_meals,
+    planned_meals,
     planned_workouts,
     recovery,
     restores,
@@ -96,6 +97,7 @@ app.include_router(recovery.router)
 app.include_router(auth.router)
 app.include_router(exercise_catalog.router)
 app.include_router(planned_workouts.router)
+app.include_router(planned_meals.router)
 app.include_router(calendar.router)
 app.include_router(food_library.router)
 app.include_router(meal_templates.router)

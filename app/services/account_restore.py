@@ -86,6 +86,7 @@ MEAL_ITEM_COLUMNS = (
 # Orden de borrado: las planificadas primero (referencian plantillas/sesiones).
 DELETE_ORDER = (
     ("planned_workouts", "planned_workouts"),
+    ("planned_meals", "planned_meals"),
     ("daily_logs", "daily_logs"),
     ("recovery_logs", "daily_recovery_logs"),
     ("body_metrics", "body_metrics"),
@@ -180,6 +181,7 @@ def restore_account_data(
         for key in (
             *ROOT_SECTIONS, "workout_sessions", "nutrition_days",
             "workout_templates", "planned_workouts", "meal_templates",
+            "planned_meals",
         )
     }
 
@@ -244,6 +246,8 @@ def restore_account_data(
 
         counts["workout_sessions"] = len(sections["workout_sessions"])
 
+    meal_ids: dict[int, int] = {}
+
     if sections["nutrition_days"] is not None:
         for day in sections["nutrition_days"]:
             new_day_id = _insert(
@@ -258,6 +262,9 @@ def restore_account_data(
                     new_day_id, ("name", "position"),
                     _row(meal, ("name", "position"), where="comida"),
                 )
+
+                if isinstance(meal.get("id"), int):
+                    meal_ids[meal["id"]] = new_meal_id
                 _insert_children(
                     connection, "nutrition_foods", "nutrition_meal_id",
                     new_meal_id, NUTRITION_FOOD_COLUMNS,
@@ -294,6 +301,8 @@ def restore_account_data(
 
         counts["workout_templates"] = len(sections["workout_templates"])
 
+    meal_template_ids: dict[int, int] = {}
+
     if sections["meal_templates"] is not None:
         for meal_template in sections["meal_templates"]:
             new_id = _insert(
@@ -301,6 +310,9 @@ def restore_account_data(
                 ("name", "notes"),
                 _row(meal_template, ("name", "notes"), where="plantilla"),
             )
+
+            if isinstance(meal_template.get("id"), int):
+                meal_template_ids[meal_template["id"]] = new_id
             _insert_children(
                 connection, "meal_template_items", "meal_template_id",
                 new_id, MEAL_ITEM_COLUMNS, meal_template.get("items"),
@@ -344,5 +356,30 @@ def restore_account_data(
             )
 
         counts["planned_workouts"] = len(sections["planned_workouts"])
+
+    if sections["planned_meals"] is not None:
+        for planned in sections["planned_meals"]:
+            values = _row(
+                planned,
+                ("scheduled_date", "name", "notes", "status"),
+                ("scheduled_date",),
+                "comida planificada",
+            )
+            connection.execute(
+                """
+                INSERT INTO planned_meals (
+                    user_id, scheduled_date, name, notes, status,
+                    meal_template_id, nutrition_meal_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id, *values,
+                    meal_template_ids.get(planned.get("meal_template_id")),
+                    meal_ids.get(planned.get("nutrition_meal_id")),
+                ),
+            )
+
+        counts["planned_meals"] = len(sections["planned_meals"])
 
     return counts
