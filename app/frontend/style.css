@@ -15,6 +15,7 @@
   --approximation: #e58c12;
   --working: #16834f;
   --drop-set: #9b51e0;
+  --meal: #0e7490;
   --shadow: 0 12px 35px rgba(20, 48, 34, 0.08);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -2918,6 +2919,10 @@ a.history-button:hover {
   border-left-color: var(--warmup);
 }
 
+.calendar-day-plan.meal {
+  border-left-color: var(--meal);
+}
+
 .calendar-day-plan.completed {
   border-left-color: var(--working);
 }
@@ -2990,6 +2995,7 @@ a.history-button:hover {
 .legend-dot.rest { background: var(--drop-set); }
 .legend-dot.planned { background: var(--approximation); }
 .legend-dot.overdue { background: var(--danger); }
+.legend-dot.meal { background: var(--meal); }
 
 .day-summary {
   display: grid;
@@ -3058,6 +3064,12 @@ a.history-button:hover {
 }
 
 .planned-status.overdue { color: var(--danger); }
+
+.planned-card-macros {
+  margin: 0.25rem 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
 
 .planned-run-form {
   display: grid;
