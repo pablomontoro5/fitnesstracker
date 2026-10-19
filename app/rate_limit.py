@@ -89,6 +89,10 @@ REGISTER_ATTEMPTS_PER_IP = RateLimiter(max_attempts=10, window_seconds=60 * 60)
 # Contraseña actual incorrecta al cambiarla o al borrar la cuenta.
 PASSWORD_FAILURES_PER_USER = RateLimiter(max_attempts=5, window_seconds=15 * 60)
 RESET_ATTEMPTS_PER_IP = RateLimiter(max_attempts=10, window_seconds=15 * 60)
+# Peticiones de código por correo: por IP (429) y por cuenta (se ignoran en
+# silencio, para no permitir inundar un buzón ni anular su código vigente).
+FORGOT_REQUESTS_PER_IP = RateLimiter(max_attempts=5, window_seconds=60 * 60)
+FORGOT_REQUESTS_PER_EMAIL = RateLimiter(max_attempts=3, window_seconds=60 * 60)
 
 
 def reset_rate_limits() -> None:
@@ -98,6 +102,8 @@ def reset_rate_limits() -> None:
         REGISTER_ATTEMPTS_PER_IP,
         PASSWORD_FAILURES_PER_USER,
         RESET_ATTEMPTS_PER_IP,
+        FORGOT_REQUESTS_PER_IP,
+        FORGOT_REQUESTS_PER_EMAIL,
     ):
         limiter.clear()
 

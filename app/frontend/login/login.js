@@ -9,6 +9,7 @@ const registerSubmitButton = document.querySelector(
 const resetSection = document.querySelector("#reset-section");
 const resetForm = document.querySelector("#reset-form");
 const resetSubmitButton = document.querySelector("#reset-submit-button");
+const sendResetCodeButton = document.querySelector("#send-reset-code-button");
 const showResetButton = document.querySelector("#show-reset-button");
 
 function showAuthStatus(message, type) {
@@ -140,6 +141,46 @@ showResetButton.addEventListener("click", () => {
       document.querySelector("#login-email").value.trim();
     resetSection.scrollIntoView({ behavior: "smooth", block: "start" });
     document.querySelector("#reset-email").focus();
+  }
+});
+
+sendResetCodeButton.addEventListener("click", async () => {
+  clearAuthStatus();
+
+  const emailInput = document.querySelector("#reset-email");
+
+  if (!emailInput.value.trim() || !emailInput.checkValidity()) {
+    emailInput.reportValidity();
+    return;
+  }
+
+  sendResetCodeButton.disabled = true;
+
+  try {
+    const response = await fetch("/auth/forgot-password", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: emailInput.value.trim() }),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readAuthErrorMessage(response));
+    }
+
+    const payload = await response.json();
+    showAuthStatus(payload.detail, "success");
+    document.querySelector("#reset-code").focus();
+  } catch (error) {
+    showAuthStatus(
+      error instanceof TypeError
+        ? "No se pudo conectar con el servidor."
+        : error.message,
+      "error",
+    );
+  } finally {
+    sendResetCodeButton.disabled = false;
   }
 });
 

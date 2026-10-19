@@ -304,6 +304,7 @@ Ejemplo: una serie de 10 repeticiones con 50 kg aporta 500 kg de volumen. Un obj
 | `GET` | `/auth/me` | Datos de la cuenta autenticada |
 | `DELETE` | `/auth/me` | Borrar la cuenta y todos sus datos (pide la contraseña) |
 | `POST` | `/auth/change-password` | Cambiar la contraseña (cierra las demás sesiones) |
+| `POST` | `/auth/forgot-password` | Pedir un código de recuperación por correo (misma respuesta exista o no la cuenta; 503 si el servidor no tiene SMTP) |
 | `POST` | `/auth/reset-password` | Restablecer la contraseña con un código de recuperación |
 | `GET` / `POST` | `/daily-logs/` | Consultar o crear registros de pasos |
 | `GET` / `PUT` / `DELETE` | `/daily-logs/{log_date}` | Consultar, editar o borrar un registro diario |
@@ -498,6 +499,8 @@ python -m uvicorn app.main:app --reload --port 8001
 | --- | --- | --- |
 | `FITNESS_TRACKER_JWT_SECRET` | Sí | Clave para firmar los tokens. **Mínimo 32 bytes**: el servidor no arranca con una más corta. Genera una con `python -c "import secrets; print(secrets.token_hex(32))"`. |
 | `FITNESS_TRACKER_DATABASE_URL` | Sí | Cadena de conexión PostgreSQL (en Supabase: *Connect* → Session pooler o conexión directa). |
+| `FITNESS_TRACKER_SMTP_HOST` / `FITNESS_TRACKER_MAIL_FROM` | No | Activan la recuperación de contraseña por correo (hacen falta las dos). `MAIL_FROM` es el remitente, p. ej. `Fitness Tracker <no-reply@tu-dominio.com>`. Sin ellas solo funciona el código manual. |
+| `FITNESS_TRACKER_SMTP_PORT` / `_SMTP_USER` / `_SMTP_PASSWORD` | No | Puerto (587 con STARTTLS por defecto; 465 usa TLS directo), usuario y contraseña o clave de API del proveedor SMTP. |
 | `FITNESS_TRACKER_DB_POOL_MAX` | No | Máximo de conexiones del pool (10 por defecto). |
 | `FITNESS_TRACKER_TEST_DATABASE_URL` | No | Solo para las pruebas: base PostgreSQL que se vacía en cada prueba. Si no se define, las pruebas arrancan un PostgreSQL local con `pgserver`. |
 | `FITNESS_TRACKER_REGISTRATION_MODE` | No | `invite` (por defecto): para registrarse hace falta un código de invitación. `open`: registro abierto, útil solo en desarrollo local. |
@@ -522,8 +525,20 @@ En desarrollo local puedes saltarte las invitaciones con
 
 ### Recuperación de contraseña
 
-Sin servicio de correo: quien olvide su contraseña se lo pide a quien administra el servidor,
-que genera un código **en el servidor**:
+Hay dos caminos, que comparten el mismo código de un solo uso (solo se guarda su hash):
+
+**Por correo (opcional).** Si configuras un servidor SMTP (`FITNESS_TRACKER_SMTP_HOST` y
+`FITNESS_TRACKER_MAIL_FROM`), en «He olvidado mi contraseña» aparece «Enviarme un código»:
+la persona recibe el código por email y lo escribe junto con la contraseña nueva. La
+respuesta es la misma exista o no la cuenta, hay límites por IP (5/hora) y por cuenta
+(3/hora) y el código nunca se escribe en los registros. Comprueba la configuración con:
+
+```bash
+python -m app.cli test-email --to tu@correo.com
+```
+
+**Manual (siempre disponible).** Quien olvide su contraseña se lo pide a quien administra
+el servidor, que genera un código **en el servidor**:
 
 ```bash
 python -m app.cli create-reset-code --email persona@ejemplo.com --minutes 60

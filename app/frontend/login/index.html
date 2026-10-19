@@ -184,8 +184,10 @@
       </div>
 
       <p>
-        Pide un código de recuperación al administrador (te lo dará por un
-        canal privado). Es de un solo uso y caduca pronto.
+        Escribe tu correo y pulsa «Enviarme un código» para recibirlo por
+        email. Si el envío por correo no está disponible, pídeselo al
+        administrador (te lo dará por un canal privado). El código es de
+        un solo uso y caduca pronto.
       </p>
 
       <form id="reset-form" class="form-grid">
@@ -199,6 +201,16 @@
             required
           />
         </label>
+
+        <div class="form-actions full-width">
+          <button
+            id="send-reset-code-button"
+            class="secondary-button"
+            type="button"
+          >
+            Enviarme un código
+          </button>
+        </div>
 
         <label class="full-width">
           Código de recuperación
