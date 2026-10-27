@@ -120,6 +120,8 @@ Registrar en un único lugar datos que normalmente quedan repartidos entre notas
 - CSS
 - JavaScript sin framework
 - Diseño responsive orientado a móvil
+- **En migración a Angular**, pantalla a pantalla y sin tocar la API: la interfaz nueva vive en
+  `frontend-angular/` y se sirve en `/app/`, junto a la actual. Ver [`docs/ANGULAR.md`](docs/ANGULAR.md).
 
 ### Evolución prevista
 

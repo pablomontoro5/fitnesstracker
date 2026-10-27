@@ -1,0 +1,31 @@
+<section class="intro-card">
+  <div>
+    <p class="eyebrow">Andamiaje</p>
+    <h2>Angular ya funciona</h2>
+    <p>
+      Esta es la base para ir pasando las pantallas a Angular una a una. Mientras
+      tanto, la app actual sigue funcionando exactamente igual.
+    </p>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Estado del servidor</h2>
+
+  @if (server() === 'loading') {
+    <p>Comprobando…</p>
+  } @else if (server() === 'ok') {
+    <p class="status-message success">El servidor responde y la base de datos funciona.</p>
+  } @else {
+    <p class="status-message error">
+      No se pudo comprobar el servidor. ¿Está arrancado FastAPI?
+    </p>
+  }
+</section>
+
+<section class="panel">
+  <h2>Pantallas migradas</h2>
+  <ul>
+    <li><a routerLink="/privacidad">Aviso de privacidad</a></li>
+  </ul>
+</section>

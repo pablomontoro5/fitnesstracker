@@ -1,0 +1,110 @@
+{
+  "/auth": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/body-metrics": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/calendar": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/daily-logs": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/exercise-catalog": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/exports": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/food-library": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/goals": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/health": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/imports": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/meal-templates": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/nutrition-days": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/nutrition-foods": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/nutrition-meals": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/planned-meals": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/planned-workouts": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/recovery-logs": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/restores": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/runs": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/statistics": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/workout-exercises": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/workout-sessions": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/workout-sets": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/workout-templates": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/workouts": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/static": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  },
+  "/manifest.webmanifest": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false
+  }
+}
