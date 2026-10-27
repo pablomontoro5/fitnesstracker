@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from app.db import check_database, close_pool, initialize_database
 from app.invitations import get_registration_mode
 from app.logging_config import configure_logging, logger
+from app.mailer import mail_is_configured
 from app.security import get_jwt_secret
 from app.routers import (
     auth,
@@ -62,6 +63,12 @@ async def lifespan(app: FastAPI):
         "Arranque: registro=%s docs=%s",
         registration_mode,
         "activadas" if docs_enabled() else "desactivadas",
+    )
+    logger.info(
+        "Recuperación de contraseña por correo: %s",
+        "activada"
+        if mail_is_configured()
+        else "desactivada (solo código manual con app.cli)",
     )
     yield
     close_pool()

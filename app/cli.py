@@ -2,11 +2,13 @@
 
     python -m app.cli create-invite [--days 7]
     python -m app.cli create-reset-code --email EMAIL [--minutes 60]
+    python -m app.cli test-email --to EMAIL
 """
 import argparse
 import sys
 from app.db import get_connection, initialize_database
 from app.invitations import DEFAULT_INVITATION_DAYS, create_invitation
+from app.mailer import MailError, mail_is_configured, send_email
 from app.password_resets import DEFAULT_RESET_MINUTES, create_password_reset
 
 
@@ -36,6 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_RESET_MINUTES,
         help=f"Minutos de validez (por defecto {DEFAULT_RESET_MINUTES}).",
     )
+
+    test_email = subcommands.add_parser(
+        "test-email",
+        help="Envía un correo de prueba para comprobar la configuración SMTP.",
+    )
+    test_email.add_argument("--to", required=True, help="Destinatario.")
 
     return parser
 
@@ -80,6 +88,29 @@ def create_reset_code(email: str, minutes: int) -> int:
     return 0
 
 
+def test_email(to: str) -> int:
+    if not mail_is_configured():
+        print(
+            "Falta configurar FITNESS_TRACKER_SMTP_HOST y "
+            "FITNESS_TRACKER_MAIL_FROM.",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        send_email(
+            to.strip(),
+            "Prueba de Fitness Tracker",
+            "Si lees esto, el envío de correo funciona.",
+        )
+    except MailError as error:
+        print(str(error), file=sys.stderr)
+        return 1
+
+    print(f"Correo de prueba enviado a {to}.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -95,6 +126,9 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--minutes debe ser un entero positivo.")
 
         return create_reset_code(args.email, args.minutes)
+
+    if args.command == "test-email":
+        return test_email(args.to)
 
     parser.error("Comando desconocido.")
     return 2

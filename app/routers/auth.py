@@ -1,5 +1,13 @@
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.db import Connection, IntegrityError, get_connection
@@ -13,8 +21,12 @@ from app.password_resets import (
     consume_password_reset,
     find_valid_reset_id,
     invalid_reset,
+    send_reset_email,
 )
+from app.mailer import mail_is_configured
 from app.rate_limit import (
+    FORGOT_REQUESTS_PER_EMAIL,
+    FORGOT_REQUESTS_PER_IP,
     LOGIN_FAILURES_PER_ACCOUNT,
     LOGIN_FAILURES_PER_IP,
     PASSWORD_FAILURES_PER_USER,
@@ -26,6 +38,7 @@ from app.rate_limit import (
 from app.schemas import (
     AccessTokenResponse,
     AccountDelete,
+    ForgotPassword,
     PasswordChange,
     PasswordReset,
     UserLogin,
@@ -311,6 +324,53 @@ def change_password(
     return AccessTokenResponse(
         access_token=create_access_token(current_user.id, new_version),
     )
+
+
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def forgot_password(
+    payload: ForgotPassword,
+    request: Request,
+    background_tasks: BackgroundTasks,
+) -> dict[str, str]:
+    """Envía un código de recuperación al correo de la cuenta.
+
+    La respuesta es siempre la misma exista o no la cuenta (el trabajo real
+    va después de responder), para no revelar quién tiene cuenta."""
+    if not mail_is_configured():
+        # Depende de la configuración del servidor, no de la cuenta.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "El envío por correo no está disponible en este servidor. "
+                "Pide el código de recuperación al administrador."
+            ),
+        )
+
+    client_ip = get_client_ip(request)
+    retry_after = FORGOT_REQUESTS_PER_IP.retry_after(client_ip)
+
+    if retry_after:
+        raise too_many_requests(retry_after)
+
+    FORGOT_REQUESTS_PER_IP.record(client_ip)
+
+    email = payload.email.strip().lower()
+
+    if FORGOT_REQUESTS_PER_EMAIL.retry_after(email):
+        logger.warning("Recuperación por correo limitada ip=%s", client_ip)
+    else:
+        FORGOT_REQUESTS_PER_EMAIL.record(email)
+        background_tasks.add_task(send_reset_email, email)
+
+    return {
+        "detail": (
+            "Si existe una cuenta con ese correo, te hemos enviado un código "
+            "de recuperación. Revisa también la carpeta de spam."
+        ),
+    }
 
 
 @router.post(

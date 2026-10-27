@@ -1,8 +1,9 @@
-"""Recuperación de contraseña sin correo.
+"""Recuperación de contraseña con código de un solo uso.
 
-El administrador genera un código de un solo uso con
-`python -m app.cli create-reset-code --email ...` y se lo entrega a la
-persona por un canal privado. Solo se guarda su hash.
+El código se crea de dos formas: la persona lo pide por correo
+(`POST /auth/forgot-password`, si hay SMTP configurado) o el administrador
+lo genera con `python -m app.cli create-reset-code --email ...` y se lo
+entrega por un canal privado. Solo se guarda su hash.
 """
 import hashlib
 import secrets
@@ -10,7 +11,9 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 
-from app.db import Connection
+from app.db import Connection, get_connection
+from app.logging_config import logger
+from app.mailer import MailError, send_email
 
 
 DEFAULT_RESET_MINUTES = 60
@@ -112,3 +115,53 @@ def consume_password_reset(
     # Si otra petición lo gastó entre medias, se deshace el cambio.
     if cursor.rowcount != 1:
         raise invalid_reset()
+
+
+RESET_EMAIL_BODY = """Hola {name}:
+
+Alguien (esperamos que tú) ha pedido recuperar la contraseña de tu cuenta
+de Fitness Tracker.
+
+Tu código de recuperación es:
+
+    {code}
+
+Introdúcelo en la pantalla de inicio de sesión, en «He olvidado mi
+contraseña», junto con tu correo y la contraseña nueva. Es de un solo uso
+y caduca en {minutes} minutos.
+
+Si no lo has pedido tú, ignora este mensaje: tu contraseña no cambiará.
+"""
+
+
+def send_reset_email(email: str) -> None:
+    """Crea un código para `email` y se lo envía, si la cuenta existe y está
+    activa. No devuelve nada ni falla hacia fuera: se ejecuta tras responder
+    para que la respuesta no revele si la cuenta existe."""
+    try:
+        with get_connection() as connection:
+            user = connection.execute(
+                "SELECT id, display_name, is_active FROM users WHERE email = ?",
+                (email,),
+            ).fetchone()
+
+            if user is None or not bool(user["is_active"]):
+                return
+
+            code, _ = create_password_reset(connection, user["id"])
+
+        send_email(
+            email,
+            "Código para recuperar tu contraseña",
+            RESET_EMAIL_BODY.format(
+                name=user["display_name"],
+                code=code,
+                minutes=DEFAULT_RESET_MINUTES,
+            ),
+        )
+        logger.info("Código de recuperación enviado: id=%s", user["id"])
+    except MailError as error:
+        logger.error("Recuperación por correo: %s", error)
+    except Exception:
+        logger.exception("Recuperación por correo: error inesperado")
+

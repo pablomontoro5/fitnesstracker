@@ -184,6 +184,28 @@ Copia el código, entra en la web, pulsa «Crear cuenta» y regístrate.
 Para cada persona nueva, genera otro código y envíaselo por un canal privado.
 Cada código sirve una vez y caduca a los 7 días.
 
+## 5b. Correo para recuperar contraseñas (opcional)
+
+Con ~5 usuarios puedes saltarte este apartado y dar los códigos a mano (tabla de
+la sección 7). Si quieres que cada persona se recupere sola:
+
+1. Elige un proveedor SMTP (Resend, Brevo, Amazon SES, el correo de tu dominio…).
+   Mira en su web los límites del plan gratuito vigentes: para este uso bastan
+   unos pocos correos al mes.
+2. Para que los mensajes lleguen a la bandeja de entrada (y no a spam) **envía
+   desde un dominio tuyo** y añade en su DNS los registros SPF y DKIM que te
+   indique el proveedor. Enviar «desde» una dirección de Gmail/Outlook con un
+   servidor ajeno suele acabar en spam o rebotar.
+3. Rellena en `.env` `FITNESS_TRACKER_SMTP_HOST`, `FITNESS_TRACKER_SMTP_PORT`,
+   `FITNESS_TRACKER_SMTP_USER`, `FITNESS_TRACKER_SMTP_PASSWORD` y
+   `FITNESS_TRACKER_MAIL_FROM` con los datos que da el proveedor (587 usa
+   STARTTLS; 465, TLS directo).
+4. `docker compose up -d` y prueba: `docker compose exec app python -m app.cli test-email --to tu@correo.com`.
+5. En el arranque el registro dirá «Recuperación de contraseña por correo: activada».
+
+Si el proveedor falla, la persona recibe igualmente la respuesta genérica y el
+error queda en los registros (sin el código); puedes seguir dando códigos a mano.
+
 ## 6. Copias de seguridad nocturnas cifradas
 
 La copia es un volcado de PostgreSQL (`pg_dump`) que se cifra con una clave
@@ -278,6 +300,7 @@ restauración completa de prueba (sección 8) en una base vacía.
 | Reiniciar | `docker compose restart app` |
 | Nuevo código de invitación | `docker compose exec app python -m app.cli create-invite` |
 | Código de recuperación de contraseña | `docker compose exec app python -m app.cli create-reset-code --email persona@ejemplo.com` |
+| Probar el envío de correo | `docker compose exec app python -m app.cli test-email --to tu@correo.com` |
 | Copia manual | `sudo deploy/backup.sh` |
 | Estado | `docker compose ps` |
 
@@ -335,6 +358,7 @@ tendrías que restaurar la copia en una base aparte y extraer sus datos de ahí.
 - [ ] `FITNESS_TRACKER_REGISTRATION_MODE=invite`.
 - [ ] Acceso SSH solo con clave, sin `root`, `ufw` activo.
 - [ ] La clave privada de `age` guardada en dos sitios y **no** en el servidor.
+- [ ] Si usas correo: `test-email` llega a la bandeja de entrada (no a spam) y el dominio tiene SPF/DKIM.
 - [ ] La contraseña de la base de datos de Supabase en tu gestor de contraseñas, y ninguna clave `anon`/`service_role` en la app.
 - [ ] Una copia restaurada y verificada (`verify-backup.sh`).
 - [ ] Alerta de «latido» configurada para saber si las copias se paran.
@@ -343,9 +367,10 @@ tendrías que restaurar la copia en una base aparte y extraer sus datos de ahí.
 
 - Un solo servidor y un solo proceso (el limitador de intentos está en memoria).
   Si el servidor se cae, la web no está disponible hasta reiniciarlo.
-- La recuperación de contraseña no usa correo: la persona te pide un código y tú
-  lo generas con el comando de la tabla anterior (válido 60 minutos, un solo uso).
-  Entrégalo por un canal privado y comprueba que quien lo pide es quien dice ser.
+- La recuperación por correo solo funciona si configuras SMTP (ver abajo). Sin
+  él, la persona te pide un código y tú lo generas con el comando de la tabla
+  anterior (válido 60 minutos, un solo uso). Entrégalo por un canal privado y
+  comprueba que quien lo pide es quien dice ser.
 - La documentación interactiva (`/docs`, `/redoc`) está desactivada por defecto.
   No pongas `FITNESS_TRACKER_ENABLE_DOCS` en producción.
 - No hay CORS a propósito: el frontend se sirve desde el mismo dominio que la
