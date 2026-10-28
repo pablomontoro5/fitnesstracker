@@ -11,6 +11,7 @@ from app.invitations import get_registration_mode
 from app.logging_config import configure_logging, logger
 from app.mailer import mail_is_configured
 from app.security import get_jwt_secret
+from app.spa import SinglePageApp
 from app.routers import (
     auth,
     body_metrics,
@@ -40,6 +41,9 @@ from app.routers import (
 
 
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
+# Compilación de Angular (`frontend-angular/`, ver docs/ANGULAR.md). Solo existe
+# tras `ng build` o en la imagen Docker; sin ella, la app actual funciona igual.
+ANGULAR_DIR = Path(__file__).resolve().parent / "frontend-ng"
 
 
 DOCS_ENV = "FITNESS_TRACKER_ENABLE_DOCS"
@@ -113,6 +117,9 @@ app.mount(
     StaticFiles(directory=FRONTEND_DIR, html=True),
     name="static",
 )
+
+if (ANGULAR_DIR / "index.html").is_file():
+    app.mount("/app", SinglePageApp(directory=ANGULAR_DIR), name="angular")
 
 
 @app.get("/", include_in_schema=False)

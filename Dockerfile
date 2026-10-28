@@ -1,3 +1,17 @@
+# Etapa 1: compila la interfaz de Angular (frontend-angular/). El resultado va a
+# /build/app/frontend-ng (outputPath de angular.json) y se copia a la imagen final.
+FROM node:24-slim AS angular-build
+
+WORKDIR /build/frontend-angular
+
+COPY frontend-angular/package.json frontend-angular/package-lock.json ./
+RUN npm ci
+
+COPY frontend-angular ./
+RUN npx ng build
+
+
+# Etapa 2: la aplicación (FastAPI), que sirve también lo compilado en /app/.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -13,6 +27,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY app ./app
+COPY --from=angular-build /build/app/frontend-ng ./app/frontend-ng
 
 USER app
 

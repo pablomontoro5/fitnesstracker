@@ -106,10 +106,32 @@ jobs:
           docker logs app
           exit 1
 
+  # La interfaz de Angular: pruebas y compilación. Corre dentro de una imagen de
+  # Node para no depender de la versión que traiga el runner.
+  angular:
+    name: Angular (pruebas y compilación)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: node:24
+    defaults:
+      run:
+        working-directory: frontend-angular
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas
+        run: npx ng test --watch=false
+
+      - name: Compilar
+        run: npx ng build
+
   # Un único resultado estable para exigirlo en la protección de la rama.
   ci:
     name: ci
-    needs: [tests, deploy-files]
+    needs: [tests, deploy-files, angular]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

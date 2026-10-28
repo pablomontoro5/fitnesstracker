@@ -15,3 +15,7 @@ deploy
 *.db-wal
 *.db-shm
 *.patch
+# Angular: las dependencias y la compilación se generan dentro de la imagen.
+**/node_modules
+frontend-angular/.angular
+app/frontend-ng
