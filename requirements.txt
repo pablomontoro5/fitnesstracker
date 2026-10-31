@@ -2,7 +2,7 @@
 # Dependabot propone las actualizaciones (ver .github/dependabot.yml).
 fastapi==0.156.8
 uvicorn[standard]==0.54.0
-pytest==9.1.1
+pytest==9.2.0
 httpx==0.28.1
 python-multipart==0.0.32
 pwdlib[argon2]==0.3.1
